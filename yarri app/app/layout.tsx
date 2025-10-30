@@ -3,6 +3,7 @@ import { Baloo_Tammudu_2 } from 'next/font/google'
 import { LanguageProvider } from '../contexts/LanguageContext'
 import { SocketProvider } from '../contexts/SocketContext'
 import GlobalCallUI from '../components/GlobalCallUI'
+import NativeStatusBar from '../components/NativeStatusBar'
 
 const balooTammudu = Baloo_Tammudu_2({ 
   subsets: ['latin'],
@@ -22,7 +23,7 @@ export const viewport = {
   userScalable: false,
   viewportFit: 'cover',
   interactiveWidget: 'resizes-content',
-  themeColor: '#000000',
+  themeColor: '#FF6B35',
 }
 
 export default function RootLayout({
@@ -33,6 +34,8 @@ export default function RootLayout({
   return (
     <html lang="en" className={balooTammudu.variable}>
       <body className={balooTammudu.className}>
+        {/* Client-only status bar configuration */}
+        <NativeStatusBar />
         <SocketProvider>
           <LanguageProvider>
             <div className="mobile-container">

@@ -27,8 +27,10 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
 
     setIsVerifying(true)
     try {
-      const apiBase = Capacitor.isNativePlatform() ? (process.env.NEXT_PUBLIC_API_URL || 'https://acsgroup.cloud') : '/api'
-      const res = await fetch(`${apiBase}/auth/verify-otp`, {
+      const endpoint = Capacitor.isNativePlatform()
+        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://acsgroup.cloud'}/api/auth/verify-otp`
+        : `/api/auth/verify-otp`
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, otp: otpCode }),

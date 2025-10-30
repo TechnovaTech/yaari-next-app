@@ -98,8 +98,10 @@ export default function LoginScreen({ onNext }: LoginScreenProps) {
     
     setLoading(true)
     try {
-      const apiBase = Capacitor.isNativePlatform() ? (process.env.NEXT_PUBLIC_API_URL || 'https://acsgroup.cloud') : '/api'
-      const res = await fetch(`${apiBase}/auth/send-otp`, {
+      const endpoint = Capacitor.isNativePlatform()
+        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://acsgroup.cloud'}/api/auth/send-otp`
+        : `/api/auth/send-otp`
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: phoneNumber }),
@@ -109,7 +111,8 @@ export default function LoginScreen({ onNext }: LoginScreenProps) {
         localStorage.setItem('phone', phoneNumber)
         onNext()
       } else {
-        alert('Failed to send OTP')
+        const data = await res.json().catch(() => ({}))
+        alert(data.error || 'Failed to send OTP')
       }
     } catch (error) {
       alert('Error sending OTP')
