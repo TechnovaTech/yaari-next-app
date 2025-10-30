@@ -3,3 +3,6 @@
 
 # Explicitly ignore the problematic zip in admin panel
 yarri admin panel/zip.zip
+
+# Ignore local JDK bundle under mobile app (heavy, not source)
+yarri app/temp_jdk/
