@@ -270,7 +270,7 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
 
         <div className="bg-orange-50 rounded-2xl p-6 mb-4 flex items-center">
           <div className="w-16 h-16 bg-orange-400 rounded-full flex items-center justify-center mr-4">
-            <span className="text-white text-3xl font-extrabold">Y</span>
+            <span className="text-white text-3xl font-extrabold" style={{ marginTop: '20px' }}>Y</span>
           </div>
           <div>
             <p className="text-gray-700 text-sm mb-1">Total Coin Balance</p>
@@ -334,9 +334,9 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
                 <span className="inline-flex items-center h-9 md:h-10 text-xl md:text-2xl font-extrabold text-black leading-none" style={{ marginTop: '10px' }}>{pkg.coins}</span>
               </div>
               <div className="mt-4 flex flex-col items-center">
-                <p className="text-base md:text-lg font-extrabold text-black">Rs{pkg.price}</p>
+                <p className="text-base md:text-lg font-extrabold text-black">Rs {pkg.price}</p>
                 {pkg.originalPrice && pkg.originalPrice > pkg.price ? (
-                  <p className="text-xs md:text-sm text-gray-400 line-through mt-1">Rs{pkg.originalPrice}</p>
+                  <p className="text-xs md:text-sm text-gray-400 line-through mt-1">Rs {pkg.originalPrice}</p>
                 ) : null}
               </div>
             </button>
@@ -344,7 +344,7 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
         </div>
 
         <button onClick={proceedPayment} disabled={loading || isTopupInvalid} className="w-full bg-orange-500 text-white py-4 rounded-2xl font-semibold text-base hover:bg-orange-600 transition-colors flex items-center justify-center disabled:opacity-60">
-          {loading ? 'Processing...' : 'Proceed to Payment'}
+          <span style={{ marginTop: '10px' }}>{loading ? 'Processing...' : 'Proceed to Payment'}</span>
         </button>
       </div>
     </div>
