@@ -115,6 +115,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       alert(message)
     })
 
+    // NEW: Clear incoming call if caller ends during ringing
+    socketInstance.on('call-ended', () => {
+      console.log('🛑 Call ended (global) — clearing incomingCall')
+      setIncomingCall(null)
+    })
+
     setSocket(socketInstance)
 
     return () => {
@@ -122,6 +128,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       socketInstance.off('incoming-call')
       socketInstance.off('call-accepted')
       socketInstance.off('call-busy')
+      socketInstance.off('call-ended')
       socketInstance.off('connect')
       socketInstance.off('connect_error')
       socketInstance.off('disconnect')

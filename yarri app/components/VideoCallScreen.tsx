@@ -237,11 +237,7 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
       <div className="flex-1 relative">
         <div id="remote-video" className="absolute inset-0 bg-gray-800">
           {remoteUsers.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-700">
-                <img src={userAvatar} alt={userName} className="w-full h-full object-cover" />
-              </div>
-            </div>
+            <div className="absolute inset-0" />
           )}
         </div>
         

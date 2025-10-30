@@ -270,6 +270,27 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
     }
   }
 
+  // Allow cancelling outgoing call while ringing
+  const handleCancelRinging = () => {
+    try {
+      const callData = sessionStorage.getItem('callData')
+      const user = localStorage.getItem('user')
+      const userData = user ? JSON.parse(user) : null
+      if (socket && callData && userData?.id) {
+        const data = JSON.parse(callData)
+        if (data?.otherUserId) {
+          socket.emit('end-call', {
+            userId: userData.id,
+            otherUserId: data.otherUserId,
+          })
+        }
+      }
+    } catch (_) {}
+    setIsRinging(false)
+    sessionStorage.removeItem('callData')
+    sessionStorage.removeItem('channelName')
+  }
+
   const handleAcceptCall = () => {
     if (incomingCall && socket) {
       console.log('Accepting call from:', incomingCall.callerId)
@@ -433,6 +454,12 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
               <Phone size={40} className="text-white" />
             </div>
             <p className="text-white text-xl">Ringing...</p>
+            <button
+              onClick={handleCancelRinging}
+              className="mt-6 px-4 py-2 bg-red-600 text-white rounded-lg"
+            >
+              Terminate Call
+            </button>
           </div>
         </div>
       )}

@@ -156,6 +156,26 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
     })
   }
 
+  // Allow cancelling outgoing call while ringing
+  const handleCancelRinging = () => {
+    try {
+      const callData = sessionStorage.getItem('callData')
+      const user = localStorage.getItem('user')
+      const userData = user ? JSON.parse(user) : null
+      if (socket && callData && userData?.id) {
+        const data = JSON.parse(callData)
+        if (data?.otherUserId) {
+          socket.emit('end-call', {
+            userId: userData.id,
+            otherUserId: data.otherUserId,
+          })
+        }
+      }
+    } catch (_) {}
+    setIsRinging(false)
+    sessionStorage.removeItem('callData')
+    sessionStorage.removeItem('channelName')
+  }
   const userName = user.name || 'User'
   const userAvatar = user.profilePic || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
   return (
@@ -279,6 +299,12 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
               <Phone size={40} className="text-white" />
             </div>
             <p className="text-white text-xl">Ringing...</p>
+            <button
+              onClick={handleCancelRinging}
+              className="mt-6 px-4 py-2 bg-red-600 text-white rounded-lg"
+            >
+              Terminate Call
+            </button>
           </div>
         </div>
       )}
