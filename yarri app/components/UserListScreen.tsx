@@ -208,26 +208,10 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
     }
   }
 
-  const handlePermissionAllow = async () => {
-    try {
-      // Request permissions
-      if (permissionType === 'video') {
-        await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      } else {
-        await navigator.mediaDevices.getUserMedia({ audio: true })
-      }
-      
-      // Save permission granted
-      localStorage.setItem('mediaPermissionsGranted', 'true')
-      
-      // Close permission modal and show call confirmation
-      setShowPermissionModal(false)
-      setShowCallModal(true)
-    } catch (error) {
-      console.error('Permission denied:', error)
-      setShowPermissionModal(false)
-      setShowPermissionDenied(true)
-    }
+  const handlePermissionAllow = () => {
+    localStorage.setItem('mediaPermissionsGranted', 'true')
+    setShowPermissionModal(false)
+    setShowCallModal(true)
   }
 
   const handlePermissionDeny = () => {
