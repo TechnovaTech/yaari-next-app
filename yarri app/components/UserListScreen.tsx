@@ -328,7 +328,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
       <div className="fixed top-0 left-0 right-0 z-50 bg-white p-4 flex items-center justify-between shadow-sm" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center gap-2" style={{ alignItems: 'center' }}>
           <Heart className="text-primary" size={24} fill="#FF6B35" style={{ marginTop: '4px' }} />
-          <h1 className="text-2xl font-bold text-primary" style={{ lineHeight: '24px' }}>Yaari</h1>
+          <h1 className="text-2xl font-bold text-primary" style={{ lineHeight: '24px' , marginTop: '20px' }}>Yaari</h1>
         </div>
         <div className="flex items-center space-x-3">
           <button 
@@ -341,7 +341,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
               <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
               <path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>
             </svg>
-            <span className="text-gray-800 font-bold text-base" style={{ lineHeight: '20px' }}>₹{balance}</span>
+            <span className="text-gray-800 font-bold text-base" style={{ lineHeight: '20px' , marginTop: '15px' }}>₹{balance}</span>
           </button>
           <button 
             onClick={onProfileClick}
