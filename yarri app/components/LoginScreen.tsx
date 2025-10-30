@@ -3,6 +3,7 @@ import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth'
 import { useGoogleLogin } from '@react-oauth/google'
 import { Capacitor } from '@capacitor/core'
 import { useRouter } from 'next/navigation'
+import { trackUserLogin, trackEvent } from '@/utils/clevertap'
 
 interface LoginScreenProps {
   onNext: () => void
@@ -38,6 +39,21 @@ export default function LoginScreen({ onNext }: LoginScreenProps) {
       if (res.ok) {
         const data = await res.json()
         localStorage.setItem('user', JSON.stringify(data.user))
+        
+        // Track user login with CleverTap
+        await trackUserLogin(googleId, {
+          Name: name,
+          Email: email,
+          'Login Method': 'Google',
+          'Profile Picture': profilePic
+        })
+        
+        // Track login event
+        await trackEvent('User Login', {
+          'Login Method': 'Google',
+          'User ID': googleId,
+          'Email': email
+        })
         
         if (data.user.name && data.user.gender) {
           router.push('/users')
@@ -109,6 +125,13 @@ export default function LoginScreen({ onNext }: LoginScreenProps) {
       
       if (res.ok) {
         localStorage.setItem('phone', phoneNumber)
+        
+        // Track OTP request event
+        await trackEvent('OTP Requested', {
+          'Login Method': 'Phone',
+          'Phone Number': phoneNumber
+        })
+        
         onNext()
       } else {
         const data = await res.json().catch(() => ({}))

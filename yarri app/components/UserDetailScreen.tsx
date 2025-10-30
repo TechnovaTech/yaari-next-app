@@ -7,6 +7,7 @@ import { useSocket } from '../contexts/SocketContext'
 import CallConfirmationScreen from './CallConfirmationScreen'
 import PermissionModal from './PermissionModal'
 import PermissionDeniedModal from './PermissionDeniedModal'
+import { trackEvent, trackScreenView, trackProfileView } from '@/utils/clevertap'
 
 interface UserDetailScreenProps {
   onBack: () => void
@@ -31,6 +32,10 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
 
   useEffect(() => {
     fetchUser()
+    
+    // Track screen view and profile view
+    trackScreenView('User Detail')
+    trackProfileView(userId)
   }, [userId])
 
   useEffect(() => {

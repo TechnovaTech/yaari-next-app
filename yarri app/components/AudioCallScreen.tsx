@@ -6,6 +6,7 @@ import { agoraConfig } from '../config/agora'
 import { useSocket } from '../contexts/SocketContext'
 import { useRouter } from 'next/navigation'
 import { useBackButton } from '../hooks/useBackButton'
+import { trackEvent, trackScreenView } from '@/utils/clevertap'
 
 interface AudioCallScreenProps {
   userName: string
@@ -106,6 +107,9 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     })
 
     init()
+    
+    // Track screen view
+    trackScreenView('Audio Call')
 
     return () => {
       localAudioTrack?.close()
@@ -124,6 +128,16 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     console.log('🔴 USER CLICKED END CALL BUTTON')
     const callData = sessionStorage.getItem('callData')
     console.log('Call data:', callData)
+    
+    // Track call end event
+    const cost = Math.ceil(duration / 60) * rate
+    trackEvent('Call Ended', {
+      'Call Type': 'audio',
+      'Duration': duration,
+      'Cost': cost,
+      'Ended By': 'User',
+      'Receiver': userName
+    })
     
     // Notify other user FIRST before cleanup
     if (callData && socket) {

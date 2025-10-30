@@ -9,6 +9,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
 import { useSocket } from '../contexts/SocketContext'
 import { useRouter } from 'next/navigation'
+import { trackEvent, trackScreenView } from '@/utils/clevertap'
 
 interface UserListScreenProps {
   onNext: () => void
@@ -47,6 +48,9 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
   useEffect(() => {
     fetchUsers()
     fetchBalance()
+    
+    // Track screen view
+    trackScreenView('User List')
   }, [])
 
   useEffect(() => {
@@ -235,6 +239,14 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
         callType: selectedCall.type
       })
       
+      // Track call initiation event
+      trackEvent('Call Initiated', {
+        'Call Type': selectedCall.type,
+        'Receiver ID': selectedCall.user.id,
+        'Rate': selectedCall.rate,
+        'Source': 'User List'
+      })
+      
       sessionStorage.setItem('callData', JSON.stringify({
         userName: selectedCall.user.name,
         userAvatar: selectedCall.user.profilePic || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedCall.user.id}`,
@@ -362,7 +374,16 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
             .map((user) => (
             <div 
               key={user.id} 
-              onClick={() => onUserClick(user.id)}
+              onClick={() => {
+                // Track profile view
+                trackEvent('Profile Viewed', {
+                  'Viewed User ID': user.id,
+                  'Source': 'User List',
+                  'User Name': user.name,
+                  'User Status': user.status
+                })
+                onUserClick(user.id)
+              }}
               className="bg-white rounded-2xl p-4 flex items-center space-x-4 shadow-sm cursor-pointer active:bg-gray-50"
             >
               <div className="relative flex-shrink-0">

@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
+import { trackEvent, trackScreenView, trackSubscription } from '@/utils/clevertap'
 
 interface CoinPurchaseScreenProps {
   onBack: () => void
@@ -43,6 +44,9 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
     }
     loadSettings()
     loadPlans()
+    
+    // Track screen view
+    trackScreenView('Coin Purchase')
   }, [])
 
   const loadSettings = async () => {
@@ -173,6 +177,15 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
         return
       }
 
+      // Track payment initiation
+      trackEvent('Payment Initiated', {
+        'Amount': amountRupees,
+        'Type': type,
+        'Plan ID': planId || 'Custom',
+        'Coins': selectedPlan ? selectedPlan.coins : coinsRequested,
+        'Payment Method': 'Razorpay'
+      })
+
       const options = {
         key: orderData.keyId || RAZORPAY_KEY_ID,
         amount: orderData.amountPaise,
@@ -195,11 +208,40 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
             if (verifyRes.ok) {
               alert('Payment successful! Coins credited.')
               setBalance(verifyData.newBalance || balance)
+              
+              // Track successful payment
+              trackEvent('Payment Successful', {
+                'Amount': amountRupees,
+                'Type': type,
+                'Plan ID': planId || 'Custom',
+                'Coins': selectedPlan ? selectedPlan.coins : coinsRequested,
+                'Payment ID': response.razorpay_payment_id,
+                'Order ID': response.razorpay_order_id
+              })
+              
+              // Track subscription if it's a plan purchase
+              if (selectedPlan && planId) {
+                trackSubscription(selectedPlan.title || 'Coin Plan', amountRupees, 'INR')
+              }
             } else {
               alert(verifyData.error || 'Payment verification failed')
+              
+              // Track payment failure
+              trackEvent('Payment Failed', {
+                'Amount': amountRupees,
+                'Type': type,
+                'Error': verifyData.error || 'Verification failed'
+              })
             }
           } catch (err) {
             alert('Payment verification error')
+            
+            // Track payment error
+            trackEvent('Payment Error', {
+              'Amount': amountRupees,
+              'Type': type,
+              'Error': 'Verification error'
+            })
           }
         },
         theme: { color: '#FF6B35' },

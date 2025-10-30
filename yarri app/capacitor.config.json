@@ -1,7 +1,7 @@
 {
   "appId": "com.yaari.app",
   "appName": "Yaari",
-  "webDir": "out",
+  "webDir": "www",
   "bundledWebRuntime": false,
   "server": {
     "androidScheme": "https",
@@ -37,7 +37,8 @@
     },
     "App": {
       "androidBackButton": "enabled"
-    }
+    },
+
   },
   "android": {
     "allowMixedContent": true,

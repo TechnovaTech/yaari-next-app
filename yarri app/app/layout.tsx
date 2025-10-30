@@ -4,6 +4,7 @@ import { LanguageProvider } from '../contexts/LanguageContext'
 import { SocketProvider } from '../contexts/SocketContext'
 import GlobalCallUI from '../components/GlobalCallUI'
 import NativeStatusBar from '../components/NativeStatusBar'
+import CleverTapInit from '../components/CleverTapInit'
 
 const balooTammudu = Baloo_Tammudu_2({ 
   subsets: ['latin'],
@@ -36,6 +37,8 @@ export default function RootLayout({
       <body className={balooTammudu.className}>
         {/* Client-only status bar configuration */}
         <NativeStatusBar />
+        {/* CleverTap initialization */}
+        <CleverTapInit />
         <SocketProvider>
           <LanguageProvider>
             <div className="mobile-container">

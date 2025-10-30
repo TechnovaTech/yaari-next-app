@@ -6,6 +6,7 @@ import { agoraConfig } from '../config/agora'
 import { useSocket } from '../contexts/SocketContext'
 import { useRouter } from 'next/navigation'
 import { useBackButton } from '../hooks/useBackButton'
+import { trackEvent, trackScreenView } from '@/utils/clevertap'
 
 interface VideoCallScreenProps {
   userName: string
@@ -126,6 +127,9 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
     })
 
     init()
+    
+    // Track screen view
+    trackScreenView('Video Call')
 
     return () => {
       localVideoTrack?.close()
@@ -183,6 +187,16 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
     console.log('🔴 USER CLICKED END CALL BUTTON')
     const callData = sessionStorage.getItem('callData')
     console.log('Call data:', callData)
+    
+    // Track call end event
+    const cost = Math.ceil(duration / 60) * rate
+    trackEvent('Call Ended', {
+      'Call Type': 'video',
+      'Duration': duration,
+      'Cost': cost,
+      'Ended By': 'User',
+      'Receiver': userName
+    })
     
     // Notify other user FIRST before cleanup
     if (callData && socket) {
