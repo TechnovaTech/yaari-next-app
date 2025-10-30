@@ -313,7 +313,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="fixed top-0 left-0 right-0 z-50 bg-white p-4 flex items-center justify-between shadow-sm">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-white p-4 flex items-center justify-between shadow-sm" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center gap-2" style={{ alignItems: 'center' }}>
           <Heart className="text-primary" size={24} fill="#FF6B35" style={{ marginTop: '4px' }} />
           <h1 className="text-2xl font-bold text-primary" style={{ lineHeight: '24px' }}>Yaari</h1>
@@ -340,7 +340,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
         </div>
       </div>
 
-      <div className="pt-20 p-4">
+      <div className="p-4" style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top))' }}>
         <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-2xl h-40 mb-4"></div>
 
         {loading ? (

@@ -1,4 +1,4 @@
-import { ArrowLeft, Phone, User as UserIcon } from 'lucide-react'
+import { ArrowLeft, Phone, User as UserIcon, Video } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
@@ -19,6 +19,7 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
   const t = translations[lang]
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [userStatus, setUserStatus] = useState<'online' | 'offline'>('offline')
   const router = useRouter()
   const { socket } = useSocket()
   const [showCallModal, setShowCallModal] = useState(false)
@@ -34,6 +35,23 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
 
   useEffect(() => {
     if (!socket) return
+
+    const handleUserStatusChange = ({ userId: statusUserId, status }: { userId: string; status: string }) => {
+      if (statusUserId === userId) {
+        setUserStatus(status === 'online' ? 'online' : 'offline')
+      }
+    }
+
+    const handleOnlineUsers = (userStatuses: { userId: string; status: string }[]) => {
+      const userStatusData = userStatuses.find(us => us.userId === userId)
+      if (userStatusData) {
+        setUserStatus(userStatusData.status === 'online' ? 'online' : 'offline')
+      }
+    }
+
+    socket.on('online-users', handleOnlineUsers)
+    socket.on('user-status-change', handleUserStatusChange)
+    socket.emit('get-online-users')
 
     socket.on('call-accepted', ({ channelName }) => {
       setIsRinging(false)
@@ -70,6 +88,8 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
       socket.off('call-declined')
       socket.off('call-ended')
       socket.off('call-busy')
+      socket.off('online-users', handleOnlineUsers)
+      socket.off('user-status-change', handleUserStatusChange)
     }
   }, [socket, router])
 
@@ -197,9 +217,9 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
               )}
             </div>
             <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded-full flex items-center space-x-1">
-              <div className={`w-2 h-2 rounded-full ${user.isActive ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-              <span className={`text-xs font-medium ${user.isActive ? 'text-green-500' : 'text-gray-400'}`}>
-                {user.isActive ? t.online : t.offline}
+              <div className={`w-2 h-2 rounded-full ${userStatus === 'online' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+              <span className={`text-xs font-medium ${userStatus === 'online' ? 'text-green-500' : 'text-gray-400'}`}>
+                {userStatus === 'online' ? t.online : t.offline}
               </span>
             </div>
           </div>
@@ -247,7 +267,7 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
             onClick={() => handleCallClick('video', 10)}
               className="flex-1 bg-primary text-white py-4 rounded-full font-semibold flex items-center justify-center gap-2"
           >
-            <Phone size={18} />
+            <Video size={18} />
             <span>₹10/min</span>
           </button>
           <button 
