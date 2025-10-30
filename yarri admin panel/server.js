@@ -31,7 +31,7 @@ app.prepare().then(() => {
       users.set(userId, socket.id)
       console.log(`User ${userId} registered with socket ${socket.id}`)
       // Broadcast presence update
-      io.emit('user-online', { userId })
+      io.emit('user-status-change', { userId, status: 'online' })
     })
 
     socket.on('call-user', ({ callerId, callerName, receiverId, callType, channelName }) => {
@@ -78,8 +78,8 @@ app.prepare().then(() => {
         // Mark both users busy and broadcast
         activeCalls.set(callerId, { otherUserId: receiverId, callType: callType || pending?.callType, channelName })
         activeCalls.set(receiverId, { otherUserId: callerId, callType: callType || pending?.callType, channelName })
-        io.emit('user-busy', { userId: callerId })
-        io.emit('user-busy', { userId: receiverId })
+        io.emit('user-status-change', { userId: callerId, status: 'busy' })
+        io.emit('user-status-change', { userId: receiverId, status: 'busy' })
         pendingCalls.delete(callerId)
       }
     })
@@ -105,13 +105,17 @@ app.prepare().then(() => {
       // Clear active call state and broadcast availability
       activeCalls.delete(userId)
       activeCalls.delete(otherUserId)
-      io.emit('user-available', { userId })
-      io.emit('user-available', { userId: otherUserId })
+      io.emit('user-status-change', { userId, status: 'online' })
+      io.emit('user-status-change', { userId: otherUserId, status: 'online' })
     })
 
-    // Provide current list of online user IDs
+    // Provide current list of online user IDs with status
     socket.on('get-online-users', () => {
-      socket.emit('online-users', Array.from(users.keys()))
+      const userStatuses = Array.from(users.keys()).map(userId => ({
+        userId,
+        status: activeCalls.has(userId) ? 'busy' : 'online'
+      }))
+      socket.emit('online-users', userStatuses)
     })
 
     socket.on('disconnect', () => {
@@ -120,13 +124,13 @@ app.prepare().then(() => {
           users.delete(userId)
           console.log(`User ${userId} disconnected`)
           // Broadcast presence update
-          io.emit('user-offline', { userId })
+          io.emit('user-status-change', { userId, status: 'offline' })
           // If user was in a call, mark the other user available
           const active = activeCalls.get(userId)
           if (active && active.otherUserId) {
             activeCalls.delete(active.otherUserId)
             activeCalls.delete(userId)
-            io.emit('user-available', { userId: active.otherUserId })
+            io.emit('user-status-change', { userId: active.otherUserId, status: 'online' })
           }
           break
         }

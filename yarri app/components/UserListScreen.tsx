@@ -353,7 +353,13 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
           </div>
         ) : (
         <div className="space-y-3">
-          {users.map((user) => (
+          {users
+            .sort((a, b) => {
+              // Sort by status: online first, then busy, then offline
+              const statusOrder = { online: 0, busy: 1, offline: 2 }
+              return statusOrder[a.status] - statusOrder[b.status]
+            })
+            .map((user) => (
             <div 
               key={user.id} 
               onClick={() => onUserClick(user.id)}
