@@ -374,7 +374,12 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
               </div>
               <div className="flex-1">
                 <h3 className="text-primary font-bold text-lg mb-0.5">{user.name}</h3>
-                <p className="text-gray-500 text-sm mb-3">{user.attributes}</p>
+                <p className="text-gray-500 text-sm mb-3 line-clamp-1 overflow-hidden">
+                  {user.attributes && user.attributes.length > 50 
+                    ? `${user.attributes.slice(0, 50)}......` 
+                    : user.attributes
+                  }
+                </p>
                 <div className="flex gap-2">
                   <button 
                     onClick={(e) => handleCallClick(user, 'video', 10, e)}
