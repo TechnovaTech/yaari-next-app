@@ -88,7 +88,7 @@ export default function ProfileMenuScreen({ onBack, onCallHistory, onTransaction
               className={`w-full flex items-center space-x-4 p-4 ${item.bgColor} rounded-2xl transition-colors hover:bg-orange-100`}
             >
               <item.icon size={20} className="text-gray-800 flex-shrink-0" style={{ marginTop: '2px' }} />
-              <span className="text-gray-800 font-medium">{item.label}</span>
+              <span className="text-gray-800 font-medium" style={{ marginTop: '10px' }}>{item.label}</span>
             </button>
           ))}
         </div>
