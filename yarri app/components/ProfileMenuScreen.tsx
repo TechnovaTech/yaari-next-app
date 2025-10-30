@@ -55,16 +55,16 @@ export default function ProfileMenuScreen({ onBack, onCallHistory, onTransaction
           <ChevronLeft size={24} className="text-gray-800" />
         </button>
 
-        <div className="flex flex-col items-center mb-8 relative">
-          <div className="relative">
-            <div className="w-32 h-32 bg-gray-300 rounded-full mb-4 flex items-center justify-center overflow-hidden">
+        <div className="flex flex-col items-center mb-8">
+          <div className="relative mb-4">
+            <div className="w-32 h-32 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
               {profilePic ? (
                 <img src={profilePic} alt="Profile" className="w-full h-full object-cover" />
               ) : (
                 <User size={64} className="text-gray-500" />
               )}
             </div>
-            <button onClick={onEditProfile} className="absolute top-0 right-0 w-8 h-8 bg-white rounded-full border border-gray-300 flex items-center justify-center shadow-sm">
+            <button onClick={onEditProfile} className="absolute -top-1 -right-1 w-8 h-8 bg-white rounded-full border border-gray-300 flex items-center justify-center shadow-sm">
               <Edit2 size={14} className="text-primary" />
             </button>
           </div>
@@ -87,7 +87,7 @@ export default function ProfileMenuScreen({ onBack, onCallHistory, onTransaction
               }
               className={`w-full flex items-center space-x-4 p-4 ${item.bgColor} rounded-2xl transition-colors hover:bg-orange-100`}
             >
-              <item.icon size={20} className="text-gray-800" />
+              <item.icon size={20} className="text-gray-800 flex-shrink-0" style={{ marginTop: '2px' }} />
               <span className="text-gray-800 font-medium">{item.label}</span>
             </button>
           ))}
