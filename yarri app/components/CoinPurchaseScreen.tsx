@@ -331,7 +331,7 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
                     onError={() => setUseFallbackIcon(true)}
                   />
                 )}
-                <span className="inline-flex items-center h-9 md:h-10 text-xl md:text-2xl font-extrabold text-black leading-none">{pkg.coins}</span>
+                <span className="inline-flex items-center h-9 md:h-10 text-xl md:text-2xl font-extrabold text-black leading-none" style={{ marginTop: '10px' }}>{pkg.coins}</span>
               </div>
               <div className="mt-4 flex flex-col items-center">
                 <p className="text-base md:text-lg font-extrabold text-black">Rs{pkg.price}</p>
