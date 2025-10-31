@@ -3,35 +3,68 @@ import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
 
+// Configure the route to handle larger payloads
+export const runtime = 'nodejs'
+export const maxDuration = 30
+
+// Configure maximum request body size (50MB)
+export const maxRequestBodySize = 50 * 1024 * 1024
+
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.formData()
-    const file: File | null = data.get('file') as unknown as File
+    // Check content-length header first
+    const contentLength = request.headers.get('content-length')
+    const maxSize = 50 * 1024 * 1024 // 50MB
+    
+    if (contentLength && parseInt(contentLength) > maxSize) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Request too large. Maximum size is 50MB.' 
+      }, { status: 413 })
+    }
+
+    // Parse form data with error handling for large payloads
+    let formData: FormData
+    try {
+      formData = await request.formData()
+    } catch (error: any) {
+      if (error.message?.includes('PayloadTooLargeError') || error.code === 'LIMIT_FILE_SIZE') {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'File too large. Maximum size is 50MB.' 
+        }, { status: 413 })
+      }
+      throw error
+    }
+
+    const file = formData.get('file') as File
 
     if (!file) {
-      return NextResponse.json({ success: false, error: 'No file uploaded' }, { status: 400 })
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No file provided' 
+      }, { status: 400 })
     }
 
     // Validate file type
     const allowedTypes = [
       'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
-      'video/mp4', 'video/webm', 'video/ogg', 'video/avi', 'video/mov'
+      'video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo'
     ]
     
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json({ 
         success: false, 
-        error: 'Invalid file type. Only images (JPEG, PNG, GIF, WebP) and videos (MP4, WebM, OGG, AVI, MOV) are allowed.' 
+        error: 'Invalid file type. Only images and videos are allowed.' 
       }, { status: 400 })
     }
 
-    // Validate file size (max 50MB)
-    const maxSize = 50 * 1024 * 1024 // 50MB
+    // Check file size (50MB limit)
     if (file.size > maxSize) {
       return NextResponse.json({ 
         success: false, 
         error: 'File too large. Maximum size is 50MB.' 
-      }, { status: 400 })
+      }, { status: 413 })
     }
 
     const bytes = await file.arrayBuffer()

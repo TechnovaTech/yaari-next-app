@@ -17,7 +17,7 @@ npm install
 
 2. Configure API URL and Mixpanel token in `.env.local`:
 ```
-NEXT_PUBLIC_API_URL=http://https://acsgroup.cloud0
+NEXT_PUBLIC_API_URL=https://acsgroup.cloud
 NEXT_PUBLIC_MIXPANEL_TOKEN=<your_mixpanel_project_token>
 ```
 
@@ -26,7 +26,7 @@ NEXT_PUBLIC_MIXPANEL_TOKEN=<your_mixpanel_project_token>
 npm run dev
 ```
 
-Mobile app runs on: http://https://acsgroup.cloud1
+Mobile app runs on: https://acsgroup.cloud
 
 ## For Production (Capacitor)
 

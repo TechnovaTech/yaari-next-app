@@ -38,7 +38,7 @@ db.admins.insertOne({
 npm run dev
 ```
 
-Admin panel runs on: http://https://acsgroup.cloud0
+Admin panel runs on: https://acsgroup.cloud
 
 ## Default Login
 - Email: admin@yaari.com

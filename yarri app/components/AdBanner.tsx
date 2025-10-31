@@ -56,10 +56,10 @@ export default function AdBanner() {
         const processedAds = data.ads.map((ad: Ad) => ({
           ...ad,
           imageUrl: ad.imageUrl && ad.imageUrl.startsWith('/uploads/') 
-            ? `http://https://acsgroup.cloud0${ad.imageUrl}` 
+            ? `https://acsgroup.cloud${ad.imageUrl}` 
             : ad.imageUrl,
           videoUrl: ad.videoUrl && ad.videoUrl.startsWith('/uploads/') 
-            ? `http://https://acsgroup.cloud0${ad.videoUrl}` 
+            ? `https://acsgroup.cloud${ad.videoUrl}` 
             : ad.videoUrl
         }))
         setAds(processedAds)

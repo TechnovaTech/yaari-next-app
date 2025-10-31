@@ -193,6 +193,20 @@ export default function ManageAdsPage() {
         body: formData
       })
 
+      // Check if response is ok and content-type is JSON
+      if (!response.ok) {
+        if (response.status === 413) {
+          alert('File too large. Maximum size is 50MB.')
+          return null
+        }
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned non-JSON response')
+      }
+
       const data = await response.json()
       if (data.success) {
         // Update the appropriate URL field based on media type
@@ -209,7 +223,11 @@ export default function ManageAdsPage() {
       }
     } catch (error) {
       console.error('Error uploading file:', error)
-      alert('Failed to upload file')
+      if (error instanceof Error) {
+        alert(`Upload failed: ${error.message}`)
+      } else {
+        alert('Failed to upload file')
+      }
       return null
     } finally {
       setUploading(false)
