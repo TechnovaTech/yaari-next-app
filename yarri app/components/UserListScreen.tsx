@@ -44,6 +44,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
   const [balance, setBalance] = useState(0)
   const [incomingCall, setIncomingCall] = useState<{ callerId: string; callerName: string; callType: 'video' | 'audio'; channelName: string } | null>(null)
   const [isRinging, setIsRinging] = useState(false)
+  const [useFallbackIcon, setUseFallbackIcon] = useState(false)
 
   useEffect(() => {
     fetchUsers()
@@ -336,11 +337,21 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
             className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg"
             style={{ alignItems: 'center' }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-700" style={{ marginTop: '2px' }}>
-              <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
-              <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
-              <path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>
-            </svg>
+            {useFallbackIcon ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-700" style={{ marginTop: '2px' }}>
+                <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
+                <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
+                <path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>
+              </svg>
+            ) : (
+              <img
+                src="/images/coinicon.png"
+                alt="coin"
+                className="w-5 h-5 object-contain"
+                style={{ marginTop: '2px' }}
+                onError={() => setUseFallbackIcon(true)}
+              />
+            )}
             <span className="text-gray-800 font-bold text-base" style={{ lineHeight: '20px' , marginTop: '15px' }}>₹{balance}</span>
           </button>
           <button 

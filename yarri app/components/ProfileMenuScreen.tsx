@@ -44,11 +44,11 @@ export default function ProfileMenuScreen({ onBack, onCallHistory, onTransaction
   }
   
   const menuItems = [
-    { icon: List, label: t.transactionHistory, key: 'transaction', bgColor: 'bg-orange-50' },
-    { icon: Phone, label: t.callHistory, key: 'call', bgColor: 'bg-orange-50' },
-    { icon: Shield, label: t.privacySecurity, key: 'privacy', bgColor: 'bg-orange-50' },
-    { icon: Headphones, label: t.customerSupport, key: 'support', bgColor: 'bg-orange-50' },
-    { icon: LogOut, label: t.logOut, key: 'logout', bgColor: 'bg-orange-50' },
+    { icon: List, label: t.transactionHistory, key: 'transaction', bgColor: 'bg-orange-100' },
+    { icon: Phone, label: t.callHistory, key: 'call', bgColor: 'bg-orange-100' },
+    { icon: Shield, label: t.privacySecurity, key: 'privacy', bgColor: 'bg-orange-100' },
+    { icon: Headphones, label: t.customerSupport, key: 'support', bgColor: 'bg-orange-100' },
+    { icon: LogOut, label: t.logOut, key: 'logout', bgColor: 'bg-orange-100' },
   ]
 
   return (
@@ -91,7 +91,7 @@ export default function ProfileMenuScreen({ onBack, onCallHistory, onTransaction
                   undefined
                 if (action) action()
               }}
-              className={`w-full flex items-center space-x-4 p-4 ${item.bgColor} rounded-2xl transition-colors hover:bg-orange-100`}
+              className={`w-full flex items-center space-x-4 p-4 ${item.bgColor} rounded-2xl transition-colors hover:bg-orange-200`}
             >
               <item.icon size={20} className="text-gray-800 flex-shrink-0" style={{ marginTop: '2px' }} />
               <span className="text-gray-800 font-medium" style={{ marginTop: '10px' }}>{item.label}</span>

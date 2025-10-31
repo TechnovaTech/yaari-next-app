@@ -268,17 +268,26 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
           <ArrowLeft size={24} className="text-gray-700" />
         </button>
 
-        <div className="bg-orange-50 rounded-2xl p-6 mb-4 flex items-center">
-          <div className="w-16 h-16 bg-orange-400 rounded-full flex items-center justify-center mr-4">
-            <span className="text-white text-3xl font-extrabold" style={{ marginTop: '20px' }}>Y</span>
-          </div>
+        <div className="bg-orange-100 rounded-2xl p-6 mb-4 flex items-center">
+          {useFallbackIcon ? (
+            <div className="w-16 h-16 bg-orange-400 rounded-full flex items-center justify-center mr-4">
+              <span className="text-white text-3xl font-extrabold" style={{ marginTop: '20px' }}>Y</span>
+            </div>
+          ) : (
+            <img
+              src="/images/coinicon.png"
+              alt="coin"
+              className="w-16 h-16 object-contain mr-4"
+              onError={() => setUseFallbackIcon(true)}
+            />
+          )}
           <div>
             <p className="text-gray-700 text-sm mb-1">Total Coin Balance</p>
             <p className="text-3xl font-extrabold">{balance} coin</p>
           </div>
         </div>
 
-        <div className="border-t border-gray-300 my-6"></div>
+        <div className="border-t-2 border-gray-400 my-6"></div>
 
         <h2 className="text-orange-500 font-semibold text-lg mb-4">Add More Coins</h2>
 
@@ -316,7 +325,7 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
             <button
               key={pkg._id || index}
               onClick={() => setSelectedPlan(pkg)}
-              className={`rounded-3xl p-4 md:p-5 bg-rose-50 hover:bg-rose-100 transition-all border border-gray-200 shadow-md flex flex-col justify-between ${selectedPlan?._id === pkg._id ? 'ring-2 ring-orange-500' : ''}`}
+              className={`rounded-3xl p-4 md:p-5 bg-rose-100 hover:bg-rose-200 transition-all border border-gray-200 shadow-md flex flex-col justify-between ${selectedPlan?._id === pkg._id ? 'ring-2 ring-orange-500' : ''}`}
             >
               <div className="flex items-center gap-2">
                 {useFallbackIcon ? (
