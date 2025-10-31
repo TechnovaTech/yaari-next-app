@@ -80,9 +80,13 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
           onChange={(e) => {
             const file = e.target.files?.[0]
             if (file) {
+              // Remove size limit - allow any size
               const reader = new FileReader()
               reader.onloadend = () => {
                 setProfilePic(reader.result as string)
+              }
+              reader.onerror = () => {
+                alert('Error reading profile picture. Please try again.')
               }
               reader.readAsDataURL(file)
             }
@@ -160,15 +164,40 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
               type="file"
               id="galleryPic"
               accept="image/*"
+              multiple
               className="hidden"
               onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) {
-                  const reader = new FileReader()
-                  reader.onloadend = () => {
-                    setImages([...images, reader.result as string])
-                  }
-                  reader.readAsDataURL(file)
+                const files = Array.from(e.target.files || [])
+                if (files.length > 0) {
+                  // Process multiple files without size limits
+                  const newImages: string[] = []
+                  let processedCount = 0
+                  
+                  files.forEach((file, index) => {
+                    const reader = new FileReader()
+                    reader.onloadend = () => {
+                      newImages[index] = reader.result as string
+                      processedCount++
+                      
+                      // When all files are processed, update state
+                      if (processedCount === files.length) {
+                        setImages([...images, ...newImages.filter(img => img)])
+                      }
+                    }
+                    reader.onerror = () => {
+                      console.warn(`Error reading file: ${file.name}`)
+                      processedCount++
+                      
+                      // Continue processing even if one file fails
+                      if (processedCount === files.length) {
+                        setImages([...images, ...newImages.filter(img => img)])
+                      }
+                    }
+                    reader.readAsDataURL(file)
+                  })
+                  
+                  // Reset the input to allow selecting the same files again
+                  e.target.value = ''
                 }
               }}
             />
@@ -270,9 +299,21 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
                 trackEvent('ProfileSaveFailed', { error: result.error || 'Unknown error' })
                 alert('Failed to save profile: ' + (result.error || 'Unknown error'))
               }
-            } catch (error) {
-               trackEvent('ProfileSaveError')
-               alert('Error saving profile')
+            } catch (error: any) {
+               console.error('Profile save error:', error)
+               trackEvent('ProfileSaveError', { error: error?.message || 'Unknown error' })
+               
+               // Provide more specific error messages
+               const errorMessage = error?.message || error?.toString() || ''
+               if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+                 alert('Network error. Please check your internet connection and try again.')
+               } else if (errorMessage.includes('413') || errorMessage.includes('Payload Too Large')) {
+                 alert('Photos are too large. Please try with smaller images or fewer photos.')
+               } else if (errorMessage.includes('timeout')) {
+                 alert('Upload timeout. Please try with fewer or smaller photos.')
+               } else {
+                 alert('Error saving profile. Please try again.')
+               }
             } finally {
               setLoading(false)
             }
