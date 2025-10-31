@@ -22,6 +22,33 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
   const [gender, setGender] = useState('')
   const [profilePic, setProfilePic] = useState('')
 
+  // Build API URL that avoids CORS in local dev by using Next.js rewrites
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://acsgroup.cloud'
+  const buildApiUrl = (path: string) => {
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    return isLocal ? `/api${path}` : `${API_BASE}/api${path}`
+  }
+
+  // Add function to fetch user images from database
+  const fetchUserImages = async (userId: string) => {
+    try {
+      const response = await fetch(buildApiUrl(`/users/${userId}/images`))
+      if (response.ok) {
+        const result = await response.json()
+        return {
+          profilePic: result.profilePic || '',
+          gallery: result.gallery || []
+        }
+      } else {
+        console.error('Failed to fetch user images:', response.status, response.statusText)
+        return { profilePic: '', gallery: [] }
+      }
+    } catch (error) {
+      console.error('Error fetching user images:', error)
+      return { profilePic: '', gallery: [] }
+    }
+  }
+
   useEffect(() => {
     trackScreenView('Edit Profile')
     const user = localStorage.getItem('user')
@@ -33,8 +60,18 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
       setAboutMe(userData.about || '')
       setHobbies(userData.hobbies || [])
       setGender(userData.gender || '')
-      setProfilePic(userData.profilePic || '')
-      setImages(userData.gallery || [])
+      
+      // Load images from database instead of localStorage
+      if (userData.id) {
+        fetchUserImages(userData.id).then(imageData => {
+          setProfilePic(imageData.profilePic)
+          setImages(imageData.gallery)
+        })
+      } else {
+        // Fallback to localStorage if no user ID
+        setProfilePic(userData.profilePic || '')
+        setImages(userData.gallery || [])
+      }
     }
   }, [])
 
@@ -47,6 +84,71 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
 
   const removeHobby = (index: number) => {
     setHobbies(hobbies.filter((_, i) => i !== index))
+  }
+
+  // Add photo upload functions
+  const uploadPhotoToDatabase = async (file: File, isProfilePic: boolean = false): Promise<string | null> => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('user') || '{}')
+      const userId = userData?.id
+      if (!userId) {
+        console.error('User ID missing while uploading photo:', userData)
+        alert('User session invalid. Please log in again.')
+        return null
+      }
+
+      const formData = new FormData()
+      formData.append('photo', file)
+      formData.append('userId', String(userId))
+      formData.append('isProfilePic', isProfilePic.toString())
+
+      const response = await fetch(buildApiUrl('/upload-photo'), {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        return result.photoUrl // Return the URL of the uploaded photo
+      } else {
+        console.error('Photo upload failed:', response.status, response.statusText)
+        return null
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error)
+      return null
+    }
+  }
+
+  const uploadMultiplePhotos = async (files: File[]): Promise<string[]> => {
+    const uploadPromises = files.map(file => uploadPhotoToDatabase(file, false))
+    const results = await Promise.all(uploadPromises)
+    return results.filter(url => url !== null) as string[]
+  }
+
+  // Add function to delete photo from database
+  const deletePhotoFromDatabase = async (photoUrl: string): Promise<boolean> => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}')
+      const response = await fetch(buildApiUrl('/delete-photo'), {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          photoUrl: photoUrl
+        }),
+      })
+
+      if (response.ok) {
+        return true
+      } else {
+        console.error('Photo deletion failed:', response.status, response.statusText)
+        return false
+      }
+    } catch (error) {
+      console.error('Error deleting photo:', error)
+      return false
+    }
   }
 
   return (
@@ -65,9 +167,11 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
 
       {/* Profile Picture Section */}
       <div className="flex items-center px-4 mb-8">
-        <div className="w-24 h-24 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden mr-4">
-          {profilePic ? (
+        <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+          {profilePic && profilePic !== 'loading' ? (
             <img src={profilePic} alt="Profile" className="w-full h-full object-cover" />
+          ) : profilePic === 'loading' ? (
+            <div className="text-gray-500 text-xs">Uploading...</div>
           ) : (
             <User size={48} className="text-gray-500" />
           )}
@@ -77,18 +181,26 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
           id="profilePic"
           accept="image/*"
           className="hidden"
-          onChange={(e) => {
+          onChange={async (e) => {
             const file = e.target.files?.[0]
             if (file) {
-              // Remove size limit - allow any size
-              const reader = new FileReader()
-              reader.onloadend = () => {
-                setProfilePic(reader.result as string)
+              // Show loading state
+              setProfilePic('loading')
+              
+              try {
+                const photoUrl = await uploadPhotoToDatabase(file, true)
+                if (photoUrl) {
+                  setProfilePic(photoUrl)
+                  alert('Profile picture uploaded successfully!')
+                } else {
+                  alert('Failed to upload profile picture. Please try again.')
+                  setProfilePic('') // Reset on failure
+                }
+              } catch (error) {
+                console.error('Profile picture upload error:', error)
+                alert('Error uploading profile picture. Please try again.')
+                setProfilePic('') // Reset on failure
               }
-              reader.onerror = () => {
-                alert('Error reading profile picture. Please try again.')
-              }
-              reader.readAsDataURL(file)
             }
           }}
         />
@@ -151,13 +263,33 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
           <div className="grid grid-cols-3 gap-2">
             {images.map((img, i) => (
               <div key={i} className="aspect-square bg-gray-200 rounded-lg relative overflow-hidden">
-                <img src={img} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
-                <button 
-                  onClick={() => setImages(images.filter((_, idx) => idx !== i))}
-                  className="absolute top-1 right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center"
-                >
-                  <X size={14} className="text-white" />
-                </button>
+                {img === 'loading' ? (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
+                    Uploading...
+                  </div>
+                ) : (
+                  <>
+                    <img src={img} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
+                    <button 
+                      onClick={async () => {
+                        const photoUrl = img
+                        // Remove from UI immediately for better UX
+                        setImages(images.filter((_, idx) => idx !== i))
+                        
+                        // Delete from database in background
+                        const deleted = await deletePhotoFromDatabase(photoUrl)
+                        if (!deleted) {
+                          // If deletion failed, add the image back
+                          setImages(prevImages => [...prevImages, photoUrl])
+                          alert('Failed to delete photo from database. Please try again.')
+                        }
+                      }}
+                      className="absolute top-1 right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center"
+                    >
+                      <X size={14} className="text-white" />
+                    </button>
+                  </>
+                )}
               </div>
             ))}
             <input
@@ -166,35 +298,33 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
               accept="image/*"
               multiple
               className="hidden"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const files = Array.from(e.target.files || [])
                 if (files.length > 0) {
-                  // Process multiple files without size limits
-                  const newImages: string[] = []
-                  let processedCount = 0
-                  
-                  files.forEach((file, index) => {
-                    const reader = new FileReader()
-                    reader.onloadend = () => {
-                      newImages[index] = reader.result as string
-                      processedCount++
-                      
-                      // When all files are processed, update state
-                      if (processedCount === files.length) {
-                        setImages([...images, ...newImages.filter(img => img)])
-                      }
+                  try {
+                    // Show loading state
+                    const loadingImages = Array(files.length).fill('loading')
+                    setImages([...images, ...loadingImages])
+                    
+                    const uploadedUrls = await uploadMultiplePhotos(files)
+                    
+                    // Remove loading placeholders and add actual URLs
+                    setImages(prevImages => {
+                      const withoutLoading = prevImages.filter(img => img !== 'loading')
+                      return [...withoutLoading, ...uploadedUrls]
+                    })
+                    
+                    if (uploadedUrls.length > 0) {
+                      alert(`${uploadedUrls.length} photo(s) uploaded successfully!`)
+                    } else {
+                      alert('Failed to upload photos. Please try again.')
                     }
-                    reader.onerror = () => {
-                      console.warn(`Error reading file: ${file.name}`)
-                      processedCount++
-                      
-                      // Continue processing even if one file fails
-                      if (processedCount === files.length) {
-                        setImages([...images, ...newImages.filter(img => img)])
-                      }
-                    }
-                    reader.readAsDataURL(file)
-                  })
+                  } catch (error) {
+                    console.error('Gallery photos upload error:', error)
+                    alert('Error uploading photos. Please try again.')
+                    // Remove loading placeholders on error
+                    setImages(prevImages => prevImages.filter(img => img !== 'loading'))
+                  }
                   
                   // Reset the input to allow selecting the same files again
                   e.target.value = ''
@@ -250,26 +380,42 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
             try {
               const user = JSON.parse(localStorage.getItem('user') || '{}')
               
+              // Validate user ID exists
+              if (!user.id) {
+                console.error('User ID not found in localStorage:', user)
+                alert('User session invalid. Please log in again.')
+                return
+              }
+              
               const payload = {
                 name: userName,
                 phone: phoneNumber,
                 email: email,
                 about: aboutMe,
                 hobbies,
-                profilePic,
-                gallery: images,
+                // Remove image data from payload since photos are uploaded separately
+                // profilePic and gallery images are now stored as URLs in the database
               }
               
-              console.log('Saving profile:', payload)
-              
-              const res = await fetch(`https://acsgroup.cloud/api/users/${user.id}`, {
+              console.log('Saving profile for user ID:', user.id)
+              console.log('Payload:', payload)
+
+              const res = await fetch(buildApiUrl(`/users/${user.id}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
               })
               
-              const result = await res.json()
-              console.log('Save response:', result)
+              console.log('API Response Status:', res.status, res.statusText)
+              
+              let result
+              try {
+                result = await res.json()
+                console.log('Save response:', result)
+              } catch (parseError) {
+                console.error('Failed to parse response JSON:', parseError)
+                result = { error: 'Invalid server response' }
+              }
               
               if (res.ok) {
                 const updatedUser = { ...user, name: userName, phone: phoneNumber, email: email, about: aboutMe, hobbies, profilePic, gallery: images }
@@ -296,8 +442,10 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
                   window.location.href = '/users'
                 }, 0)
               } else {
-                trackEvent('ProfileSaveFailed', { error: result.error || 'Unknown error' })
-                alert('Failed to save profile: ' + (result.error || 'Unknown error'))
+                const errorMsg = result?.error || result?.message || `HTTP ${res.status}: ${res.statusText}`
+                console.error('API Error:', errorMsg, 'Full response:', result)
+                trackEvent('ProfileSaveFailed', { error: errorMsg, status: res.status })
+                alert(`Failed to save profile: ${errorMsg}`)
               }
             } catch (error: any) {
                console.error('Profile save error:', error)
