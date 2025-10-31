@@ -206,6 +206,7 @@ export default function LoginScreen({ onNext }: LoginScreenProps) {
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             className="w-full p-4 border border-gray-300 rounded-full text-base focus:outline-none focus:border-primary bg-gray-50"
+            style={{ fontSize: '16px' }}
           />
         </div>
         

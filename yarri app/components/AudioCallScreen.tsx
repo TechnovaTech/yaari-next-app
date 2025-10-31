@@ -94,6 +94,33 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
         setLocalAudioTrack(audioTrack)
         
         await client.publish([audioTrack])
+
+        // Log call start
+        const callData = sessionStorage.getItem('callData')
+        if (callData) {
+          const data = JSON.parse(callData)
+          const user = localStorage.getItem('user')
+          const userData = user ? JSON.parse(user) : null
+          
+          if (userData?.id && data.otherUserId) {
+            try {
+              await fetch('/api/call-log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  callerId: userData.id,
+                  receiverId: data.otherUserId,
+                  callType: 'audio',
+                  action: 'start',
+                  channelName: channelName
+                })
+              })
+              console.log('Audio call start logged successfully')
+            } catch (error) {
+              console.error('Failed to log audio call start:', error)
+            }
+          }
+        }
       } catch (error) {
         console.error('Agora audio init error:', error)
       }
@@ -124,7 +151,7 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     }
   }
 
-  const handleEndCall = () => {
+  const handleEndCall = async () => {
     console.log('🔴 USER CLICKED END CALL BUTTON')
     const callData = sessionStorage.getItem('callData')
     console.log('Call data:', callData)
@@ -138,6 +165,34 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
       'Ended By': 'User',
       'Receiver': userName
     })
+
+    // Log call end to database
+    if (callData) {
+      const data = JSON.parse(callData)
+      const user = localStorage.getItem('user')
+      const userData = user ? JSON.parse(user) : null
+      
+      if (userData?.id && data.otherUserId) {
+        try {
+          await fetch('/api/call-log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              callerId: userData.id,
+              receiverId: data.otherUserId,
+              callType: 'audio',
+              action: 'end',
+              duration: duration,
+              cost: cost,
+              status: 'completed'
+            })
+          })
+          console.log('Audio call end logged successfully')
+        } catch (error) {
+          console.error('Failed to log audio call end:', error)
+        }
+      }
+    }
     
     // Notify other user FIRST before cleanup
     if (callData && socket) {

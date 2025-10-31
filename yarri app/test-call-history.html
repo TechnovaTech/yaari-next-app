@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Call History</title>
+</head>
+<body>
+    <h1>Call History Test</h1>
+    <button onclick="setTestUser()">Set Test User</button>
+    <button onclick="clearUser()">Clear User</button>
+    <button onclick="goToCallHistory()">Go to Call History</button>
+    <button onclick="testAPI()">Test API Directly</button>
+    
+    <div id="result"></div>
+
+    <script>
+        function setTestUser() {
+            const testUser = {
+                id: "507f1f77bcf86cd799439011", // Sample ObjectId
+                name: "Test User",
+                email: "test@example.com",
+                phone: "+1234567890",
+                gender: "male"
+            };
+            localStorage.setItem('user', JSON.stringify(testUser));
+            document.getElementById('result').innerHTML = '<p style="color: green;">Test user set in localStorage</p>';
+        }
+
+        function clearUser() {
+            localStorage.removeItem('user');
+            document.getElementById('result').innerHTML = '<p style="color: red;">User cleared from localStorage</p>';
+        }
+
+        function goToCallHistory() {
+            window.location.href = '/call-history/';
+        }
+
+        async function testAPI() {
+            try {
+                const userRaw = localStorage.getItem('user');
+                if (!userRaw) {
+                    document.getElementById('result').innerHTML = '<p style="color: red;">No user in localStorage</p>';
+                    return;
+                }
+                
+                const user = JSON.parse(userRaw);
+                const response = await fetch(`/api/call-history?userId=${user.id}`);
+                const data = await response.json();
+                
+                document.getElementById('result').innerHTML = `
+                    <h3>API Response:</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+
+        // Check current user status on load
+        window.onload = function() {
+            const user = localStorage.getItem('user');
+            if (user) {
+                document.getElementById('result').innerHTML = `<p>Current user: ${JSON.parse(user).name}</p>`;
+            } else {
+                document.getElementById('result').innerHTML = '<p>No user logged in</p>';
+            }
+        }
+    </script>
+</body>
+</html>

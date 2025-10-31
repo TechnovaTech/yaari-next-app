@@ -106,6 +106,33 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
         await client.publish([audioTrack, videoTrack])
         
         videoTrack.play('local-video')
+
+        // Log call start
+        const callData = sessionStorage.getItem('callData')
+        if (callData) {
+          const data = JSON.parse(callData)
+          const user = localStorage.getItem('user')
+          const userData = user ? JSON.parse(user) : null
+          
+          if (userData?.id && data.otherUserId) {
+            try {
+              await fetch('/api/call-log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  callerId: userData.id,
+                  receiverId: data.otherUserId,
+                  callType: 'video',
+                  action: 'start',
+                  channelName: channelName
+                })
+              })
+              console.log('Call start logged successfully')
+            } catch (error) {
+              console.error('Failed to log call start:', error)
+            }
+          }
+        }
       } catch (error) {
         console.error('Agora init error:', error)
       }
@@ -183,7 +210,7 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
     }
   }
 
-  const handleEndCall = () => {
+  const handleEndCall = async () => {
     console.log('🔴 USER CLICKED END CALL BUTTON')
     const callData = sessionStorage.getItem('callData')
     console.log('Call data:', callData)
@@ -197,6 +224,34 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
       'Ended By': 'User',
       'Receiver': userName
     })
+
+    // Log call end to database
+    if (callData) {
+      const data = JSON.parse(callData)
+      const user = localStorage.getItem('user')
+      const userData = user ? JSON.parse(user) : null
+      
+      if (userData?.id && data.otherUserId) {
+        try {
+          await fetch('/api/call-log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              callerId: userData.id,
+              receiverId: data.otherUserId,
+              callType: 'video',
+              action: 'end',
+              duration: duration,
+              cost: cost,
+              status: 'completed'
+            })
+          })
+          console.log('Call end logged successfully')
+        } catch (error) {
+          console.error('Failed to log call end:', error)
+        }
+      }
+    }
     
     // Notify other user FIRST before cleanup
     if (callData && socket) {
