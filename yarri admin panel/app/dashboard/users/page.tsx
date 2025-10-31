@@ -15,8 +15,14 @@ export default function UsersPage() {
   const loadUsers = () => {
     fetch('/api/users')
       .then(res => res.json())
-      .then(data => setUsers(data))
-      .catch(() => {})
+      .then(data => {
+        // Ensure data is always an array to prevent filter errors
+        setUsers(Array.isArray(data) ? data : [])
+      })
+      .catch(() => {
+        // Set empty array on error
+        setUsers([])
+      })
   }
 
   const handleView = (user: any) => {

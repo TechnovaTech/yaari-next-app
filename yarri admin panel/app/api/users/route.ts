@@ -12,7 +12,9 @@ export async function GET() {
     
     return NextResponse.json(users)
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
+    console.error('Failed to fetch users:', error)
+    // Return empty array instead of error object to prevent frontend filter errors
+    return NextResponse.json([])
   }
 }
 
