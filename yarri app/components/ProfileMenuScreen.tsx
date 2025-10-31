@@ -2,6 +2,7 @@ import { ChevronLeft, List, Phone, Shield, Headphones, LogOut, User, Edit2 } fro
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
+import { trackScreenView, trackEvent } from '../utils/clevertap'
 
 interface ProfileMenuScreenProps {
   onBack: () => void
@@ -21,6 +22,7 @@ export default function ProfileMenuScreen({ onBack, onCallHistory, onTransaction
   const [profilePic, setProfilePic] = useState('')
 
   useEffect(() => {
+    trackScreenView('Profile Menu')
     const user = localStorage.getItem('user')
     if (user) {
       const userData = JSON.parse(user)
@@ -36,6 +38,7 @@ export default function ProfileMenuScreen({ onBack, onCallHistory, onTransaction
   }, [])
 
   const handleLogout = () => {
+    trackEvent('LogoutClicked')
     localStorage.clear()
     window.location.href = '/login'
   }
@@ -64,7 +67,7 @@ export default function ProfileMenuScreen({ onBack, onCallHistory, onTransaction
                 <User size={64} className="text-gray-500" />
               )}
             </div>
-            <button onClick={onEditProfile} className="absolute -top-1 -right-1 w-8 h-8 bg-white rounded-full border border-gray-300 flex items-center justify-center shadow-sm">
+            <button onClick={() => { trackEvent('EditProfileClicked'); onEditProfile() }} className="absolute -top-1 -right-1 w-8 h-8 bg-white rounded-full border border-gray-300 flex items-center justify-center shadow-sm">
               <Edit2 size={14} className="text-primary" />
             </button>
           </div>
@@ -77,14 +80,17 @@ export default function ProfileMenuScreen({ onBack, onCallHistory, onTransaction
           {menuItems.map((item, index) => (
             <button
               key={index}
-              onClick={
-                item.key === 'call' ? onCallHistory :
-                item.key === 'transaction' ? onTransactionHistory :
-                item.key === 'support' ? onCustomerSupport :
-                item.key === 'privacy' ? onPrivacySecurity :
-                item.key === 'logout' ? handleLogout :
-                undefined
-              }
+              onClick={() => {
+                trackEvent('ProfileMenuClick', { item: item.key })
+                const action =
+                  item.key === 'call' ? onCallHistory :
+                  item.key === 'transaction' ? onTransactionHistory :
+                  item.key === 'support' ? onCustomerSupport :
+                  item.key === 'privacy' ? onPrivacySecurity :
+                  item.key === 'logout' ? handleLogout :
+                  undefined
+                if (action) action()
+              }}
               className={`w-full flex items-center space-x-4 p-4 ${item.bgColor} rounded-2xl transition-colors hover:bg-orange-100`}
             >
               <item.icon size={20} className="text-gray-800 flex-shrink-0" style={{ marginTop: '2px' }} />

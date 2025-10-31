@@ -1,5 +1,7 @@
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
+import { useEffect } from 'react'
+import { trackScreenView } from '../utils/clevertap'
 
 interface CallHistoryScreenProps {
   onBack: () => void
@@ -8,6 +10,9 @@ interface CallHistoryScreenProps {
 export default function CallHistoryScreen({ onBack }: CallHistoryScreenProps) {
   const { lang } = useLanguage()
   const t = translations[lang]
+  useEffect(() => {
+    trackScreenView('Call History')
+  }, [])
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}

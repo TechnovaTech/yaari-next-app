@@ -1,6 +1,42 @@
 import { CleverTap } from '@awesome-cordova-plugins/clevertap'
 import { Capacitor } from '@capacitor/core'
 
+// Inline CleverTap credentials (do NOT use env)
+const CLEVERTAP_ACCOUNT_ID = '775-RZ7-W67Z'
+const CLEVERTAP_PROJECT_TOKEN = 'a12-5aa' // reserved for server-side; not used in web SDK
+const CLEVERTAP_PASSCODE = 'UFO-IOX-YEEL' // reserved; not used in web SDK
+const CLEVERTAP_REGION = 'global'
+
+declare global {
+  interface Window {
+    clevertap?: any
+  }
+}
+
+// Initialize CleverTap Web SDK when not running natively
+const ensureCleverTapWeb = () => {
+  if (typeof window === 'undefined') return
+  if (Capacitor.isNativePlatform()) return
+  const w = window as any
+  if (w.clevertap) return
+  w.clevertap = {
+    account_id: CLEVERTAP_ACCOUNT_ID,
+    region: CLEVERTAP_REGION,
+    // event/profile queues per official snippet
+    event: [],
+    profile: [],
+    account: [],
+    onUserLogin: [],
+  }
+  const s = document.createElement('script')
+  s.src = 'https://cdn.clevertap.com/js/clevertap.min.js'
+  s.type = 'text/javascript'
+  s.defer = true
+  document.head.appendChild(s)
+}
+
+ensureCleverTapWeb()
+
 // Check if CleverTap is available on native builds
 const isCleverTapAvailable = () => {
   return Capacitor.isNativePlatform()
@@ -22,7 +58,11 @@ export const updateUserProfile = async (userProfile: {
       console.log('CleverTap profileSet error:', e)
     }
   } else {
-    console.log('updateUserProfile (web/no-native):', userProfile)
+    try {
+      window.clevertap?.profile?.push(userProfile)
+    } catch (e) {
+      console.log('Web CleverTap profile push error:', e)
+    }
   }
 }
 
@@ -35,7 +75,12 @@ export const trackUserLogin = async (userIdentity: string, userProfile?: any) =>
       console.log('CleverTap onUserLogin error:', e)
     }
   } else {
-    console.log('trackUserLogin (web/no-native):', userIdentity, userProfile)
+    try {
+      const profile = { Identity: userIdentity, ...(userProfile || {}) }
+      window.clevertap?.onUserLogin?.push(profile)
+    } catch (e) {
+      console.log('Web CleverTap onUserLogin error:', e)
+    }
   }
 }
 
@@ -51,7 +96,15 @@ export const trackEvent = async (eventName: string, eventData?: any) => {
       console.log('CleverTap recordEvent error:', e)
     }
   } else {
-    console.log('trackEvent (web/no-native):', eventName, eventData)
+    try {
+      if (eventData && Object.keys(eventData).length > 0) {
+        window.clevertap?.event?.push(eventName, eventData)
+      } else {
+        window.clevertap?.event?.push(eventName)
+      }
+    } catch (e) {
+      console.log('Web CleverTap event push error:', e)
+    }
   }
 }
 
@@ -84,7 +137,11 @@ export const trackAppOpen = async () => {
       console.log('CleverTap notifyDeviceReady/App Open error:', e)
     }
   } else {
-    console.log('trackAppOpen (web/no-native)')
+    try {
+      window.clevertap?.event?.push('App Open')
+    } catch (e) {
+      console.log('Web CleverTap App Open error:', e)
+    }
   }
 }
 

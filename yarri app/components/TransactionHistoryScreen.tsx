@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
+import { trackScreenView } from '../utils/clevertap'
 
 interface TransactionHistoryScreenProps {
   onBack: () => void
@@ -25,6 +26,7 @@ export default function TransactionHistoryScreen({ onBack }: TransactionHistoryS
   const API_URL = 'https://acsgroup.cloud'
 
   useEffect(() => {
+    trackScreenView('Transaction History')
     const userRaw = localStorage.getItem('user')
     if (!userRaw) {
       setError('Please login to view transactions')

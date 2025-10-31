@@ -1,55 +1,51 @@
+import { useState, useEffect } from 'react'
+import { trackScreenView, trackEvent } from '../utils/clevertap'
+
 interface WelcomeScreenProps {
   onNext: () => void
 }
 
 export default function WelcomeScreen({ onNext }: WelcomeScreenProps) {
+  const [phone, setPhone] = useState('')
+
+  useEffect(() => {
+    trackScreenView('Welcome')
+  }, [])
+
+  const handleGetOtp = () => {
+    const cleaned = phone.replace(/[^0-9]/g, '')
+    if (cleaned.length !== 10) {
+      alert('Please enter a valid 10-digit phone number')
+      return
+    }
+    localStorage.setItem('phone', cleaned)
+    trackEvent('GetOtpClicked', { phone: cleaned })
+    onNext()
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-300 via-orange-200 to-orange-300 flex flex-col items-center justify-center p-6">
-      <div className="absolute top-8 left-6 right-6 flex justify-between items-start">
-        <div className="flex flex-col space-y-2">
-          <div className="w-12 h-10 bg-orange-300 rounded-xl opacity-80"></div>
-          <div className="w-12 h-10 bg-orange-300 rounded-xl opacity-80"></div>
-        </div>
-        <div className="flex flex-col items-center">
-          <div className="w-16 h-16 bg-red-400 rounded-full mb-2"></div>
-        </div>
-        <div className="flex flex-col space-y-2">
-          <div className="w-12 h-10 bg-blue-300 rounded-xl opacity-80"></div>
-          <div className="w-12 h-10 bg-blue-300 rounded-xl opacity-80"></div>
-        </div>
-      </div>
-
-      <div className="flex justify-center items-center mb-8">
-        <div className="w-48 h-48 relative">
-          <div className="absolute left-0 w-24 h-32 bg-orange-800 rounded-t-full"></div>
-          <div className="absolute right-0 w-24 h-32 bg-orange-900 rounded-t-full"></div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-3xl p-8 shadow-lg max-w-sm w-full text-center">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-2">Yaari</h1>
-          <p className="text-gray-600 text-sm">Connect with your phone</p>
-        </div>
-        
-        <div className="mb-6">
-          <input
-            type="text"
-            placeholder="Enter your Phone Number"
-            className="w-full p-4 border border-gray-300 rounded-xl text-base focus:outline-none focus:border-primary text-center"
-          />
-        </div>
-        
-        <button 
-          onClick={onNext}
-          className="w-full bg-primary text-white py-4 rounded-xl font-semibold text-base mb-3"
+    <div className="min-h-screen flex flex-col items-center justify-center relative p-4">
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/images/loginScreenBackgroundImage.png)' }}
+      />
+      
+      <div className="relative z-10 bg-white rounded-3xl p-6 shadow-lg max-w-sm w-full">
+        <h2 className="text-xl font-bold text-primary mb-4">Welcome to Yaari</h2>
+        <label className="block text-sm text-gray-600 mb-2">Phone Number</label>
+        <input
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="Enter 10-digit number"
+          className="w-full border-2 border-gray-300 rounded-lg p-3 mb-4 focus:outline-none focus:border-primary"
+        />
+        <button
+          onClick={handleGetOtp}
+          className="w-full bg-primary text-white py-4 rounded-full font-semibold text-base"
         >
           Get OTP
         </button>
-        
-        <p className="text-xs text-gray-500">
-          Terms & Condition
-        </p>
       </div>
     </div>
   )

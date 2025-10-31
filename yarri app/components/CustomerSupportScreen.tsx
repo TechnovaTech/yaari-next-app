@@ -1,5 +1,7 @@
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
+import { useEffect } from 'react'
+import { trackScreenView } from '../utils/clevertap'
 
 interface CustomerSupportScreenProps {
   onBack: () => void
@@ -8,6 +10,9 @@ interface CustomerSupportScreenProps {
 export default function CustomerSupportScreen({ onBack }: CustomerSupportScreenProps) {
   const { lang } = useLanguage()
   const t = translations[lang]
+  useEffect(() => {
+    trackScreenView('Customer Support')
+  }, [])
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}

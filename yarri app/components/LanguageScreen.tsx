@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronLeft } from 'lucide-react'
+import { trackScreenView, trackEvent } from '../utils/clevertap'
 
 interface LanguageScreenProps {
   onNext: () => void
@@ -9,8 +10,14 @@ interface LanguageScreenProps {
 export default function LanguageScreen({ onNext, onSelectLanguage }: LanguageScreenProps) {
   const [selectedLanguage, setSelectedLanguage] = useState('हिंदी')
 
+  useEffect(() => {
+    trackScreenView('Language Select')
+  }, [])
+
   const handleNext = () => {
-    onSelectLanguage(selectedLanguage === 'English' ? 'en' : 'hi')
+    const lang = selectedLanguage === 'English' ? 'en' : 'hi'
+    trackEvent('LanguageNextClicked', { language: lang })
+    onSelectLanguage(lang)
     onNext()
   }
 
@@ -30,7 +37,7 @@ export default function LanguageScreen({ onNext, onSelectLanguage }: LanguageScr
           ].map((language) => (
             <button
               key={language.value}
-              onClick={() => setSelectedLanguage(language.value)}
+              onClick={() => { setSelectedLanguage(language.value); trackEvent('LanguageSelected', { language: language.value }) }}
               className={`w-full p-4 rounded-full border-2 transition-colors text-base flex items-center justify-center ${
                 selectedLanguage === language.value
                   ? 'border-primary text-primary bg-orange-50'

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
+import { trackScreenView, trackEvent } from '../utils/clevertap'
 
 interface OTPScreenProps {
   onNext: () => void
@@ -16,6 +17,7 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
   useEffect(() => {
     const savedPhone = localStorage.getItem('phone') || ''
     setPhone(savedPhone)
+    trackScreenView('OTP Verification')
   }, [])
 
   const handleVerifyOTP = async () => {
@@ -27,6 +29,7 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
 
     setIsVerifying(true)
     try {
+      trackEvent('OtpVerifyAttempt', { phone })
       const endpoint = Capacitor.isNativePlatform()
         ? `${process.env.NEXT_PUBLIC_API_URL || 'https://acsgroup.cloud'}/api/auth/verify-otp`
         : `/api/auth/verify-otp`
@@ -40,6 +43,7 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
 
       if (res.ok) {
         setIsVerified(true)
+        trackEvent('OtpVerified', { phone })
         localStorage.setItem('user', JSON.stringify(data.user))
         
         if (!data.user.name || !data.user.gender) {
@@ -48,10 +52,12 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
           window.location.href = '/users'
         }
       } else {
+        trackEvent('OtpVerifyFailed', { phone, error: data.error })
         alert(data.error || 'Invalid OTP')
         setIsVerifying(false)
       }
     } catch (error) {
+      trackEvent('OtpVerifyError', { phone })
       alert('Error verifying OTP')
       setIsVerifying(false)
     }
@@ -127,7 +133,7 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
         </button>
         
         <button 
-          onClick={() => setIsConfirmed(!isConfirmed)}
+          onClick={() => { const next = !isConfirmed; setIsConfirmed(next); trackEvent('AgeConfirmToggled', { confirmed: next }) }}
           className="text-center text-xs text-gray-600 flex items-center justify-center w-full"
         >
           <span className={`inline-block w-4 h-4 rounded-sm mr-2 flex items-center justify-center text-white text-xs border-2 transition-colors ${

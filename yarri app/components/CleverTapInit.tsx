@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { CleverTap } from '@awesome-cordova-plugins/clevertap';
 import { Capacitor } from '@capacitor/core';
+import { trackAppOpen } from '@/utils/clevertap'
 
 export default function CleverTapInit() {
   useEffect(() => {
@@ -16,12 +17,23 @@ export default function CleverTapInit() {
             Name: 'Yaari User',
             Identity: Date.now().toString(),
           })
+          // Track initial app open session
+          await trackAppOpen()
           console.log('CleverTap initialized')
         } catch (error) {
           console.error('CleverTap initialization failed:', error)
         }
       } else {
-        console.log('CleverTap skipped - web platform')
+        // Initialize web CleverTap and track session
+        await trackAppOpen()
+        try {
+          (window as any).clevertap?.onUserLogin?.push({
+            Name: 'Yaari User',
+            Identity: Date.now().toString(),
+          })
+        } catch (e) {
+          console.log('Web CleverTap onUserLogin error:', e)
+        }
       }
     };
 

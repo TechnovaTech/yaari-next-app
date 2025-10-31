@@ -1,6 +1,8 @@
 import { ArrowLeft, Shield, Lock } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
+import { useEffect } from 'react'
+import { trackScreenView, trackEvent } from '../utils/clevertap'
 
 interface PrivacySecurityScreenProps {
   onBack: () => void
@@ -9,6 +11,9 @@ interface PrivacySecurityScreenProps {
 export default function PrivacySecurityScreen({ onBack }: PrivacySecurityScreenProps) {
   const { lang } = useLanguage()
   const t = translations[lang]
+  useEffect(() => {
+    trackScreenView('Privacy & Security')
+  }, [])
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white p-4 flex items-center space-x-3 shadow-sm">
@@ -23,7 +28,7 @@ export default function PrivacySecurityScreen({ onBack }: PrivacySecurityScreenP
           <h2 className="text-sm font-semibold text-gray-500 uppercase">{t.dataPrivacy}</h2>
           
           <button 
-            onClick={() => window.open('https://yaari.me/policies/privacy-policy', '_blank')}
+            onClick={() => { trackEvent('PrivacyPolicyClicked'); window.open('https://yaari.me/policies/privacy-policy', '_blank') }}
             className="flex items-center justify-between py-2 w-full"
           >
             <div className="flex items-center space-x-3">
@@ -34,7 +39,7 @@ export default function PrivacySecurityScreen({ onBack }: PrivacySecurityScreenP
           </button>
 
           <button 
-            onClick={() => window.open('https://yaari.me/policies/terms-of-service', '_blank')}
+            onClick={() => { trackEvent('TermsOfServiceClicked'); window.open('https://yaari.me/policies/terms-of-service', '_blank') }}
             className="flex items-center justify-between py-2 w-full"
           >
             <div className="flex items-center space-x-3">

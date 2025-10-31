@@ -1,9 +1,15 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Phone, MessageCircle, User, Settings, History, CreditCard, HelpCircle, LogOut } from 'lucide-react'
+import { trackScreenView, trackEvent } from '../utils/clevertap'
 
 export default function DashboardScreen() {
   const [activeTab, setActiveTab] = useState('home')
+
+  useEffect(() => {
+    trackScreenView(`Dashboard - ${activeTab}`)
+    trackEvent('BottomTabChanged', { tab: activeTab })
+  }, [activeTab])
 
   const renderContent = () => {
     switch (activeTab) {
@@ -27,28 +33,28 @@ export default function DashboardScreen() {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
         <div className="flex justify-around py-2">
           <button
-            onClick={() => setActiveTab('home')}
+            onClick={() => { trackEvent('BottomTabClick', { tab: 'home' }); setActiveTab('home') }}
             className={`flex flex-col items-center p-2 ${activeTab === 'home' ? 'text-primary' : 'text-gray-500'}`}
           >
             <Phone size={24} />
             <span className="text-xs mt-1">Home</span>
           </button>
           <button
-            onClick={() => setActiveTab('profile')}
+            onClick={() => { trackEvent('BottomTabClick', { tab: 'profile' }); setActiveTab('profile') }}
             className={`flex flex-col items-center p-2 ${activeTab === 'profile' ? 'text-primary' : 'text-gray-500'}`}
           >
             <User size={24} />
             <span className="text-xs mt-1">Profile</span>
           </button>
           <button
-            onClick={() => setActiveTab('history')}
+            onClick={() => { trackEvent('BottomTabClick', { tab: 'history' }); setActiveTab('history') }}
             className={`flex flex-col items-center p-2 ${activeTab === 'history' ? 'text-primary' : 'text-gray-500'}`}
           >
             <History size={24} />
             <span className="text-xs mt-1">History</span>
           </button>
           <button
-            onClick={() => setActiveTab('support')}
+            onClick={() => { trackEvent('BottomTabClick', { tab: 'support' }); setActiveTab('support') }}
             className={`flex flex-col items-center p-2 ${activeTab === 'support' ? 'text-primary' : 'text-gray-500'}`}
           >
             <HelpCircle size={24} />
@@ -97,7 +103,7 @@ function HomeContent() {
           </div>
         </div>
         
-        <button className="w-full bg-white text-primary py-3 rounded-2xl font-semibold">
+        <button className="w-full bg-white text-primary py-3 rounded-2xl font-semibold" onClick={() => trackEvent('ProceedRechargeClicked')}>
           Proceed to Recharge
         </button>
       </div>
@@ -110,10 +116,10 @@ function HomeContent() {
         </div>
         
         <div className="flex space-x-4">
-          <button className="flex-1 bg-primary text-white py-3 rounded-2xl font-semibold">
+          <button className="flex-1 bg-primary text-white py-3 rounded-2xl font-semibold" onClick={() => trackEvent('RechargeClicked')}>
             Recharge
           </button>
-          <button className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-2xl font-semibold">
+          <button className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-2xl font-semibold" onClick={() => trackEvent('HistoryClicked')}>
             History
           </button>
         </div>
@@ -231,7 +237,7 @@ function SupportContent() {
         <p className="text-gray-600 text-sm mb-4">
           Need a copy of your invoice? We can help you get it quickly and easily.
         </p>
-        <button className="w-full bg-primary text-white py-3 rounded-2xl font-semibold">
+        <button className="w-full bg-primary text-white py-3 rounded-2xl font-semibold" onClick={() => trackEvent('SupportRequestInvoice')}>
           Request Invoice
         </button>
       </div>
@@ -241,7 +247,7 @@ function SupportContent() {
         <p className="text-gray-600 text-sm mb-4">
           Our support team is here to help you with any questions or issues you may have.
         </p>
-        <button className="w-full bg-gray-200 text-gray-700 py-3 rounded-2xl font-semibold">
+        <button className="w-full bg-gray-200 text-gray-700 py-3 rounded-2xl font-semibold" onClick={() => trackEvent('SupportContactClicked')}>
           Contact Support
         </button>
       </div>

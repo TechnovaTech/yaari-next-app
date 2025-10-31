@@ -2,6 +2,7 @@ import { User, Plus, X } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
+import { trackScreenView, trackEvent } from '../utils/clevertap'
 
 interface EditProfileScreenProps {
   onBack: () => void
@@ -22,6 +23,7 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
   const [profilePic, setProfilePic] = useState('')
 
   useEffect(() => {
+    trackScreenView('Edit Profile')
     const user = localStorage.getItem('user')
     if (user) {
       const userData = JSON.parse(user)
@@ -215,6 +217,7 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
             }
             
             setLoading(true)
+            trackEvent('ProfileSaveAttempt')
             try {
               const user = JSON.parse(localStorage.getItem('user') || '{}')
               
@@ -242,13 +245,16 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
               if (res.ok) {
                 const updatedUser = { ...user, name: userName, phone: phoneNumber, email: email, about: aboutMe, hobbies, profilePic, gallery: images }
                 localStorage.setItem('user', JSON.stringify(updatedUser))
+                trackEvent('ProfileSaved')
                 alert('Profile saved to database successfully!')
                 window.location.href = '/users'
               } else {
+                trackEvent('ProfileSaveFailed', { error: result.error || 'Unknown error' })
                 alert('Failed to save profile: ' + (result.error || 'Unknown error'))
               }
             } catch (error) {
-              alert('Error saving profile')
+               trackEvent('ProfileSaveError')
+               alert('Error saving profile')
             } finally {
               setLoading(false)
             }
