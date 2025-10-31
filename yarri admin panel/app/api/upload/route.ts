@@ -7,9 +7,6 @@ import { existsSync } from 'fs'
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-// Configure maximum request body size (50MB)
-export const maxRequestBodySize = 50 * 1024 * 1024
-
 export async function POST(request: NextRequest) {
   try {
     // Check content-length header first
