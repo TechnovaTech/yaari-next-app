@@ -5,7 +5,7 @@ import { Capacitor } from '@capacitor/core'
 const CLEVERTAP_ACCOUNT_ID = '775-RZ7-W67Z'
 const CLEVERTAP_PROJECT_TOKEN = 'a12-5aa' // reserved for server-side; not used in web SDK
 const CLEVERTAP_PASSCODE = 'UFO-IOX-YEEL' // reserved; not used in web SDK
-const CLEVERTAP_REGION = 'in1'
+const CLEVERTAP_REGION = 'eu1'
 
 declare global {
   interface Window {
