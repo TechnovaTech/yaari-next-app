@@ -28,8 +28,10 @@ export default function CleverTapInit() {
         await trackAppOpen()
         try {
           (window as any).clevertap?.onUserLogin?.push({
-            Name: 'Yaari User',
-            Identity: Date.now().toString(),
+            Site: {
+              Name: 'Yaari User',
+              Identity: Date.now().toString(),
+            },
           })
         } catch (e) {
           console.log('Web CleverTap onUserLogin error:', e)

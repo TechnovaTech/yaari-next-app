@@ -5,7 +5,7 @@ import { Capacitor } from '@capacitor/core'
 const CLEVERTAP_ACCOUNT_ID = '775-RZ7-W67Z'
 const CLEVERTAP_PROJECT_TOKEN = 'a12-5aa' // reserved for server-side; not used in web SDK
 const CLEVERTAP_PASSCODE = 'UFO-IOX-YEEL' // reserved; not used in web SDK
-const CLEVERTAP_REGION = 'global'
+const CLEVERTAP_REGION = 'in1'
 
 declare global {
   interface Window {
@@ -20,19 +20,24 @@ const ensureCleverTapWeb = () => {
   const w = window as any
   if (w.clevertap) return
   w.clevertap = {
-    account_id: CLEVERTAP_ACCOUNT_ID,
-    region: CLEVERTAP_REGION,
-    // event/profile queues per official snippet
+    // per official web snippet
     event: [],
     profile: [],
     account: [],
     onUserLogin: [],
+    region: CLEVERTAP_REGION,
   }
+  // Push account id before SDK loads so clevertap.account[0].id exists
+  w.clevertap.account.push({ id: CLEVERTAP_ACCOUNT_ID })
+
   const s = document.createElement('script')
-  s.src = 'https://cdn.clevertap.com/js/clevertap.min.js'
+  s.src = 'https://static.clevertap.com/js/clevertap.min.js'
   s.type = 'text/javascript'
-  s.defer = true
-  document.head.appendChild(s)
+  s.async = true
+  s.onload = () => console.log('CleverTap Web SDK loaded')
+  s.onerror = (e) => console.error('CleverTap Web SDK load failed:', e)
+  const firstScript = document.getElementsByTagName('script')[0]
+  ;(firstScript?.parentNode || document.head).insertBefore(s, firstScript || null)
 }
 
 ensureCleverTapWeb()
@@ -59,7 +64,7 @@ export const updateUserProfile = async (userProfile: {
     }
   } else {
     try {
-      window.clevertap?.profile?.push(userProfile)
+      window.clevertap?.profile?.push({ Site: userProfile })
     } catch (e) {
       console.log('Web CleverTap profile push error:', e)
     }
@@ -77,7 +82,7 @@ export const trackUserLogin = async (userIdentity: string, userProfile?: any) =>
   } else {
     try {
       const profile = { Identity: userIdentity, ...(userProfile || {}) }
-      window.clevertap?.onUserLogin?.push(profile)
+      window.clevertap?.onUserLogin?.push({ Site: profile })
     } catch (e) {
       console.log('Web CleverTap onUserLogin error:', e)
     }
