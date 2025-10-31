@@ -5,6 +5,7 @@ import CallConfirmationScreen from './CallConfirmationScreen'
 import IncomingCallModal from './IncomingCallModal'
 import PermissionModal from './PermissionModal'
 import PermissionDeniedModal from './PermissionDeniedModal'
+import AdBanner from './AdBanner'
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
 import { useSocket } from '../contexts/SocketContext'
@@ -364,7 +365,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
       </div>
 
       <div className="p-4" style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top))' }}>
-        <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-2xl h-40 mb-4"></div>
+        <AdBanner />
 
         {loading ? (
           <div className="text-center py-8">

@@ -325,7 +325,7 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
             <button
               key={pkg._id || index}
               onClick={() => setSelectedPlan(pkg)}
-              className={`rounded-3xl p-4 md:p-5 bg-rose-100 hover:bg-rose-200 transition-all border border-gray-200 shadow-md flex flex-col justify-between ${selectedPlan?._id === pkg._id ? 'ring-2 ring-orange-500' : ''}`}
+              className={`rounded-3xl p-4 md:p-5 bg-rose-100 border border-gray-200 shadow-md flex flex-col justify-between ${selectedPlan?._id === pkg._id ? 'ring-2 ring-orange-500' : ''}`}
             >
               <div className="flex items-center gap-2">
                 {useFallbackIcon ? (
@@ -352,7 +352,7 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
           ))}
         </div>
 
-        <button onClick={proceedPayment} disabled={loading || isTopupInvalid} className="w-full bg-orange-500 text-white py-4 rounded-2xl font-semibold text-base hover:bg-orange-600 transition-colors flex items-center justify-center disabled:opacity-60">
+        <button onClick={proceedPayment} disabled={loading || isTopupInvalid} className="w-full bg-orange-500 text-white py-4 rounded-2xl font-semibold text-base flex items-center justify-center disabled:opacity-60">
           <span style={{ marginTop: '10px' }}>{loading ? 'Processing...' : 'Proceed to Payment'}</span>
         </button>
       </div>
