@@ -271,7 +271,7 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
         <div className="bg-orange-100 rounded-2xl p-6 mb-4 flex items-center">
           {useFallbackIcon ? (
             <div className="w-16 h-16 bg-orange-400 rounded-full flex items-center justify-center mr-4">
-              <span className="text-white text-3xl font-extrabold" style={{ marginTop: '20px' }}>Y</span>
+              <span className="text-white text-3xl font-extrabold mt-5">Y</span>
             </div>
           ) : (
             <img
@@ -281,7 +281,7 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
               onError={() => setUseFallbackIcon(true)}
             />
           )}
-          <div>
+          <div className="mt-2.5">
             <p className="text-gray-700 text-sm mb-1">Total Coin Balance</p>
             <p className="text-3xl font-extrabold">{balance} coin</p>
           </div>
@@ -340,7 +340,7 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
                     onError={() => setUseFallbackIcon(true)}
                   />
                 )}
-                <span className="inline-flex items-center h-9 md:h-10 text-xl md:text-2xl font-extrabold text-black leading-none" style={{ marginTop: '10px' }}>{pkg.coins}</span>
+                <span className="inline-flex items-center h-9 md:h-10 text-xl md:text-2xl font-extrabold text-black leading-none mt-2.5">{pkg.coins}</span>
               </div>
               <div className="mt-4 flex flex-col items-center">
                 <p className="text-base md:text-lg font-extrabold text-black">Rs {pkg.price}</p>

@@ -273,14 +273,22 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
               className="flex-1 bg-primary text-white py-4 rounded-full font-semibold flex items-center justify-center gap-2"
           >
             <Video size={18} />
-            <span style={{ marginTop: '10px' }}>₹10/min</span>
+            <span className="flex items-center gap-0.5" style={{ marginTop: '10px' }}>
+                      10
+                      <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
+                      / min
+                    </span>
           </button>
           <button 
             onClick={() => handleCallClick('audio', 5)}
             className="flex-1 bg-primary text-white py-4 rounded-full font-semibold flex items-center justify-center gap-2"
           >
             <Phone size={18} />
-            <span style={{ marginTop: '10px' }}>₹5/min</span>
+            <span className="flex items-center gap-0.5" style={{ marginTop: '10px' }}>
+                      5
+                      <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
+                      / min
+                    </span>
           </button>
         </div>
       </div>

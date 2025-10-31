@@ -329,7 +329,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
       <div className="fixed top-0 left-0 right-0 z-50 bg-white p-4 flex items-center justify-between shadow-sm" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center gap-2" style={{ alignItems: 'center' }}>
           <Heart className="text-primary" size={24} fill="#FF6B35" style={{ marginTop: '4px' }} />
-          <h1 className="text-2xl font-bold text-primary" style={{ lineHeight: '24px' , marginTop: '20px' }}>Yaari</h1>
+          <h1 className="text-2xl font-bold text-primary mt-5" style={{ lineHeight: '24px' }}>Yaari</h1>
         </div>
         <div className="flex items-center space-x-3">
           <button 
@@ -352,7 +352,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
                 onError={() => setUseFallbackIcon(true)}
               />
             )}
-            <span className="text-gray-800 font-bold text-base" style={{ lineHeight: '20px' , marginTop: '15px' }}>₹{balance}</span>
+            <span className="text-gray-800 font-bold text-base mt-4" style={{ lineHeight: '20px' }}>{balance}</span>
           </button>
           <button 
             onClick={onProfileClick}
@@ -421,17 +421,27 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
                 <div className="flex gap-2">
                   <button 
                     onClick={(e) => handleCallClick(user, 'video', 10, e)}
-                    className="flex-1 bg-primary text-white py-2 rounded-full flex items-center justify-center"
+                    className="flex-1 bg-primary text-white py-2 rounded-full flex items-center justify-center gap-1"
                     style={{ alignItems: 'center', justifyContent: 'center' }}
                   >
                     <Video size={16} fill="white" strokeWidth={0} />
+                    <span className="flex items-center gap-0.5 mt-2.5">
+                      10
+                      <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
+                      / min
+                    </span>
                   </button>
                   <button 
                     onClick={(e) => handleCallClick(user, 'audio', 5, e)}
-                    className="flex-1 bg-primary text-white py-2 rounded-full flex items-center justify-center"
+                    className="flex-1 bg-primary text-white py-2 rounded-full flex items-center justify-center gap-1"
                     style={{ alignItems: 'center', justifyContent: 'center' }}
                   >
                     <Phone size={16} strokeWidth={2} />
+                    <span className="flex items-center gap-0.5 mt-2.5">
+                      5
+                      <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
+                      / min
+                    </span>
                   </button>
                 </div>
               </div>
