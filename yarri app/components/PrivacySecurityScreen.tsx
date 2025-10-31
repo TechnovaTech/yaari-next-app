@@ -28,7 +28,7 @@ export default function PrivacySecurityScreen({ onBack }: PrivacySecurityScreenP
           <h2 className="text-sm font-semibold text-gray-500 uppercase">{t.dataPrivacy}</h2>
           
           <button 
-            onClick={() => { trackEvent('PrivacyPolicyClicked'); window.open('https://yaari.me/policies/privacy-policy', '_blank') }}
+            onClick={() => { trackEvent('PrivacyPolicyClicked'); window.open('https://yaari.me/privacy', '_blank') }}
             className="flex items-center justify-between py-2 w-full"
           >
             <div className="flex items-center space-x-3">
@@ -39,7 +39,7 @@ export default function PrivacySecurityScreen({ onBack }: PrivacySecurityScreenP
           </button>
 
           <button 
-            onClick={() => { trackEvent('TermsOfServiceClicked'); window.open('https://yaari.me/policies/terms-of-service', '_blank') }}
+            onClick={() => { trackEvent('TermsOfServiceClicked'); window.open('https://yaari.me/terms', '_blank') }}
             className="flex items-center justify-between py-2 w-full"
           >
             <div className="flex items-center space-x-3">

@@ -238,7 +238,7 @@ export default function LoginScreen({ onNext }: LoginScreenProps) {
         </button>
         
         <a
-          href="https://yaari.me/policies/terms-of-service"
+          href="https://yaari.me/terms"
           target="_blank"
           rel="noopener noreferrer"
           className="block text-center text-xs text-primary hover:underline"
