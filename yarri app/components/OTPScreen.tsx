@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
-import { trackScreenView, trackEvent } from '../utils/clevertap'
+import { trackScreenView, trackEvent, trackUserLogin } from '../utils/clevertap'
 
 interface OTPScreenProps {
   onNext: () => void
@@ -45,6 +45,13 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
         setIsVerified(true)
         trackEvent('OtpVerified', { phone })
         localStorage.setItem('user', JSON.stringify(data.user))
+        // Set CleverTap identity to verified phone (OTP login)
+        await trackUserLogin(phone, {
+          'Login Method': 'OTP',
+          Phone: phone,
+          Name: data.user?.name,
+          Email: data.user?.email,
+        })
         
         if (!data.user.name || !data.user.gender) {
           setTimeout(() => onNext(), 500)

@@ -2,7 +2,7 @@ import { User, Plus, X } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
-import { trackScreenView, trackEvent } from '../utils/clevertap'
+import { trackScreenView, trackEvent, updateUserProfile } from '../utils/clevertap'
 
 interface EditProfileScreenProps {
   onBack: () => void
@@ -245,6 +245,16 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
               if (res.ok) {
                 const updatedUser = { ...user, name: userName, phone: phoneNumber, email: email, about: aboutMe, hobbies, profilePic, gallery: images }
                 localStorage.setItem('user', JSON.stringify(updatedUser))
+                // Push updated profile to CleverTap
+                await updateUserProfile({
+                  Name: userName,
+                  Email: email,
+                  Phone: phoneNumber,
+                  Gender: gender,
+                  'About': aboutMe,
+                  'Hobbies': hobbies.join(', '),
+                  'Profile Picture': profilePic,
+                })
                 trackEvent('ProfileSaved')
                 alert('Profile saved to database successfully!')
                 window.location.href = '/users'

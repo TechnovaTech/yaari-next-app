@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { CleverTap } from '@awesome-cordova-plugins/clevertap';
 import { Capacitor } from '@capacitor/core';
-import { trackAppOpen } from '@/utils/clevertap'
+import { trackAppOpen, trackUserLogin } from '@/utils/clevertap'
 
 export default function CleverTapInit() {
   useEffect(() => {
@@ -12,13 +12,22 @@ export default function CleverTapInit() {
         try {
           await CleverTap.setDebugLevel(3)
           await CleverTap.notifyDeviceReady()
-          // Lightweight default profile to ensure SDK starts tracking
-          await CleverTap.onUserLogin({
-            Name: 'Yaari User',
-            Identity: Date.now().toString(),
-          })
           // Track initial app open session
           await trackAppOpen()
+          // If we already have a known user, set identity; otherwise skip
+          try {
+            const stored = localStorage.getItem('user') || localStorage.getItem('phone')
+            if (stored) {
+              const parsed = (() => { try { return JSON.parse(stored as string) } catch { return {} } })()
+              const identity = parsed?.id || parsed?.phone || stored
+              await trackUserLogin(identity as string, {
+                Name: parsed?.name,
+                Email: parsed?.email,
+                Phone: parsed?.phone,
+              })
+            }
+          } catch {}
+          console.log('CleverTap initialized')
           console.log('CleverTap initialized')
         } catch (error) {
           console.error('CleverTap initialization failed:', error)
@@ -27,12 +36,17 @@ export default function CleverTapInit() {
         // Initialize web CleverTap and track session
         await trackAppOpen()
         try {
-          (window as any).clevertap?.onUserLogin?.push({
-            Site: {
-              Name: 'Yaari User',
-              Identity: Date.now().toString(),
-            },
-          })
+          const storedUser = localStorage.getItem('user')
+          const storedPhone = localStorage.getItem('phone')
+          if (storedUser || storedPhone) {
+            const parsed = storedUser ? (() => { try { return JSON.parse(storedUser) } catch { return {} } })() : {}
+            const identity = parsed?.id || parsed?.phone || storedPhone
+            await trackUserLogin(identity as string, {
+              Name: parsed?.name,
+              Email: parsed?.email,
+              Phone: parsed?.phone,
+            })
+          }
         } catch (e) {
           console.log('Web CleverTap onUserLogin error:', e)
         }

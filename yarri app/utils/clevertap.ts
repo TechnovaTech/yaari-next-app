@@ -47,6 +47,23 @@ const isCleverTapAvailable = () => {
   return Capacitor.isNativePlatform()
 }
 
+// Normalize phone to E.164 format expected by CleverTap (+[country][number])
+const formatPhoneE164 = (raw?: string): string | undefined => {
+  if (!raw) return undefined
+  const trimmed = String(raw).trim()
+  if (trimmed.startsWith('+')) {
+    // Assume already E.164
+    return trimmed
+  }
+  const digits = trimmed.replace(/[^0-9]/g, '')
+  // Default to India if 10-digit local number
+  if (digits.length === 10) return `+91${digits}`
+  // Handle numbers like 91XXXXXXXXXX (12 digits)
+  if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`
+  // Unknown format -> let SDK drop it
+  return undefined
+}
+
 export const updateUserProfile = async (userProfile: {
   Name?: string
   Email?: string
@@ -56,15 +73,20 @@ export const updateUserProfile = async (userProfile: {
   City?: string
   [key: string]: any
 }) => {
+  const profileForPush = { ...userProfile }
+  const normalizedPhone = formatPhoneE164(userProfile.Phone)
+  if (normalizedPhone) profileForPush.Phone = normalizedPhone
+  else delete profileForPush.Phone
+
   if (isCleverTapAvailable()) {
     try {
-      await CleverTap.profileSet(userProfile)
+      await CleverTap.profileSet(profileForPush)
     } catch (e) {
       console.log('CleverTap profileSet error:', e)
     }
   } else {
     try {
-      window.clevertap?.profile?.push({ Site: userProfile })
+      window.clevertap?.profile?.push({ Site: profileForPush })
     } catch (e) {
       console.log('Web CleverTap profile push error:', e)
     }
@@ -72,16 +94,19 @@ export const updateUserProfile = async (userProfile: {
 }
 
 export const trackUserLogin = async (userIdentity: string, userProfile?: any) => {
+  const profile = { Identity: userIdentity, ...(userProfile || {}) }
+  const normalizedPhone = formatPhoneE164(profile.Phone)
+  if (normalizedPhone) profile.Phone = normalizedPhone
+  else delete profile.Phone
+
   if (isCleverTapAvailable()) {
     try {
-      const profile = { Identity: userIdentity, ...(userProfile || {}) }
       await CleverTap.onUserLogin(profile)
     } catch (e) {
       console.log('CleverTap onUserLogin error:', e)
     }
   } else {
     try {
-      const profile = { Identity: userIdentity, ...(userProfile || {}) }
       window.clevertap?.onUserLogin?.push({ Site: profile })
     } catch (e) {
       console.log('Web CleverTap onUserLogin error:', e)
