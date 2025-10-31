@@ -27,7 +27,7 @@ export default function GenderScreen({ onNext }: GenderScreenProps) {
       })
       
       const user = JSON.parse(localStorage.getItem('user') || '{}')
-      const res = await fetch(`https://acsgroup.cloud/api/users/${user.id}`, {
+      const res = await fetch(`/api/users/${user.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gender: selectedGender }),
