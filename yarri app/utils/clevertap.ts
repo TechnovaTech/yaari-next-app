@@ -1,5 +1,6 @@
 import { CleverTap } from '@awesome-cordova-plugins/clevertap'
 import { Capacitor } from '@capacitor/core'
+import { initMixpanel, mixpanelTrack, mixpanelIdentify, mixpanelPeopleSet } from './mixpanel'
 
 // Inline CleverTap credentials (do NOT use env)
 const CLEVERTAP_ACCOUNT_ID = '775-RZ7-W67Z'
@@ -41,6 +42,8 @@ const ensureCleverTapWeb = () => {
 }
 
 ensureCleverTapWeb()
+// Initialize Mixpanel too (web/Capacitor webview)
+initMixpanel()
 
 // Check if CleverTap is available on native builds
 const isCleverTapAvailable = () => {
@@ -78,6 +81,11 @@ export const updateUserProfile = async (userProfile: {
   if (normalizedPhone) profileForPush.Phone = normalizedPhone
   else delete profileForPush.Phone
 
+  // Also push to Mixpanel people
+  try {
+    mixpanelPeopleSet(profileForPush)
+  } catch {}
+
   if (isCleverTapAvailable()) {
     try {
       await CleverTap.profileSet(profileForPush)
@@ -99,6 +107,12 @@ export const trackUserLogin = async (userIdentity: string, userProfile?: any) =>
   if (normalizedPhone) profile.Phone = normalizedPhone
   else delete profile.Phone
 
+  // Forward to Mixpanel: identify and people
+  try {
+    mixpanelIdentify(userIdentity)
+    if (profile) mixpanelPeopleSet(profile)
+  } catch {}
+
   if (isCleverTapAvailable()) {
     try {
       await CleverTap.onUserLogin(profile)
@@ -115,6 +129,11 @@ export const trackUserLogin = async (userIdentity: string, userProfile?: any) =>
 }
 
 export const trackEvent = async (eventName: string, eventData?: any) => {
+  // Forward to Mixpanel
+  try {
+    mixpanelTrack(eventName, eventData)
+  } catch {}
+
   if (isCleverTapAvailable()) {
     try {
       if (eventData && Object.keys(eventData).length > 0) {
@@ -159,6 +178,11 @@ export const trackSubscription = async (planName: string, amount: number, curren
 }
 
 export const trackAppOpen = async () => {
+  // Forward to Mixpanel
+  try {
+    mixpanelTrack('App Open')
+  } catch {}
+
   if (isCleverTapAvailable()) {
     try {
       await CleverTap.notifyDeviceReady()

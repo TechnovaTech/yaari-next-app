@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { CleverTap } from '@awesome-cordova-plugins/clevertap';
 import { Capacitor } from '@capacitor/core';
 import { trackAppOpen, trackUserLogin } from '@/utils/clevertap'
+import { initMixpanel, mixpanelIdentify, mixpanelPeopleSet } from '@/utils/mixpanel'
 
 export default function CleverTapInit() {
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function CleverTapInit() {
       } else {
         // Initialize web CleverTap and track session
         await trackAppOpen()
+        initMixpanel()
         try {
           const storedUser = localStorage.getItem('user')
           const storedPhone = localStorage.getItem('phone')
@@ -46,6 +48,11 @@ export default function CleverTapInit() {
               Email: parsed?.email,
               Phone: parsed?.phone,
             })
+            // Also identify in Mixpanel
+            if (identity) {
+              mixpanelIdentify(String(identity))
+              mixpanelPeopleSet({ Name: parsed?.name, Email: parsed?.email, Phone: parsed?.phone })
+            }
           }
         } catch (e) {
           console.log('Web CleverTap onUserLogin error:', e)

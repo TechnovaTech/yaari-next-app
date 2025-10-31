@@ -5,6 +5,7 @@ import { SocketProvider } from '../contexts/SocketContext'
 import GlobalCallUI from '../components/GlobalCallUI'
 import NativeStatusBar from '../components/NativeStatusBar'
 import CleverTapInit from '../components/CleverTapInit'
+import RouteAnalytics from '../components/RouteAnalytics'
 import ErrorBoundary from '../components/ErrorBoundary'
 
 const balooTammudu = Baloo_Tammudu_2({ 
@@ -45,6 +46,7 @@ export default function RootLayout({
             <LanguageProvider>
               <div className="mobile-container">
                 <GlobalCallUI />
+                <RouteAnalytics />
                 {children}
               </div>
             </LanguageProvider>

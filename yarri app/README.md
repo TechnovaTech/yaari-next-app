@@ -15,9 +15,10 @@ A Next.js mobile application for Yaari dating app.
 npm install
 ```
 
-2. Configure API URL in `.env.local`:
+2. Configure API URL and Mixpanel token in `.env.local`:
 ```
 NEXT_PUBLIC_API_URL=http://localhost:3000
+NEXT_PUBLIC_MIXPANEL_TOKEN=<your_mixpanel_project_token>
 ```
 
 3. Run development server:
