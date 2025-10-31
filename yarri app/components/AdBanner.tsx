@@ -49,7 +49,7 @@ export default function AdBanner() {
 
   const fetchAds = async () => {
     try {
-      const response = await fetch('/api/ads')
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ads`)
       const data = await response.json()
       if (data.success && data.ads.length > 0) {
         // Process ads to ensure image URLs are complete
