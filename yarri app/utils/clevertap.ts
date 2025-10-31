@@ -107,7 +107,12 @@ export const trackUserLogin = async (userIdentity: string, userProfile?: any) =>
   if (normalizedPhone) profile.Phone = normalizedPhone
   else delete profile.Phone
 
-  // Forward to Mixpanel: identify and people
+  // Update user profile (non-blocking)
+  updateUserProfile(userProfile || {}).catch(err => 
+    console.log('Profile update error:', err)
+  )
+
+  // Forward to Mixpanel: identify and people (non-blocking)
   try {
     mixpanelIdentify(userIdentity)
     if (profile) mixpanelPeopleSet(profile)
@@ -115,45 +120,68 @@ export const trackUserLogin = async (userIdentity: string, userProfile?: any) =>
 
   if (isCleverTapAvailable()) {
     try {
-      await CleverTap.onUserLogin(profile)
+      // Track login event with timeout
+      const loginPromise = CleverTap.onUserLogin(profile)
+      
+      // Set a timeout to prevent hanging
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        setTimeout(() => reject(new Error('CleverTap login timeout')), 3000)
+      })
+      
+      await Promise.race([loginPromise, timeoutPromise])
+      console.log('User login tracked successfully')
     } catch (e) {
       console.log('CleverTap onUserLogin error:', e)
+      // Don't throw error to prevent blocking UI
     }
   } else {
     try {
       window.clevertap?.onUserLogin?.push({ Site: profile })
+      console.log('User login tracked successfully')
     } catch (e) {
       console.log('Web CleverTap onUserLogin error:', e)
     }
   }
 }
 
-export const trackEvent = async (eventName: string, eventData?: any) => {
-  // Forward to Mixpanel
+export const trackEvent = async (eventName: string, eventData: any = {}) => {
   try {
+    // Track with timeout protection
+    const trackingPromise = new Promise<void>((resolve, reject) => {
+      try {
+        if (isCleverTapAvailable()) {
+          if (eventData && Object.keys(eventData).length > 0) {
+            CleverTap.recordEventWithNameAndProps(eventName, eventData)
+          } else {
+            CleverTap.recordEventWithName(eventName)
+          }
+        } else {
+          if (eventData && Object.keys(eventData).length > 0) {
+            window.clevertap?.event?.push(eventName, eventData)
+          } else {
+            window.clevertap?.event?.push(eventName)
+          }
+        }
+        resolve()
+      } catch (error) {
+        reject(error)
+      }
+    })
+    
+    // Set a timeout to prevent hanging
+    const timeoutPromise = new Promise<void>((_, reject) => {
+      setTimeout(() => reject(new Error('CleverTap event timeout')), 2000)
+    })
+    
+    await Promise.race([trackingPromise, timeoutPromise])
+    
+    // Also track with Mixpanel (non-blocking)
     mixpanelTrack(eventName, eventData)
-  } catch {}
-
-  if (isCleverTapAvailable()) {
-    try {
-      if (eventData && Object.keys(eventData).length > 0) {
-        await CleverTap.recordEventWithNameAndProps(eventName, eventData)
-      } else {
-        await CleverTap.recordEventWithName(eventName)
-      }
-    } catch (e) {
-      console.log('CleverTap recordEvent error:', e)
-    }
-  } else {
-    try {
-      if (eventData && Object.keys(eventData).length > 0) {
-        window.clevertap?.event?.push(eventName, eventData)
-      } else {
-        window.clevertap?.event?.push(eventName)
-      }
-    } catch (e) {
-      console.log('Web CleverTap event push error:', e)
-    }
+    
+    console.log(`Event tracked: ${eventName}`, eventData)
+  } catch (error) {
+    console.error('Error tracking event:', error)
+    // Don't throw error to prevent blocking UI
   }
 }
 

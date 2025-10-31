@@ -40,32 +40,33 @@ export default function LoginScreen({ onNext }: LoginScreenProps) {
         const data = await res.json()
         localStorage.setItem('user', JSON.stringify(data.user))
         
-        // Track user login with CleverTap
-        await trackUserLogin(googleId, {
+        // Navigate immediately to prevent freeze, track in background
+        const targetRoute = (data.user.name && data.user.gender) ? '/users' : '/language'
+        router.push(targetRoute)
+        
+        // Track user login with CleverTap (non-blocking)
+        trackUserLogin(googleId, {
           Name: name,
           Email: email,
           'Login Method': 'Google',
           'Profile Picture': profilePic
-        })
+        }).catch(err => console.log('Tracking error:', err))
         
-        // Track login event
-        await trackEvent('User Login', {
+        // Track login event (non-blocking)
+        trackEvent('User Login', {
           'Login Method': 'Google',
           'User ID': googleId,
           'Email': email
-        })
+        }).catch(err => console.log('Tracking error:', err))
         
-        if (data.user.name && data.user.gender) {
-          router.push('/users')
-        } else {
-          router.push('/language')
-        }
       } else {
         alert('Failed to login with Google')
       }
     } catch (error) {
       console.error('Google login error:', error)
       alert('Error logging in with Google')
+    } finally {
+      setGoogleLoading(false)
     }
   }
 
@@ -77,16 +78,19 @@ export default function LoginScreen({ onNext }: LoginScreenProps) {
         })
         const userInfo = await userInfoRes.json()
         
-        await handleGoogleLoginSuccess(
+        // Don't await this to prevent UI freeze
+        handleGoogleLoginSuccess(
           userInfo.email,
           userInfo.name,
           userInfo.sub,
           userInfo.picture
-        )
+        ).catch(error => {
+          console.error('Login success handler error:', error)
+          setGoogleLoading(false)
+        })
       } catch (error) {
         console.error('Error fetching user info:', error)
         alert('Failed to get user information')
-      } finally {
         setGoogleLoading(false)
       }
     },
