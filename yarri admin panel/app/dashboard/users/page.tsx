@@ -2,10 +2,25 @@
 import { useEffect, useState } from 'react'
 import { Search, Edit, Trash2, Eye } from 'lucide-react'
 
+interface User {
+  _id: string
+  name?: string
+  phone?: string
+  email?: string
+  gender?: string
+  balance?: number
+  isActive: boolean
+  profilePic?: string
+  createdAt: string
+  about?: string
+  hobbies?: string[]
+  gallery?: string[]
+}
+
 export default function UsersPage() {
-  const [users, setUsers] = useState([])
+  const [users, setUsers] = useState<User[]>([])
   const [search, setSearch] = useState('')
-  const [selectedUser, setSelectedUser] = useState<any>(null)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [showModal, setShowModal] = useState(false)
 
   useEffect(() => {
@@ -25,7 +40,7 @@ export default function UsersPage() {
       })
   }
 
-  const handleView = (user: any) => {
+  const handleView = (user: User) => {
     setSelectedUser(user)
     setShowModal(true)
   }
@@ -97,7 +112,7 @@ export default function UsersPage() {
               </tr>
             </thead>
             <tbody>
-              {users.filter((user: any) => 
+              {users.filter((user: User) => 
                 !search || 
                 (user.name && user.name.toLowerCase().includes(search.toLowerCase())) ||
                 (user.phone && user.phone.includes(search)) ||
@@ -109,12 +124,12 @@ export default function UsersPage() {
                   </td>
                 </tr>
               ) : (
-                users.filter((user: any) => 
+                users.filter((user: User) => 
                   !search || 
                   (user.name && user.name.toLowerCase().includes(search.toLowerCase())) ||
                   (user.phone && user.phone.includes(search)) ||
                   (user.email && user.email.toLowerCase().includes(search.toLowerCase()))
-                ).map((user: any) => (
+                ).map((user: User) => (
                   <tr key={user._id} className="border-b hover:bg-gray-50">
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-3">
