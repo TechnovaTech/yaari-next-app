@@ -5,6 +5,7 @@ import { SocketProvider } from '../contexts/SocketContext'
 import GlobalCallUI from '../components/GlobalCallUI'
 import NativeStatusBar from '../components/NativeStatusBar'
 import CleverTapInit from '../components/CleverTapInit'
+import ErrorBoundary from '../components/ErrorBoundary'
 
 const balooTammudu = Baloo_Tammudu_2({ 
   subsets: ['latin'],
@@ -35,18 +36,20 @@ export default function RootLayout({
   return (
     <html lang="en" className={balooTammudu.variable}>
       <body className={balooTammudu.className}>
-        {/* Client-only status bar configuration */}
-        <NativeStatusBar />
-        {/* CleverTap initialization */}
-        <CleverTapInit />
-        <SocketProvider>
-          <LanguageProvider>
-            <div className="mobile-container">
-              <GlobalCallUI />
-              {children}
-            </div>
-          </LanguageProvider>
-        </SocketProvider>
+        <ErrorBoundary>
+          {/* Client-only status bar configuration */}
+          <NativeStatusBar />
+          {/* CleverTap initialization */}
+          <CleverTapInit />
+          <SocketProvider>
+            <LanguageProvider>
+              <div className="mobile-container">
+                <GlobalCallUI />
+                {children}
+              </div>
+            </LanguageProvider>
+          </SocketProvider>
+        </ErrorBoundary>
       </body>
     </html>
   )

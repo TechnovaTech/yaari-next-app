@@ -2,10 +2,10 @@ apply plugin: 'com.android.application'
 
 android {
     namespace "com.yaari.app"
-    compileSdk 33
+    compileSdk 35
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     defaultConfig {
         applicationId "com.yaari.app"
@@ -19,10 +19,22 @@ android {
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
+        manifestPlaceholders = [
+            CLEVERTAP_ACCOUNT_ID: project.hasProperty('clevertapAccountId') ? project.property('clevertapAccountId') : (System.getenv('CLEVERTAP_ACCOUNT_ID') ?: ""),
+            CLEVERTAP_TOKEN: project.hasProperty('clevertapToken') ? project.property('clevertapToken') : (System.getenv('CLEVERTAP_TOKEN') ?: ""),
+            CLEVERTAP_REGION: project.hasProperty('clevertapRegion') ? project.property('clevertapRegion') : (System.getenv('CLEVERTAP_REGION') ?: "")
+        ]
     }
     buildTypes {
+        debug {
+            debuggable true
+            minifyEnabled false
+            shrinkResources false
+            zipAlignEnabled false
+        }
         release {
             minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }

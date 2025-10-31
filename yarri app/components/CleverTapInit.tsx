@@ -1,32 +1,28 @@
 'use client';
 
 import { useEffect } from 'react';
-// import { CleverTap } from '@awesome-cordova-plugins/clevertap';
-// import { Capacitor } from '@capacitor/core';
+import { CleverTap } from '@awesome-cordova-plugins/clevertap';
+import { Capacitor } from '@capacitor/core';
 
 export default function CleverTapInit() {
   useEffect(() => {
     const initializeCleverTap = async () => {
-      // CleverTap temporarily disabled for build
-      console.log('CleverTap initialization skipped - building without CleverTap');
-      
-      // if (Capacitor.isNativePlatform()) {
-      //   try {
-      //     // Enable debug logging (remove in production)
-      //     await CleverTap.setDebugLevel(3)
-      //     
-      //     // Set user properties
-      //     await CleverTap.onUserLogin({
-      //       'Name': 'User',
-      //       'Identity': Date.now().toString(),
-      //       'Email': 'user@example.com'
-      //     })
-      //     
-      //     console.log('CleverTap initialized successfully')
-      //   } catch (error) {
-      //     console.error('CleverTap initialization failed:', error)
-      //   }
-      // }
+      if (Capacitor.isNativePlatform()) {
+        try {
+          await CleverTap.setDebugLevel(3)
+          await CleverTap.notifyDeviceReady()
+          // Lightweight default profile to ensure SDK starts tracking
+          await CleverTap.onUserLogin({
+            Name: 'Yaari User',
+            Identity: Date.now().toString(),
+          })
+          console.log('CleverTap initialized')
+        } catch (error) {
+          console.error('CleverTap initialization failed:', error)
+        }
+      } else {
+        console.log('CleverTap skipped - web platform')
+      }
     };
 
     initializeCleverTap();
