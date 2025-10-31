@@ -45,6 +45,11 @@
     "captureInput": true,
     "webContentsDebuggingEnabled": true,
     "backgroundColor": "#FF6B35",
-    "windowSoftInputMode": "adjustResize"
+    "windowSoftInputMode": "adjustResize",
+    "overrideUserAgent": null,
+    "appendUserAgent": null
+  },
+  "ios": {
+    "contentInset": "automatic"
   }
 }

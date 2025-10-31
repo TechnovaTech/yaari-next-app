@@ -16,8 +16,8 @@ public class MainActivity extends BridgeActivity {
             
             // Configure window settings safely
             try {
-                WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-                getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+                // Set to true so system handles insets properly
+                WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
                 getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             } catch (Exception e) {
                 Log.e(TAG, "Error configuring window settings", e);
