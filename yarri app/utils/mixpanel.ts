@@ -47,11 +47,38 @@ export const mixpanelIdentify = (identity: string) => {
   }
 }
 
+// Normalize profile props to Mixpanel reserved keys so Users page shows email/name/phone
+const normalizePeopleProps = (props: Record<string, any>): Record<string, any> => {
+  const out: Record<string, any> = { ...props }
+  const name = props.Name ?? props.name
+  const email = props.Email ?? props.email
+  const phone = props.Phone ?? props.phone
+
+  if (name) {
+    out.$name = String(name)
+    delete out.Name
+    delete out.name
+  }
+  if (email) {
+    out.$email = String(email)
+    delete out.Email
+    delete out.email
+  }
+  if (phone) {
+    out.$phone = String(phone)
+    delete out.Phone
+    delete out.phone
+  }
+
+  return out
+}
+
 export const mixpanelPeopleSet = (props: Record<string, any>) => {
   try {
     initMixpanel()
     if (!initialized) return
-    mixpanel.people.set(props)
+    const normalized = normalizePeopleProps(props)
+    mixpanel.people.set(normalized)
   } catch (e) {
     console.log('Mixpanel people.set error:', e)
   }
