@@ -33,7 +33,7 @@ const nextConfig = {
         source: '/api/:path*',
         destination: process.env.NEXT_PUBLIC_API_URL
           ? `${process.env.NEXT_PUBLIC_API_URL}/api/:path*`
-          : 'http://localhost:3000/api/:path*',
+          : 'http://https://acsgroup.cloud0/api/:path*',
       },
     ]
   },

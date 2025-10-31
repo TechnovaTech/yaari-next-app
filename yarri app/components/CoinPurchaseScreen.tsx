@@ -33,7 +33,7 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
   const [loading, setLoading] = useState(false)
   const [useFallbackIcon, setUseFallbackIcon] = useState(false)
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://https://acsgroup.cloud0'
   const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_RUT2Cmr6oeKa0b'
 
   useEffect(() => {

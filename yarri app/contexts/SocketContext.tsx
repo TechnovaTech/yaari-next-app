@@ -19,7 +19,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [incomingCall, setIncomingCall] = useState<{ callerId: string; callerName: string; callType: 'video' | 'audio'; channelName: string } | null>(null)
 
   useEffect(() => {
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://acsgroup.cloud')
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://https://acsgroup.cloud0' : 'https://acsgroup.cloud')
     console.log('🔌 Attempting to connect to Socket.io server:', socketUrl)
     
     const socketInstance = io(socketUrl, {
