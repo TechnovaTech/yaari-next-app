@@ -405,9 +405,9 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
                     <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`} alt="User" className="w-full h-full object-cover" />
                   )}
                 </div>
-                <div className={`absolute bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 ${user.statusColor} rounded-full text-white text-xs font-medium flex items-center space-x-1`}>
-                  <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-                  <span className="capitalize">{user.status === 'online' ? t.online : user.status === 'offline' ? t.offline : t.busy}</span>
+                <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 ${user.statusColor} rounded-full text-white text-xs font-medium flex items-center space-x-1`}>
+                  <div className="w-1 h-1  bg-white rounded-full"></div>
+                  <span className="capitalize mt-2.5">{user.status === 'online' ? t.online : user.status === 'offline' ? t.offline : t.busy}</span>
                 </div>
               </div>
               <div className="flex-1">

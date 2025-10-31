@@ -221,7 +221,7 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
                 <UserIcon size={64} className="text-gray-500" />
               )}
             </div>
-            <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded-full flex items-center space-x-1">
+            <div className="absolute top-2 -right-4 bg-white px-2 py-1 rounded-full flex items-center space-x-1">
               <div className={`w-2 h-2 rounded-full ${userStatus === 'online' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
               <span className={`text-xs font-medium ${userStatus === 'online' ? 'text-green-500' : 'text-gray-400'}`}>
                 {userStatus === 'online' ? t.online : t.offline}
@@ -229,7 +229,6 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
             </div>
           </div>
           <h2 className="text-xl font-bold text-gray-900">{userName}</h2>
-          <p className="text-sm text-gray-600">{user.about || t.attributes}</p>
         </div>
 
         {user.about && (
