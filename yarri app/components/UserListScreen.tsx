@@ -334,7 +334,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
         <div className="flex items-center space-x-3">
           <button 
             onClick={onCoinClick}
-            className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg"
+            className="flex items-center gap-2 border-2 border-orange-500 px-3 py-0 rounded-lg mt-2.5"
             style={{ alignItems: 'center' }}
           >
             {useFallbackIcon ? (
@@ -348,15 +348,15 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
                 src="/images/coinicon.png"
                 alt="coin"
                 className="w-5 h-5 object-contain"
-                style={{ marginTop: '2px' }}
+                style={{ marginTop: '0px' }}
                 onError={() => setUseFallbackIcon(true)}
               />
             )}
-            <span className="text-gray-800 font-bold text-base mt-4" style={{ lineHeight: '20px' }}>{balance}</span>
+            <span className="text-gray-800 font-bold text-base mt-3" style={{ lineHeight: '20px' }}>{balance}</span>
           </button>
           <button 
             onClick={onProfileClick}
-            className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center"
+            className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center mt-2.5"
           >
             <UserIcon className="text-white" size={20} />
           </button>
