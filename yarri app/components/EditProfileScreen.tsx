@@ -245,8 +245,9 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
               if (res.ok) {
                 const updatedUser = { ...user, name: userName, phone: phoneNumber, email: email, about: aboutMe, hobbies, profilePic, gallery: images }
                 localStorage.setItem('user', JSON.stringify(updatedUser))
-                // Push updated profile to CleverTap
-                await updateUserProfile({
+                
+                // Make CleverTap calls non-blocking to prevent UI freeze
+                updateUserProfile({
                   Name: userName,
                   Email: email,
                   Phone: phoneNumber,
@@ -254,10 +255,17 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
                   'About': aboutMe,
                   'Hobbies': hobbies.join(', '),
                   'Profile Picture': profilePic,
+                }).catch(error => {
+                  console.warn('CleverTap profile update failed:', error)
                 })
+                
                 trackEvent('ProfileSaved')
                 alert('Profile saved to database successfully!')
-                window.location.href = '/users'
+                
+                // Use immediate navigation to prevent UI freeze
+                setTimeout(() => {
+                  window.location.href = '/users'
+                }, 0)
               } else {
                 trackEvent('ProfileSaveFailed', { error: result.error || 'Unknown error' })
                 alert('Failed to save profile: ' + (result.error || 'Unknown error'))

@@ -21,7 +21,11 @@ export default function GenderScreen({ onNext }: GenderScreenProps) {
   const handleNext = async () => {
     setLoading(true)
     try {
-      trackEvent('GenderSaveAttempt', { gender: selectedGender })
+      // Make tracking calls non-blocking
+      trackEvent('GenderSaveAttempt', { gender: selectedGender }).catch(error => {
+        console.warn('CleverTap tracking failed:', error)
+      })
+      
       const user = JSON.parse(localStorage.getItem('user') || '{}')
       const res = await fetch(`https://acsgroup.cloud/api/users/${user.id}`, {
         method: 'PUT',
@@ -32,14 +36,26 @@ export default function GenderScreen({ onNext }: GenderScreenProps) {
       if (res.ok) {
         const updatedUser = { ...user, gender: selectedGender }
         localStorage.setItem('user', JSON.stringify(updatedUser))
-        trackEvent('GenderSaved', { gender: selectedGender })
-        onNext()
+        
+        // Make tracking calls non-blocking
+        trackEvent('GenderSaved', { gender: selectedGender }).catch(error => {
+          console.warn('CleverTap tracking failed:', error)
+        })
+        
+        // Use immediate navigation to prevent UI freeze
+        setTimeout(() => {
+          onNext()
+        }, 0)
       } else {
-        trackEvent('GenderSaveFailed', { gender: selectedGender })
+        trackEvent('GenderSaveFailed', { gender: selectedGender }).catch(error => {
+          console.warn('CleverTap tracking failed:', error)
+        })
         alert('Failed to save gender')
       }
     } catch (error) {
-      trackEvent('GenderSaveError', { gender: selectedGender })
+      trackEvent('GenderSaveError', { gender: selectedGender }).catch(trackError => {
+        console.warn('CleverTap tracking failed:', trackError)
+      })
       alert('Error saving gender')
     } finally {
       setLoading(false)
