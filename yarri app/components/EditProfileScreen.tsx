@@ -156,10 +156,32 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="flex items-center p-4 pt-8">
+      <div className="flex items-center justify-between p-4 pt-8">
         <button onClick={onBack} className="mr-3">
           <span className="text-2xl text-black">←</span>
         </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setSelectedLanguage('en')}
+            className={`px-4 py-2 rounded-full text-sm font-semibold ${
+              selectedLanguage === 'en'
+                ? 'bg-primary text-white'
+                : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            EN
+          </button>
+          <button
+            onClick={() => setSelectedLanguage('hi')}
+            className={`px-4 py-2 rounded-full text-sm font-semibold ${
+              selectedLanguage === 'hi'
+                ? 'bg-primary text-white'
+                : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            HI
+          </button>
+        </div>
       </div>
 
       {/* Title */}
@@ -216,33 +238,6 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
         <label className="block text-sm font-semibold text-gray-700 mb-2">Gender</label>
         <div className="w-full p-4 border border-gray-300 rounded-full text-base bg-gray-100 text-gray-700 capitalize">
           {gender || 'Not set'}
-        </div>
-      </div>
-
-      {/* Language Selection */}
-      <div className="px-4 mb-6">
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Language</label>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setSelectedLanguage('en')}
-            className={`flex-1 p-4 rounded-full border-2 transition-colors text-base ${
-              selectedLanguage === 'en'
-                ? 'border-primary text-primary bg-orange-50'
-                : 'border-gray-300 text-gray-700 bg-white'
-            }`}
-          >
-            English
-          </button>
-          <button
-            onClick={() => setSelectedLanguage('hi')}
-            className={`flex-1 p-4 rounded-full border-2 transition-colors text-base ${
-              selectedLanguage === 'hi'
-                ? 'border-primary text-primary bg-orange-50'
-                : 'border-gray-300 text-gray-700 bg-white'
-            }`}
-          >
-            हिंदी
-          </button>
         </div>
       </div>
 
