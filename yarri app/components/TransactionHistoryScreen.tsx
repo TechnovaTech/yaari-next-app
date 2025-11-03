@@ -95,8 +95,17 @@ export default function TransactionHistoryScreen({ onBack }: TransactionHistoryS
           <p className="text-red-600 text-sm">{error}</p>
         </div>
       ) : transactions.length === 0 ? (
-        <div className="px-6 py-8">
-          <p className="text-gray-600 text-sm">No transactions yet.</p>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="px-6 text-center">
+            <p className="text-lg font-semibold text-gray-800 mb-2">{t.needHelp}</p>
+            <p className="text-lg font-semibold text-gray-800 mb-1">{t.understanding}</p>
+            <p className="text-lg font-semibold text-gray-800 mb-4">
+              {t.yourTransactions}
+            </p>
+            <p className="text-sm text-gray-600 mb-2">{t.questionsText}</p>
+            <p className="text-sm text-primary font-semibold mb-2">support@yaari.me</p>
+            <p className="text-sm text-gray-600">{t.ourTeam}</p>
+          </div>
         </div>
       ) : (
         <div className="px-4 pb-24 space-y-3">
