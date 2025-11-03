@@ -233,7 +233,8 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
           value={phoneNumber}
           onChange={(e) => setPhoneNumber(e.target.value)}
           placeholder="Phone Number"
-          className="w-full p-4 border border-gray-300 rounded-full text-base focus:outline-none focus:border-primary bg-gray-50"
+          disabled={!!phoneNumber}
+          className="w-full p-4 border border-gray-300 rounded-full text-base focus:outline-none focus:border-primary bg-gray-50 disabled:bg-gray-200 disabled:cursor-not-allowed"
           style={{ fontSize: '16px' }}
         />
         
@@ -242,7 +243,8 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email Address"
-          className="w-full p-4 border border-gray-300 rounded-full text-base focus:outline-none focus:border-primary bg-gray-50"
+          disabled={!!email}
+          className="w-full p-4 border border-gray-300 rounded-full text-base focus:outline-none focus:border-primary bg-gray-50 disabled:bg-gray-200 disabled:cursor-not-allowed"
           style={{ fontSize: '16px' }}
         />
 
