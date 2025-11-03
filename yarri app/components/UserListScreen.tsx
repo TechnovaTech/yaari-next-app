@@ -174,7 +174,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
       const user = localStorage.getItem('user')
       if (user) {
         const userData = JSON.parse(user)
-        const res = await fetch(`https://acsgroup.cloud/api/users/${userData.id}/balance`)
+        const res = await fetch(`https://admin.yaari.me/api/users/${userData.id}/balance`)
         const data = await res.json()
         if (res.ok) {
           setBalance(data.balance || 0)
@@ -190,7 +190,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
       const currentUser = localStorage.getItem('user')
       const currentUserId = currentUser ? JSON.parse(currentUser).id : null
       
-      const res = await fetch('https://acsgroup.cloud/api/users')
+      const res = await fetch('https://admin.yaari.me/api/users')
       const data = await res.json()
       
       const formattedUsers = data

@@ -100,7 +100,7 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
 
   const fetchUser = async () => {
     try {
-      const res = await fetch(`https://acsgroup.cloud/api/users/${userId}`)
+      const res = await fetch(`https://admin.yaari.me/api/users/${userId}`)
       const data = await res.json()
       setUser(data)
     } catch (error) {

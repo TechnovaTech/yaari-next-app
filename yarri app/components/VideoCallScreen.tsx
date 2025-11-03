@@ -88,7 +88,7 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
         const channelName = sessionStorage.getItem('channelName') || `call_${Date.now()}`
         
         // Get Agora token from backend
-        const tokenRes = await fetch('https://acsgroup.cloud/api/agora/token', {
+        const tokenRes = await fetch('https://admin.yaari.me/api/agora/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ channelName }),

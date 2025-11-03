@@ -30,7 +30,7 @@ export default function LoginScreen({ onNext }: LoginScreenProps) {
 
   const handleGoogleLoginSuccess = async (email: string, name: string, googleId: string, profilePic: string) => {
     try {
-      const res = await fetch('https://acsgroup.cloud/api/auth/google-login', {
+      const res = await fetch('https://admin.yaari.me/api/auth/google-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, name, googleId, profilePic }),
