@@ -3,6 +3,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
 import { useEffect } from 'react'
 import { trackScreenView, trackEvent } from '../utils/clevertap'
+import { Browser } from '@capacitor/browser'
 
 interface PrivacySecurityScreenProps {
   onBack: () => void
@@ -28,7 +29,7 @@ export default function PrivacySecurityScreen({ onBack }: PrivacySecurityScreenP
           <h2 className="text-sm font-semibold text-gray-500 uppercase">{t.dataPrivacy}</h2>
           
           <button 
-            onClick={() => { trackEvent('PrivacyPolicyClicked'); window.open('https://yaari.me/privacy', '_blank') }}
+            onClick={async () => { trackEvent('PrivacyPolicyClicked'); await Browser.open({ url: 'https://yaari.me/privacy' }) }}
             className="flex items-center justify-between py-2 w-full"
           >
             <div className="flex items-center space-x-3">
@@ -39,7 +40,7 @@ export default function PrivacySecurityScreen({ onBack }: PrivacySecurityScreenP
           </button>
 
           <button 
-            onClick={() => { trackEvent('TermsOfServiceClicked'); window.open('https://yaari.me/terms', '_blank') }}
+            onClick={async () => { trackEvent('TermsOfServiceClicked'); await Browser.open({ url: 'https://yaari.me/terms' }) }}
             className="flex items-center justify-between py-2 w-full"
           >
             <div className="flex items-center space-x-3">
