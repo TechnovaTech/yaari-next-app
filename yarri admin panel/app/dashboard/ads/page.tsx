@@ -182,11 +182,52 @@ export default function ManageAdsPage() {
     }
   }
 
+  const compressImage = async (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          let width = img.width
+          let height = img.height
+          const maxSize = 1200
+          if (width > height && width > maxSize) {
+            height = (height * maxSize) / width
+            width = maxSize
+          } else if (height > maxSize) {
+            width = (width * maxSize) / height
+            height = maxSize
+          }
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')!
+          ctx.drawImage(img, 0, 0, width, height)
+          canvas.toBlob((blob) => {
+            resolve(new File([blob!], file.name, { type: 'image/jpeg' }))
+          }, 'image/jpeg', 0.8)
+        }
+        img.src = e.target?.result as string
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
   const handleFileUpload = async (file: File) => {
     setUploading(true)
     try {
+      let fileToUpload = file
+      if (file.type.startsWith('image/')) {
+        fileToUpload = await compressImage(file)
+      } else if (file.type.startsWith('video/')) {
+        if (file.size > 50 * 1024 * 1024) {
+          alert('Video file too large. Please use a URL instead or upload a smaller video (max 50MB).')
+          setUploading(false)
+          return null
+        }
+      }
       const formData = new FormData()
-      formData.append('file', file)
+      formData.append('file', fileToUpload)
 
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -196,7 +237,7 @@ export default function ManageAdsPage() {
       // Check if response is ok and content-type is JSON
       if (!response.ok) {
         if (response.status === 413) {
-          alert('File too large. Maximum size is 50MB.')
+          alert('File too large. For videos, please use a URL (YouTube, Vimeo, etc.) instead.')
           return null
         }
         throw new Error(`HTTP error! status: ${response.status}`)
