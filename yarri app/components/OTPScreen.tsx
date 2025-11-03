@@ -38,6 +38,11 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
       return
     }
 
+    if (!isConfirmed) {
+      alert('Please confirm that you are 18+')
+      return
+    }
+
     setIsVerifying(true)
     try {
       trackEvent('OtpVerifyAttempt', { phone })
