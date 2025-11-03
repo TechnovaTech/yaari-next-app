@@ -28,6 +28,7 @@ interface User {
   statusColor: string
   profilePic?: string
   googleProfilePic?: string
+  gender?: string
 }
 
 export default function UserListScreen({ onNext, onProfileClick, onCoinClick, onUserClick, onStartCall }: UserListScreenProps) {
@@ -46,6 +47,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
   const [incomingCall, setIncomingCall] = useState<{ callerId: string; callerName: string; callType: 'video' | 'audio'; channelName: string } | null>(null)
   const [isRinging, setIsRinging] = useState(false)
   const [useFallbackIcon, setUseFallbackIcon] = useState(false)
+  const [genderFilter, setGenderFilter] = useState<'all' | 'male' | 'female'>('all')
 
   useEffect(() => {
     fetchUsers()
@@ -185,6 +187,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
             statusColor: 'bg-gray-400',
             profilePic: displayPic,
             googleProfilePic: displayPic && displayPic.includes('googleusercontent.com') ? displayPic : null,
+            gender: user.gender,
           }
         })
       
@@ -366,6 +369,33 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
 
       <div className="p-4" style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top))' }}>
         <AdBanner />
+        
+        <div className="flex gap-2 my-4">
+          <button
+            onClick={() => { setGenderFilter('all'); trackEvent('Gender Filter Changed', { filter: 'all' }) }}
+            className={`px-4 py-2 rounded-full text-sm font-semibold ${
+              genderFilter === 'all' ? 'bg-primary text-white' : 'bg-white text-gray-700 border border-gray-300'
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => { setGenderFilter('male'); trackEvent('Gender Filter Changed', { filter: 'male' }) }}
+            className={`px-4 py-2 rounded-full text-sm font-semibold ${
+              genderFilter === 'male' ? 'bg-primary text-white' : 'bg-white text-gray-700 border border-gray-300'
+            }`}
+          >
+            Male
+          </button>
+          <button
+            onClick={() => { setGenderFilter('female'); trackEvent('Gender Filter Changed', { filter: 'female' }) }}
+            className={`px-4 py-2 rounded-full text-sm font-semibold ${
+              genderFilter === 'female' ? 'bg-primary text-white' : 'bg-white text-gray-700 border border-gray-300'
+            }`}
+          >
+            Female
+          </button>
+        </div>
 
         {loading ? (
           <div className="text-center py-8">
@@ -378,6 +408,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
         ) : (
         <div className="space-y-3">
           {users
+            .filter((user) => genderFilter === 'all' || user.gender === genderFilter)
             .sort((a, b) => {
               // Sort by status: online first, then busy, then offline
               const statusOrder = { online: 0, busy: 1, offline: 2 }
