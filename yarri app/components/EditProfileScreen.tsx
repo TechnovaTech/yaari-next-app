@@ -166,7 +166,7 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
       </div>
 
       {/* Profile Picture Section */}
-      <div className="flex items-center px-4 mb-8">
+      <div className="flex items-center gap-4 px-4 mb-8">
         <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
           {profilePic && profilePic !== 'loading' ? (
             <img src={profilePic} alt="Profile" className="w-full h-full object-cover" />
