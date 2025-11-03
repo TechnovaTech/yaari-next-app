@@ -1,4 +1,4 @@
-import { ArrowLeft, Shield, Lock } from 'lucide-react'
+import { ChevronLeft, Shield, Lock } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
 import { useEffect } from 'react'
@@ -15,12 +15,12 @@ export default function PrivacySecurityScreen({ onBack }: PrivacySecurityScreenP
     trackScreenView('Privacy & Security')
   }, [])
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white p-4 flex items-center space-x-3 shadow-sm">
-        <button onClick={onBack}>
-          <ArrowLeft className="text-gray-700" size={24} />
+    <div className="min-h-screen bg-white">
+      <div className="p-4">
+        <button onClick={onBack} className="mb-6">
+          <ChevronLeft size={24} className="text-gray-800" />
         </button>
-        <h1 className="text-xl font-bold text-gray-800">{t.privacySecurityTitle}</h1>
+        <h1 className="text-3xl font-bold text-black mb-6">{t.privacySecurityTitle}</h1>
       </div>
 
       <div className="p-4 space-y-4">

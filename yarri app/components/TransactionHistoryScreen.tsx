@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { ChevronLeft } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
 import { trackScreenView } from '../utils/clevertap'
@@ -73,9 +74,9 @@ export default function TransactionHistoryScreen({ onBack }: TransactionHistoryS
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="flex items-center p-4 pt-8">
-        <button onClick={onBack} className="mr-3">
-          <span className="text-2xl text-black">←</span>
+      <div className="p-4">
+        <button onClick={onBack} className="mb-6">
+          <ChevronLeft size={24} className="text-gray-800" />
         </button>
       </div>
 

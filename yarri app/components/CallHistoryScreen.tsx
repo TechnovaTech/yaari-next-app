@@ -1,6 +1,7 @@
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
 import { useEffect, useState } from 'react'
+import { ChevronLeft } from 'lucide-react'
 import { trackScreenView } from '../utils/clevertap'
 
 interface CallRecord {
@@ -99,11 +100,9 @@ export default function CallHistoryScreen({ onBack }: CallHistoryScreenProps) {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="flex items-center p-4 pt-8">
-        <button onClick={onBack} className="mr-3">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M15 18L9 12L15 6" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+      <div className="p-4">
+        <button onClick={onBack} className="mb-6">
+          <ChevronLeft size={24} className="text-gray-800" />
         </button>
       </div>
 
