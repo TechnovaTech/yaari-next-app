@@ -50,6 +50,17 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
   const [genderFilter, setGenderFilter] = useState<'all' | 'male' | 'female'>('all')
 
   useEffect(() => {
+    // Set default gender filter based on user's gender
+    const user = localStorage.getItem('user')
+    if (user) {
+      const userData = JSON.parse(user)
+      if (userData.gender === 'male') {
+        setGenderFilter('female')
+      } else if (userData.gender === 'female') {
+        setGenderFilter('male')
+      }
+    }
+    
     fetchUsers()
     fetchBalance()
     
