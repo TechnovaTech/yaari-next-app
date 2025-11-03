@@ -1,0 +1,132 @@
+Privacy Policy
+Last updated: 12 March 2025
+
+At Bitesize Learning Private Limited ("Yaari"), your privacy is our priority. This Privacy Policy explains how we collect, use, and share your data when you use the Yaari mobile app ("App") and website ("Website"), together called the "Platform."
+
+Who We Are
+References to "we," "us," or "our" mean Bitesize Learning Private Limited and/or the Platform. "You" or "user" refers to anyone using our Platform.
+
+Your Consent
+By using the Platform, you agree to this Privacy Policy and consent to how we handle your personal information ("Personal Information"). If you don't agree, please don't use the Platform.
+
+Using Your Information
+We use and share your information only as described in this Privacy Policy. We won't disclose your information without your consent, except as explained here.
+
+This Privacy Policy works alongside our Terms of Service. If there is a conflict, this Privacy Policy takes precedence. Any undefined terms here have the same meaning as in the Terms of Service.
+
+HOW DO WE USE YOUR INFORMATION
+The following table lists the information we collect from you and how we use it:
+
+Information Collected	Use of Information
+Account information: User ID, mobile number, password, gender, voice recordings, IP address, and approximate age range.
+Profile information: Username, photo, and birth year.	To create and manage your account. To inform you about updates or changes. To assist with communication and user support. To enforce terms and protect rights. To create new features and improve existing services. To provide personalized content based on language and location. To manage the platform, troubleshoot issues, and enhance security. For demographic analysis and understanding user engagement.
+Content shared by you: Personal information, images, quotes, and other shared content (e.g., via chat rooms, games, or audio features).	To display shared content within the Platform. To enhance personalization and engagement.
+Third-party information: Data from business partners, analytics providers, and subcontractors.	To analyze traffic, improve features, and evaluate marketing efforts.
+Log data: Technical information (IP address, device ID, browsing history, metadata, communication details).	To improve performance, detect issues, and maintain security.
+Cookies: Data from cookies stored on your device.	To enhance navigation, personalize experience, and deliver targeted ads.
+Surveys and Search Activity: Personal information provided during surveys and search history.	To analyze trends and improve platform experience.
+Verification and Contact: Phone number (for OTP verification) and optionally your contacts (with consent).	To confirm identity, secure accounts, and enable "Invite Users" features.
+Location Data: GPS or IP-based location data.	To provide location-based features and detect fraud.
+Device Data: Operating system, browser, storage, battery, and hardware details, as well as access to gallery (with consent).	To optimize the Platform and enable sharing.
+Interactions: Chat and conversation details, including timestamps and interactions.	To improve recommendations and refine user experience.
+Games, Contests, and Purchases: Contest participation details, financial information for direct purchases.	To manage payments, distribute prizes, and record transactions.
+YOUR RIGHTS
+Removing Content or Deleting Your Account:
+You can delete your content or deactivate/delete your account anytime. However, records of your activity may still remain on our servers.
+
+Updating Your Information:
+You can update or delete your personal information by logging into your profile. You can also opt out of marketing emails using the unsubscribe link. System-generated emails will still be sent unless your account is deleted.
+
+Accessing and Correcting Data:
+To access, correct, or update your data, email care@yaari.app.
+
+Declining or Withdrawing Consent:
+You can withdraw consent for data use by emailing care@yaari.app. Processing may take up to 30 days. Please note this may limit access to some features.
+
+HOW YOUR INFORMATION IS SHARED
+Information Visible to Other Users
+Parts of your profile (username, age, gender, and location) are visible to others.
+When you join public rooms, games, or live features, your activity may be visible to other users.
+During video/audio calls, participants can see and hear your feed.
+You can manage privacy by:
+
+Choosing who can contact you
+Blocking unwanted users
+Reporting inappropriate behavior
+How We Share Data Within Our Group
+We may share your data with affiliated companies for:
+
+Safety: Bans or restrictions apply across group platforms.
+Operations: Hosting, support, analytics, marketing, payments, and security.
+Insights: Personalizing your experience and improving services.
+Business Needs: Audits, reporting, and legitimate operational purposes.
+Information You Choose to Share
+When you share content within Yaari or externally (e.g., WhatsApp, Instagram), you control visibility. We are not responsible for how third parties use shared content.
+
+Sharing with Third Parties
+We may share your data with:
+
+Business Partners: For hosting, payments, security, and advertising (non-identifiable aggregated data).
+Authorities: When legally required or for fraud prevention.
+Business Changes: If Yaari is merged or acquired, data may be transferred. You'll be notified beforehand.
+Changes to This Policy
+We may update this Privacy Policy from time to time. Please review this page regularly for changes. Major changes will require renewed consent.
+
+Data Retention
+We retain personal information only as long as needed for business or legal reasons. Sensitive data (like passwords) is retained only as long as necessary. We may retain data for legal or investigation purposes when required.
+
+Third-Party Links
+Our Platform may link to third-party sites. Their privacy practices are not governed by this policy. Please review their policies before sharing personal information.
+
+THIRD-PARTY EMBEDS
+What Are Third-Party Embeds?
+Some content on Yaari may be hosted by third parties (e.g., YouTube, Giphy, X, SoundCloud). When you view or interact with such content, data may be shared with those providers.
+
+Sharing Personal Information with Third-Party Embeds
+Some third-party embeds may ask for your data (like email). These are not covered by this policy — review their terms before sharing.
+
+Creating Your Own Third-Party Embed
+If you embed a form that collects personal data, include a link to your privacy policy. Failure to do so may result in account action.
+
+SECURITY PRACTICES
+We use robust security measures to protect your data. Keep your username and password confidential and avoid sharing them with others.
+
+COMMUNICATIONS FROM US
+We may send essential communications (security, maintenance, or policy updates). These cannot be turned off unless your account is deleted.
+
+WHERE WE STORE YOUR PERSONAL INFORMATION
+Your data is securely stored with Amazon Web Services (AWS) and Google Cloud, both of which maintain high security standards.
+
+DISCLAIMER
+While we take necessary precautions, data transmission over the internet is never fully secure. Once received, we apply strong security controls to protect your data.
+
+Yaari Cookie Policy
+Last updated: 12 March 2025
+
+This policy provides details about the cookies and tracking technologies used by Yaari. It should be read alongside our Privacy Policy.
+
+What are cookies, pixels, and local storage?
+Cookies are small files placed on your device to store settings and preferences.
+Pixels are tiny code snippets that help us track engagement.
+Local storage saves data on your device to enhance your experience.
+Type	Description	Personal Data Collected?
+Necessary	Essential for login, security, and fraud prevention.	No
+Performance	Analyze Platform use and performance.	No (aggregated)
+Functionality	Remember preferences and settings.	May collect limited info (e.g., username)
+Targeting/Advertising	Deliver relevant ads and measure effectiveness.	May collect IP or browsing behavior
+Third-Party Cookies
+We work with partners who may set their own cookies for analytics, hosting, or advertising. Review their privacy policies for more details.
+
+Why We Use Cookies
+Improve user experience and navigation.
+Retain authentication and preferences.
+Track usage trends and performance.
+Support relevant advertising and analytics.
+How to Control Cookies
+You can manage or block cookies in your browser settings. Disabling cookies may limit access to certain features. For multiple devices, update settings individually.
+
+Changes to This Cookie Policy
+We may update this policy periodically. Significant updates will be communicated clearly, and the "Last Updated" date will be revised.
+
+✅ Contact Us:
+For privacy-related questions, write to care@yaari.app
