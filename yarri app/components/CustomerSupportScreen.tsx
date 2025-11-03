@@ -3,7 +3,6 @@ import { translations } from '../utils/translations'
 import { useEffect } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { trackScreenView } from '../utils/clevertap'
-import { Capacitor } from '@capacitor/core'
 
 interface CustomerSupportScreenProps {
   onBack: () => void
@@ -39,7 +38,9 @@ export default function CustomerSupportScreen({ onBack }: CustomerSupportScreenP
             {t.hereToHelp}
           </p>
           <a
-            href="mailto:support@yaari.me"
+            href="https://mail.google.com/mail/?view=cm&fs=1&to=support@yaari.me&su=Support Request"
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-primary font-medium text-base mb-2 underline cursor-pointer inline-block"
           >
             support@yaari.me
