@@ -1,4 +1,4 @@
-import { User, Plus, X } from 'lucide-react'
+import { User, Plus, X, ChevronLeft } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
@@ -157,8 +157,8 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="flex items-center justify-between p-4 pt-8">
-        <button onClick={onBack} className="mr-3">
-          <span className="text-2xl text-black">←</span>
+        <button onClick={onBack}>
+          <ChevronLeft size={24} className="text-gray-800" />
         </button>
         <div className="flex gap-2">
           <button
