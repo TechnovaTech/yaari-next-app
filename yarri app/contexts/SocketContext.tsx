@@ -41,6 +41,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           const userData = JSON.parse(user)
           console.log('👤 Registering user:', userData.id)
           socketInstance.emit('register', userData.id)
+          socketInstance.emit('user-online', { userId: userData.id, status: 'online' })
+          socketInstance.emit('get-online-users')
         } catch (error) {
           console.error('❌ Error parsing user data:', error)
         }
@@ -60,6 +62,18 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     socketInstance.on('reconnect', (attemptNumber) => {
       console.log('🔄 Socket reconnected after', attemptNumber, 'attempts')
       setIsConnected(true)
+      
+      const user = localStorage.getItem('user')
+      if (user) {
+        try {
+          const userData = JSON.parse(user)
+          socketInstance.emit('register', userData.id)
+          socketInstance.emit('user-online', { userId: userData.id, status: 'online' })
+          socketInstance.emit('get-online-users')
+        } catch (error) {
+          console.error('❌ Error parsing user data:', error)
+        }
+      }
     })
 
     socketInstance.on('reconnect_error', (error) => {

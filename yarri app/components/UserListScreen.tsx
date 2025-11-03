@@ -71,6 +71,13 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
   useEffect(() => {
     if (!socket) return
 
+    // Emit user online status when component mounts
+    const user = localStorage.getItem('user')
+    if (user) {
+      const userData = JSON.parse(user)
+      socket.emit('user-online', { userId: userData.id, status: 'online' })
+    }
+
     // ===== Call events =====
 
 
@@ -139,7 +146,14 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
     socket.emit('get-online-users')
 
     // Also re-request on reconnect to prevent stale presence and missed events
-    const handleReconnect = () => socket.emit('get-online-users')
+    const handleReconnect = () => {
+      const user = localStorage.getItem('user')
+      if (user) {
+        const userData = JSON.parse(user)
+        socket.emit('user-online', { userId: userData.id, status: 'online' })
+      }
+      socket.emit('get-online-users')
+    }
     socket.on('connect', handleReconnect)
     return () => {
 
