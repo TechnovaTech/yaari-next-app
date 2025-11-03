@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ChevronLeft } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { trackScreenView, trackEvent } from '../utils/clevertap'
 
 interface LanguageScreenProps {
@@ -8,6 +9,7 @@ interface LanguageScreenProps {
 }
 
 export default function LanguageScreen({ onNext, onSelectLanguage }: LanguageScreenProps) {
+  const router = useRouter()
   const [selectedLanguage, setSelectedLanguage] = useState('हिंदी')
 
   useEffect(() => {
@@ -23,7 +25,7 @@ export default function LanguageScreen({ onNext, onSelectLanguage }: LanguageScr
 
   return (
     <div className="min-h-screen bg-white flex flex-col p-6">
-      <button className="self-start mb-6">
+      <button onClick={() => router.back()} className="self-start mb-6">
         <ChevronLeft size={24} className="text-gray-800" />
       </button>
       

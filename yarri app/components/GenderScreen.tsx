@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ChevronLeft } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
 import { trackScreenView, trackEvent } from '../utils/clevertap'
@@ -9,6 +10,7 @@ interface GenderScreenProps {
 }
 
 export default function GenderScreen({ onNext }: GenderScreenProps) {
+  const router = useRouter()
   const { lang } = useLanguage()
   const t = translations[lang]
   const [selectedGender, setSelectedGender] = useState('female')
@@ -64,7 +66,7 @@ export default function GenderScreen({ onNext }: GenderScreenProps) {
 
   return (
     <div className="min-h-screen bg-white flex flex-col p-6">
-      <button className="self-start mb-6">
+      <button onClick={() => router.back()} className="self-start mb-6">
         <ChevronLeft size={24} className="text-gray-800" />
       </button>
       
