@@ -61,7 +61,6 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
       }
     }
     
-    fetchUsers()
     fetchBalance()
     
     // Track screen view
@@ -70,6 +69,9 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
 
   useEffect(() => {
     if (!socket) return
+
+    // Fetch users first
+    fetchUsers()
 
     // Emit user online status when component mounts
     const user = localStorage.getItem('user')
@@ -194,12 +196,9 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
       const formattedUsers = data
         .filter((user: any) => user._id !== currentUserId)
         .map((user: any) => {
-          // Priority: 1. Uploaded profile pic, 2. Google profile pic, 3. Dicebear
           let displayPic = user.profilePic
           
-          // If profilePic is a Google URL or user hasn't uploaded custom pic
           if (!displayPic || displayPic.includes('googleusercontent.com')) {
-            // Use Google profile pic if available
             displayPic = displayPic || null
           }
           
@@ -207,7 +206,6 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
             id: user._id,
             name: user.name || 'User',
             attributes: user.about || 'No description',
-            // Default to offline; live socket presence will flip to online
             status: 'offline',
             statusColor: 'bg-gray-400',
             profilePic: displayPic,
@@ -217,6 +215,11 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
         })
       
       setUsers(formattedUsers)
+      
+      // Request online users after setting users
+      if (socket) {
+        socket.emit('get-online-users')
+      }
     } catch (error) {
       console.error('Error fetching users:', error)
     } finally {
