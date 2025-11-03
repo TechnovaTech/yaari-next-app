@@ -291,11 +291,6 @@ export default function CoinPurchaseScreen({ onBack }: CoinPurchaseScreenProps) 
 
         <h2 className="text-orange-500 font-semibold text-lg mb-4">Add More Coins</h2>
 
-        <div className="flex justify-between items-center mb-2 text-xs text-gray-500">
-          <span>Coins per Rupee: {coinsPerRupee}</span>
-          <span>Min Rs {minRecharge ?? '-'} • Max Rs {maxRecharge ?? '-'}</span>
-        </div>
-
         <div className="flex justify-between items-center mb-2 bg-gray-50 p-3 rounded-lg">
           <input
             type="number"
