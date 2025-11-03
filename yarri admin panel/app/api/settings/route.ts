@@ -12,7 +12,8 @@ export async function GET() {
     
     return NextResponse.json(settings || {
       appName: 'Yaari',
-      callRate: 10,
+      audioCallRate: 10,
+      videoCallRate: 20,
       minRecharge: 100,
       maxRecharge: 10000,
       commission: 20,

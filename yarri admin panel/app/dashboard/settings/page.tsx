@@ -5,7 +5,8 @@ import { Save } from 'lucide-react'
 export default function SettingsPage() {
   const [settings, setSettings] = useState({
     appName: 'Yaari',
-    callRate: 10,
+    audioCallRate: 10,
+    videoCallRate: 20,
     minRecharge: 100,
     maxRecharge: 10000,
     commission: 20,
@@ -116,11 +117,20 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Call Rate (₹/min)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Audio Call Rate (coins/min)</label>
               <input
                 type="number"
-                value={settings.callRate}
-                onChange={(e) => setSettings({ ...settings, callRate: Number(e.target.value) })}
+                value={settings.audioCallRate}
+                onChange={(e) => setSettings({ ...settings, audioCallRate: Number(e.target.value) })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Video Call Rate (coins/min)</label>
+              <input
+                type="number"
+                value={settings.videoCallRate}
+                onChange={(e) => setSettings({ ...settings, videoCallRate: Number(e.target.value) })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
               />
             </div>

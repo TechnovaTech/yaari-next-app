@@ -48,6 +48,8 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
   const [isRinging, setIsRinging] = useState(false)
   const [useFallbackIcon, setUseFallbackIcon] = useState(false)
   const [genderFilter, setGenderFilter] = useState<'all' | 'male' | 'female'>('all')
+  const [audioCallRate, setAudioCallRate] = useState(5)
+  const [videoCallRate, setVideoCallRate] = useState(10)
 
   useEffect(() => {
     // Set default gender filter based on user's gender
@@ -62,10 +64,22 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
     }
     
     fetchBalance()
+    fetchCallRates()
     
     // Track screen view
     trackScreenView('User List')
   }, [])
+
+  const fetchCallRates = async () => {
+    try {
+      const res = await fetch('https://admin.yaari.me/api/settings')
+      const data = await res.json()
+      if (data.audioCallRate) setAudioCallRate(data.audioCallRate)
+      if (data.videoCallRate) setVideoCallRate(data.videoCallRate)
+    } catch (error) {
+      console.error('Error fetching call rates:', error)
+    }
+  }
 
   useEffect(() => {
     if (!socket) return
@@ -333,7 +347,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
       sessionStorage.setItem('callData', JSON.stringify({
         userName: incomingCall.callerName,
         userAvatar: '',
-        rate: incomingCall.callType === 'video' ? 10 : 5,
+        rate: incomingCall.callType === 'video' ? videoCallRate : audioCallRate,
         type: incomingCall.callType,
         channelName: incomingCall.channelName,
         otherUserId: incomingCall.callerId
@@ -460,25 +474,25 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
                 </p>
                 <div className="flex gap-2">
                   <button 
-                    onClick={(e) => handleCallClick(user, 'video', 10, e)}
+                    onClick={(e) => handleCallClick(user, 'video', videoCallRate, e)}
                     className="flex-1 bg-primary text-white py-2 rounded-full flex items-center justify-center gap-1"
                     style={{ alignItems: 'center', justifyContent: 'center' }}
                   >
                     <Video size={16} fill="white" strokeWidth={0} />
                     <span className="flex items-center gap-0.5 mt-2.5">
-                      10
+                      {videoCallRate}
                       <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
                       / min
                     </span>
                   </button>
                   <button 
-                    onClick={(e) => handleCallClick(user, 'audio', 5, e)}
+                    onClick={(e) => handleCallClick(user, 'audio', audioCallRate, e)}
                     className="flex-1 bg-primary text-white py-2 rounded-full flex items-center justify-center gap-1"
                     style={{ alignItems: 'center', justifyContent: 'center' }}
                   >
                     <Phone size={16} strokeWidth={2} />
                     <span className="flex items-center gap-0.5 mt-2.5">
-                      5
+                      {audioCallRate}
                       <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
                       / min
                     </span>
