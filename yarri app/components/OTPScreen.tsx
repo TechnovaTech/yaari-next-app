@@ -173,7 +173,7 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
         <button 
           onClick={handleVerifyOTP}
           disabled={isVerifying || isVerified}
-          className="w-full bg-primary text-white py-4 rounded-full font-semibold text-base mb-3 flex items-center justify-center relative overflow-hidden"
+          className="w-full bg-primary text-white py-4 rounded-full font-semibold text-base mb-3 flex items-center justify-center relative overflow-hidden mt-2.5"
         >
           {isVerifying && (
             <div className="absolute inset-0 flex items-center justify-center">
@@ -194,12 +194,12 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
         
         <button 
           onClick={() => { const next = !isConfirmed; setIsConfirmed(next); trackEvent('AgeConfirmToggled', { confirmed: next }) }}
-          className="text-center text-xs text-gray-600 flex items-center justify-center w-full mb-3"
+          className="text-center text-xs text-gray-600 flex items-center justify-center w-full mb-3 mt-2.5"
         >
           <span className={`inline-block w-4 h-4 rounded-sm mr-2 flex items-center justify-center text-white text-xs border-2 transition-colors ${
             isConfirmed ? 'bg-primary border-primary' : 'bg-white border-gray-300'
           }`}>
-            {isConfirmed && '✓'}
+            {isConfirmed && <span className="mt-2.5">✓</span>}
           </span>
           I Confirm I'm 18+
         </button>
