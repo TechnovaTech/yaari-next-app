@@ -473,7 +473,7 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
                 })
                 
                 trackEvent('ProfileSaved')
-                alert('Profile saved to database successfully!')
+                alert('Profile saved successfully!')
                 
                 // Use immediate navigation to prevent UI freeze
                 setTimeout(() => {
