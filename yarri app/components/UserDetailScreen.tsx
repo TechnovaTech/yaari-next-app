@@ -103,14 +103,14 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
       const res = await fetch(`https://admin.yaari.me/api/users/${userId}`)
       const data = await res.json()
       
-      // Fix 0.0.0.0 URLs
-      if (data.profilePic && data.profilePic.includes('0.0.0.0')) {
+      // Fix localhost URLs
+      if (data.profilePic && data.profilePic.includes('localhost')) {
         data.profilePic = data.profilePic.replace(/https?:\/\/0\.0\.0\.0:\d+/, 'https://admin.yaari.me')
       }
       
       if (data.gallery && Array.isArray(data.gallery)) {
         data.gallery = data.gallery.map((url: string) => 
-          url.includes('0.0.0.0') ? url.replace(/https?:\/\/0\.0\.0\.0:\d+/, 'https://admin.yaari.me') : url
+          url.includes('localhost') ? url.replace(/https?:\/\/0\.0\.0\.0:\d+/, 'https://admin.yaari.me') : url
         )
       }
       

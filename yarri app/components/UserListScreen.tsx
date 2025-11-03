@@ -198,8 +198,8 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
         .map((user: any) => {
           let displayPic = user.profilePic
           
-          // Fix 0.0.0.0 URLs
-          if (displayPic && displayPic.includes('0.0.0.0')) {
+          // Fix localhost URLs
+          if (displayPic && displayPic.includes('localhost')) {
             displayPic = displayPic.replace(/https?:\/\/0\.0\.0\.0:\d+/, 'https://admin.yaari.me')
           }
           

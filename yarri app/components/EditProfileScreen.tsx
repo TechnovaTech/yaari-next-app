@@ -37,14 +37,14 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
       if (response.ok) {
         const result = await response.json()
         
-        // Fix 0.0.0.0 URLs
+        // Fix localhost URLs
         let profilePic = result.profilePic || ''
-        if (profilePic && profilePic.includes('0.0.0.0')) {
+        if (profilePic && profilePic.includes('localhost')) {
           profilePic = profilePic.replace(/https?:\/\/0\.0\.0\.0:\d+/, 'https://admin.yaari.me')
         }
         
         const gallery = (result.gallery || []).map((url: string) => 
-          url.includes('0.0.0.0') ? url.replace(/https?:\/\/0\.0\.0\.0:\d+/, 'https://admin.yaari.me') : url
+          url.includes('localhost') ? url.replace(/https?:\/\/0\.0\.0\.0:\d+/, 'https://admin.yaari.me') : url
         )
         
         return {
