@@ -12,6 +12,8 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
   const [isVerified, setIsVerified] = useState(false)
   const [isConfirmed, setIsConfirmed] = useState(false)
   const [phone, setPhone] = useState('')
+  const [resendTimer, setResendTimer] = useState(30)
+  const [canResend, setCanResend] = useState(false)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   useEffect(() => {
@@ -19,6 +21,15 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
     setPhone(savedPhone)
     trackScreenView('OTP Verification')
   }, [])
+
+  useEffect(() => {
+    if (resendTimer > 0) {
+      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000)
+      return () => clearTimeout(timer)
+    } else {
+      setCanResend(true)
+    }
+  }, [resendTimer])
 
   const handleVerifyOTP = async () => {
     const otpCode = otp.join('')
@@ -88,6 +99,33 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
     }
   }
 
+  const handleResendOTP = async () => {
+    if (!canResend) return
+    
+    try {
+      const endpoint = Capacitor.isNativePlatform()
+        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://acsgroup.cloud'}/api/auth/send-otp`
+        : `/api/auth/send-otp`
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      })
+      
+      if (res.ok) {
+        setResendTimer(30)
+        setCanResend(false)
+        setOtp(['', '', '', '', '', ''])
+        trackEvent('OTP Resent', { phone })
+        alert('OTP sent successfully')
+      } else {
+        alert('Failed to resend OTP')
+      }
+    } catch (error) {
+      alert('Error resending OTP')
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative p-4">
       <div 
@@ -117,6 +155,16 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
           ))}
         </div>
         
+        <button
+          onClick={handleResendOTP}
+          disabled={!canResend}
+          className={`text-center text-sm w-full mb-4 ${
+            canResend ? 'text-primary cursor-pointer' : 'text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          {canResend ? 'Resend OTP' : `Resend OTP in ${resendTimer}s`}
+        </button>
+        
         <button 
           onClick={handleVerifyOTP}
           disabled={isVerifying || isVerified}
@@ -141,7 +189,7 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
         
         <button 
           onClick={() => { const next = !isConfirmed; setIsConfirmed(next); trackEvent('AgeConfirmToggled', { confirmed: next }) }}
-          className="text-center text-xs text-gray-600 flex items-center justify-center w-full"
+          className="text-center text-xs text-gray-600 flex items-center justify-center w-full mb-3"
         >
           <span className={`inline-block w-4 h-4 rounded-sm mr-2 flex items-center justify-center text-white text-xs border-2 transition-colors ${
             isConfirmed ? 'bg-primary border-primary' : 'bg-white border-gray-300'
