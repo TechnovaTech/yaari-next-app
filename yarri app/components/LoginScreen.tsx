@@ -4,6 +4,7 @@ import { useGoogleLogin } from '@react-oauth/google'
 import { Capacitor } from '@capacitor/core'
 import { useRouter } from 'next/navigation'
 import { trackUserLogin, trackEvent } from '@/utils/clevertap'
+import { Browser } from '@capacitor/browser'
 
 interface LoginScreenProps {
   onNext: () => void
@@ -242,14 +243,12 @@ export default function LoginScreen({ onNext }: LoginScreenProps) {
           {googleLoading ? 'Signing in...' : 'Continue with Google'}
         </button>
         
-        <a
-          href="https://yaari.me/terms"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block text-center text-xs text-primary"
+        <button
+          onClick={async () => await Browser.open({ url: 'https://yaari.me/terms' })}
+          className="block text-center text-xs text-primary w-full"
         >
           Terms & Conditions
-        </a>
+        </button>
       </div>
     </div>
   )
