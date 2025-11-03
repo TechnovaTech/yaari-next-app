@@ -21,6 +21,7 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
   const [loading, setLoading] = useState(false)
   const [gender, setGender] = useState('')
   const [profilePic, setProfilePic] = useState('')
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'hi'>('en')
 
   // Build API URL that avoids CORS in local dev by using Next.js rewrites
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://acsgroup.cloud'
@@ -60,6 +61,7 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
       setAboutMe(userData.about || '')
       setHobbies(userData.hobbies || [])
       setGender(userData.gender || '')
+      setSelectedLanguage(userData.language || 'en')
       
       // Load images from database instead of localStorage
       if (userData.id) {
@@ -214,6 +216,33 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
         <label className="block text-sm font-semibold text-gray-700 mb-2">Gender</label>
         <div className="w-full p-4 border border-gray-300 rounded-full text-base bg-gray-100 text-gray-700 capitalize">
           {gender || 'Not set'}
+        </div>
+      </div>
+
+      {/* Language Selection */}
+      <div className="px-4 mb-6">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Language</label>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setSelectedLanguage('en')}
+            className={`flex-1 p-4 rounded-full border-2 transition-colors text-base ${
+              selectedLanguage === 'en'
+                ? 'border-primary text-primary bg-orange-50'
+                : 'border-gray-300 text-gray-700 bg-white'
+            }`}
+          >
+            English
+          </button>
+          <button
+            onClick={() => setSelectedLanguage('hi')}
+            className={`flex-1 p-4 rounded-full border-2 transition-colors text-base ${
+              selectedLanguage === 'hi'
+                ? 'border-primary text-primary bg-orange-50'
+                : 'border-gray-300 text-gray-700 bg-white'
+            }`}
+          >
+            हिंदी
+          </button>
         </div>
       </div>
 
@@ -395,6 +424,7 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
                 email: email,
                 about: aboutMe,
                 hobbies,
+                language: selectedLanguage,
                 // Remove image data from payload since photos are uploaded separately
                 // profilePic and gallery images are now stored as URLs in the database
               }
@@ -420,7 +450,7 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
               }
               
               if (res.ok) {
-                const updatedUser = { ...user, name: userName, phone: phoneNumber, email: email, about: aboutMe, hobbies, profilePic, gallery: images }
+                const updatedUser = { ...user, name: userName, phone: phoneNumber, email: email, about: aboutMe, hobbies, language: selectedLanguage, profilePic, gallery: images }
                 localStorage.setItem('user', JSON.stringify(updatedUser))
                 
                 // Make CleverTap calls non-blocking to prevent UI freeze
