@@ -119,7 +119,7 @@ export default function LoginScreen({ onNext }: LoginScreenProps) {
     setLoading(true)
     try {
       const endpoint = Capacitor.isNativePlatform()
-        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://acsgroup.cloud'}/api/auth/send-otp`
+        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://admin.yaari.me'}/api/auth/send-otp`
         : `/api/auth/send-otp`
       const res = await fetch(endpoint, {
         method: 'POST',

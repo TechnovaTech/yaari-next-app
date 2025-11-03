@@ -51,7 +51,7 @@ export default function CallHistoryScreen({ onBack }: CallHistoryScreenProps) {
         return
       }
 
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://acsgroup.cloud'
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://admin.yaari.me'
       const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
       const apiUrl = isLocal ? `/api/call-history?userId=${user.id}` : `${API_BASE}/api/call-history?userId=${user.id}`
       

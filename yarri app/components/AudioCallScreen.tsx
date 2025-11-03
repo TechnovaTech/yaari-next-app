@@ -138,9 +138,6 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
       }
     })
 
-    // Enable loudspeaker mode by default
-    AgoraRTC.setParameter('AUDIO_OUTPUT_ROUTING', 'SPEAKER')
-
     init()
     
     // Track screen view

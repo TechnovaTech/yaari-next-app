@@ -24,7 +24,7 @@ export default function TransactionHistoryScreen({ onBack }: TransactionHistoryS
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const API_URL = 'https://acsgroup.cloud'
+  const API_URL = 'https://admin.yaari.me'
 
   useEffect(() => {
     trackScreenView('Transaction History')

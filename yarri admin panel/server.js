@@ -14,7 +14,7 @@ app.prepare().then(() => {
   
   const io = new Server(httpServer, {
     cors: {
-      origin: ['https://acsgroup.cloud', 'http://https://acsgroup.cloud', 'https://acsgroup.cloud', 'https://www.acsgroup.cloud', 'capacitor://localhost', 'http://localhost'],
+      origin: ['https://admin.yaari.me', 'http://https://admin.yaari.me', 'https://admin.yaari.me', 'https://www.admin.yaari.me', 'capacitor://localhost', 'http://localhost'],
       methods: ['GET', 'POST'],
       credentials: true
     }

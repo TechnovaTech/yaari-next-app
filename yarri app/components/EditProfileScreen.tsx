@@ -24,7 +24,7 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'hi'>('en')
 
   // Build API URL that avoids CORS in local dev by using Next.js rewrites
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://acsgroup.cloud'
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://admin.yaari.me'
   const buildApiUrl = (path: string) => {
     const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     return isLocal ? `/api${path}` : `${API_BASE}/api${path}`

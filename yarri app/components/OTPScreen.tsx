@@ -47,7 +47,7 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
     try {
       trackEvent('OtpVerifyAttempt', { phone })
       const endpoint = Capacitor.isNativePlatform()
-        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://acsgroup.cloud'}/api/auth/verify-otp`
+        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://admin.yaari.me'}/api/auth/verify-otp`
         : `/api/auth/verify-otp`
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -109,7 +109,7 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
     
     try {
       const endpoint = Capacitor.isNativePlatform()
-        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://acsgroup.cloud'}/api/auth/send-otp`
+        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://admin.yaari.me'}/api/auth/send-otp`
         : `/api/auth/send-otp`
       const res = await fetch(endpoint, {
         method: 'POST',

@@ -7,7 +7,7 @@
     "androidScheme": "https",
     "hostname": "localhost",
     "allowNavigation": [
-      "acsgroup.cloud",
+      "admin.yaari.me",
       "www.googleapis.com",
       "accounts.google.com",
       "checkout.razorpay.com"

@@ -155,9 +155,6 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
       }
     })
 
-    // Enable loudspeaker mode by default
-    AgoraRTC.setParameter('AUDIO_OUTPUT_ROUTING', 'SPEAKER')
-
     client.on('user-unpublished', (user) => {
       setRemoteUsers(prev => prev.filter(u => u.uid !== user.uid))
     })

@@ -17,7 +17,7 @@ npm install
 
 2. Configure API URL and Mixpanel token in `.env.local`:
 ```
-NEXT_PUBLIC_API_URL=https://acsgroup.cloud
+NEXT_PUBLIC_API_URL=https://admin.yaari.me
 NEXT_PUBLIC_MIXPANEL_TOKEN=<your_mixpanel_project_token>
 ```
 
@@ -26,7 +26,7 @@ NEXT_PUBLIC_MIXPANEL_TOKEN=<your_mixpanel_project_token>
 npm run dev
 ```
 
-Mobile app runs on: https://acsgroup.cloud
+Mobile app runs on: https://admin.yaari.me
 
 ## For Production (Capacitor)
 
