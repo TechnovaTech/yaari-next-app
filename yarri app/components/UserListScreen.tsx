@@ -538,7 +538,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
               onClick={handleCancelRinging}
               className="mt-6 px-4 py-2 bg-red-600 text-white rounded-lg"
             >
-              Terminate Call
+              End Call
             </button>
           </div>
         </div>

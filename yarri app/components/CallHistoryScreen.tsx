@@ -51,7 +51,11 @@ export default function CallHistoryScreen({ onBack }: CallHistoryScreenProps) {
         return
       }
 
-      const response = await fetch(`/api/call-history?userId=${user.id}`)
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://acsgroup.cloud'
+      const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      const apiUrl = isLocal ? `/api/call-history?userId=${user.id}` : `${API_BASE}/api/call-history?userId=${user.id}`
+      
+      const response = await fetch(apiUrl)
       if (!response.ok) {
         throw new Error('Failed to fetch call history')
       }
