@@ -93,6 +93,9 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
         const audioTrack = await AgoraRTC.createMicrophoneAudioTrack()
         setLocalAudioTrack(audioTrack)
         
+        // Enable loudspeaker by default
+        audioTrack.setVolume(100)
+        
         await client.publish([audioTrack])
 
         // Log call start
@@ -130,8 +133,13 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
       await client.subscribe(user, mediaType)
       if (mediaType === 'audio') {
         user.audioTrack?.play()
+        // Enable loudspeaker by default
+        user.audioTrack?.setVolume(100)
       }
     })
+
+    // Enable loudspeaker mode by default
+    AgoraRTC.setParameter('AUDIO_OUTPUT_ROUTING', 'SPEAKER')
 
     init()
     
@@ -254,9 +262,9 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
       <div className="flex justify-center items-center space-x-6 mb-8">
         <button
           onClick={() => setIsSpeakerOn(!isSpeakerOn)}
-          className={`w-14 h-14 rounded-full flex items-center justify-center ${isSpeakerOn ? 'bg-white/30' : 'bg-red-500'}`}
+          className={`w-14 h-14 rounded-full flex items-center justify-center ${isSpeakerOn ? 'bg-white' : 'bg-white/30'}`}
         >
-          <Volume2 className="text-white" size={24} />
+          <Volume2 className={isSpeakerOn ? 'text-primary' : 'text-white'} size={24} />
         </button>
 
         <button

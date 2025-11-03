@@ -22,6 +22,7 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
   const [duration, setDuration] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
   const [isVideoOff, setIsVideoOff] = useState(false)
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true)
   const [currentCamera, setCurrentCamera] = useState<'user' | 'environment'>('user')
   const [localVideoTrack, setLocalVideoTrack] = useState<ICameraVideoTrack | null>(null)
   const [localAudioTrack, setLocalAudioTrack] = useState<IMicrophoneAudioTrack | null>(null)
@@ -106,6 +107,9 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
         await client.publish([audioTrack, videoTrack])
         
         videoTrack.play('local-video')
+        
+        // Enable loudspeaker by default
+        audioTrack.setVolume(100)
 
         // Log call start
         const callData = sessionStorage.getItem('callData')
@@ -146,8 +150,13 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
       }
       if (mediaType === 'audio') {
         user.audioTrack?.play()
+        // Enable loudspeaker by default
+        user.audioTrack?.setVolume(100)
       }
     })
+
+    // Enable loudspeaker mode by default
+    AgoraRTC.setParameter('AUDIO_OUTPUT_ROUTING', 'SPEAKER')
 
     client.on('user-unpublished', (user) => {
       setRemoteUsers(prev => prev.filter(u => u.uid !== user.uid))
