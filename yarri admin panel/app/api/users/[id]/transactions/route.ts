@@ -20,11 +20,16 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const client = await clientPromise
     const db = client.db('yarri')
 
-    const userObjectId = new ObjectId(params.id)
+    let userId: ObjectId | string
+    try {
+      userId = new ObjectId(params.id)
+    } catch {
+      userId = params.id
+    }
 
     const transactions = await db
       .collection('transactions')
-      .find({ userId: userObjectId })
+      .find({ userId })
       .sort({ createdAt: -1 })
       .toArray()
 
@@ -34,6 +39,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
       },
     })
   } catch (error) {
+    console.error('Transaction fetch error:', error)
     return NextResponse.json({ error: 'Failed to fetch transactions' }, {
       status: 500,
       headers: {

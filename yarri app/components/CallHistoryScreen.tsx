@@ -61,7 +61,11 @@ export default function CallHistoryScreen({ onBack }: CallHistoryScreenProps) {
       }
 
       const data = await response.json()
-      setCalls(data)
+      const fixedCalls = data.map((call: CallRecord) => ({
+        ...call,
+        otherUserAvatar: call.otherUserAvatar?.replace(/https?:\/\/(0\.0\.0\.0|localhost):\d+/g, 'https://admin.yaari.me')
+      }))
+      setCalls(fixedCalls)
     } catch (err) {
       console.error('Error fetching call history:', err)
       setError('Failed to load call history')
