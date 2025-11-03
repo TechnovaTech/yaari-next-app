@@ -99,6 +99,37 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
     setHobbies(hobbies.filter((_, i) => i !== index))
   }
 
+  const compressImage = async (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          let width = img.width
+          let height = img.height
+          const maxSize = 1200
+          if (width > height && width > maxSize) {
+            height = (height * maxSize) / width
+            width = maxSize
+          } else if (height > maxSize) {
+            width = (width * maxSize) / height
+            height = maxSize
+          }
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')!
+          ctx.drawImage(img, 0, 0, width, height)
+          canvas.toBlob((blob) => {
+            resolve(new File([blob!], file.name, { type: 'image/jpeg' }))
+          }, 'image/jpeg', 0.8)
+        }
+        img.src = e.target?.result as string
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
   // Add photo upload functions
   const uploadPhotoToDatabase = async (file: File, isProfilePic: boolean = false): Promise<string | null> => {
     try {
@@ -110,8 +141,9 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
         return null
       }
 
+      const compressedFile = await compressImage(file)
       const formData = new FormData()
-      formData.append('photo', file)
+      formData.append('photo', compressedFile)
       formData.append('userId', String(userId))
       formData.append('isProfilePic', isProfilePic.toString())
 
