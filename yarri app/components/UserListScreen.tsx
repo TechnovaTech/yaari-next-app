@@ -29,6 +29,7 @@ interface User {
   profilePic?: string
   googleProfilePic?: string
   gender?: string
+  callAccess?: 'none' | 'audio' | 'video' | 'full'
 }
 
 export default function UserListScreen({ onNext, onProfileClick, onCoinClick, onUserClick, onStartCall }: UserListScreenProps) {
@@ -232,6 +233,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
             profilePic: displayPic,
             googleProfilePic: displayPic && displayPic.includes('googleusercontent.com') ? displayPic : null,
             gender: user.gender,
+            callAccess: user.callAccess || 'full',
           }
         })
       
@@ -476,32 +478,38 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
                     : user.attributes
                   }
                 </p>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={(e) => handleCallClick(user, 'video', videoCallRate, e)}
-                    className="flex-1 bg-primary text-white py-2 rounded-full flex items-center justify-center gap-1"
-                    style={{ alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Video size={16} fill="white" strokeWidth={0} />
-                    <span className="flex items-center gap-0.5 mt-2.5">
-                      {videoCallRate}
-                      <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
-                      / min
-                    </span>
-                  </button>
-                  <button 
-                    onClick={(e) => handleCallClick(user, 'audio', audioCallRate, e)}
-                    className="flex-1 bg-primary text-white py-2 rounded-full flex items-center justify-center gap-1"
-                    style={{ alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Phone size={16} strokeWidth={2} />
-                    <span className="flex items-center gap-0.5 mt-2.5">
-                      {audioCallRate}
-                      <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
-                      / min
-                    </span>
-                  </button>
-                </div>
+                {user.callAccess !== 'none' && (
+                  <div className="flex gap-2">
+                    {(user.callAccess === 'video' || user.callAccess === 'full') && (
+                      <button 
+                        onClick={(e) => handleCallClick(user, 'video', videoCallRate, e)}
+                        className="flex-1 bg-primary text-white py-2 rounded-full flex items-center justify-center gap-1"
+                        style={{ alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Video size={16} fill="white" strokeWidth={0} />
+                        <span className="flex items-center gap-0.5 mt-2.5">
+                          {videoCallRate}
+                          <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
+                          / min
+                        </span>
+                      </button>
+                    )}
+                    {(user.callAccess === 'audio' || user.callAccess === 'full') && (
+                      <button 
+                        onClick={(e) => handleCallClick(user, 'audio', audioCallRate, e)}
+                        className="flex-1 bg-primary text-white py-2 rounded-full flex items-center justify-center gap-1"
+                        style={{ alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Phone size={16} strokeWidth={2} />
+                        <span className="flex items-center gap-0.5 mt-2.5">
+                          {audioCallRate}
+                          <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
+                          / min
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}
