@@ -33,10 +33,16 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     }
 
     const gallery = Array.isArray(user.gallery) 
-      ? user.gallery.filter((url: string) => url && url.trim())
+      ? user.gallery.filter((url: any) => url && typeof url === 'string' && url.trim())
       : []
 
-    console.log('Fetching images for user:', params.id, 'Gallery count:', gallery.length)
+    // Clean up database if there are empty values
+    if (user.gallery && user.gallery.length !== gallery.length) {
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(params.id) },
+        { $set: { gallery } }
+      )
+    }
 
     return NextResponse.json({
       profilePic: user.profilePic || '',

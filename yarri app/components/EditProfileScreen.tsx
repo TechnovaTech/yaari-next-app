@@ -1,4 +1,4 @@
-import { User, Plus, X, ChevronLeft } from 'lucide-react'
+import { User, Plus, X, ChevronLeft, Trash2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -39,26 +39,18 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
       if (response.ok) {
         const result = await response.json()
         
-        // Fix localhost and 0.0.0.0 URLs
         let profilePic = result.profilePic || ''
         if (profilePic) {
           profilePic = profilePic.replace(/https?:\/\/(0\.0\.0\.0|localhost):\d+/g, 'https://admin.yaari.me')
         }
         
         const gallery = (result.gallery || [])
-          .map((url: string) => 
-            (url || '').replace(/https?:\/\/(0\.0\.0\.0|localhost):\d+/g, 'https://admin.yaari.me')
-          )
-          .filter((url: string) => !!url && url.trim().length > 0)
+          .filter((url: string) => url && typeof url === 'string' && url.trim())
+          .map((url: string) => url.replace(/https?:\/\/(0\.0\.0\.0|localhost):\d+/g, 'https://admin.yaari.me'))
         
-        return {
-          profilePic,
-          gallery
-        }
-      } else {
-        console.error('Failed to fetch user images:', response.status, response.statusText)
-        return { profilePic: '', gallery: [] }
+        return { profilePic, gallery }
       }
+      return { profilePic: '', gallery: [] }
     } catch (error) {
       console.error('Error fetching user images:', error)
       return { profilePic: '', gallery: [] }
@@ -82,12 +74,11 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
       if (userData.id) {
         fetchUserImages(userData.id).then(imageData => {
           setProfilePic(imageData.profilePic)
-          setImages(imageData.gallery)
+          setImages(imageData.gallery.filter(url => url && url.trim()))
         })
       } else {
-        // Fallback to localStorage if no user ID
         setProfilePic(userData.profilePic || '')
-        setImages(userData.gallery || [])
+        setImages((userData.gallery || []).filter((url: string) => url && url.trim()))
       }
     }
   }, [])
@@ -179,36 +170,23 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
   const deletePhotoFromDatabase = async (photoUrl: string): Promise<boolean> => {
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}')
-      const normalizedUrl = (photoUrl || '').replace(/https?:\/\/(0\.0\.0\.0|localhost):\d+/g, API_BASE)
-      console.log('Sending delete request:', { userId: user.id, photoUrl, normalizedUrl })
+      if (!user.id) return false
+      
+      const normalizedUrl = photoUrl.replace(/https?:\/\/(0\.0\.0\.0|localhost):\d+/g, API_BASE)
       
       const response = await fetch(buildApiUrl('/delete-photo'), {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.id,
-          photoUrl: photoUrl,
+          photoUrl,
           normalizedPhotoUrl: normalizedUrl
         }),
       })
 
-      const result = await response.json()
-      console.log('Delete API response:', result)
-
-      if (response.ok) {
-        console.log('Refreshing gallery from server...')
-        if (user?.id) {
-          const imageData = await fetchUserImages(String(user.id))
-          console.log('New gallery data:', imageData.gallery)
-          setImages(imageData.gallery)
-        }
-        return true
-      } else {
-        console.error('Photo deletion failed:', response.status, result)
-        return false
-      }
+      return response.ok
     } catch (error) {
-      console.error('Error deleting photo:', error)
+      console.error('Delete error:', error)
       return false
     }
   }
@@ -347,41 +325,32 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">{t.photoGallery}</label>
           <div className="grid grid-cols-3 gap-2">
-            {images.map((img, i) => (
-              <div key={i} className="aspect-square bg-gray-200 rounded-lg relative overflow-hidden">
-                {img === 'loading' ? (
-                  <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
-                    Uploading...
-                  </div>
-                ) : (
-                  <>
-                    <img 
-                      src={img} 
-                      alt="" 
-                      className="w-full h-full object-cover" 
-                      onError={(e) => {
-                        console.error('Failed to load image:', img)
-                        e.currentTarget.style.display = 'none'
-                      }}
-                    />
-                    <button 
-                      onClick={async () => {
-                        console.log('Deleting photo:', img)
-                        const photoUrl = img
-                        setImages(prev => prev.filter((_, idx) => idx !== i))
-                        const deleted = await deletePhotoFromDatabase(photoUrl)
-                        console.log('Delete result:', deleted)
-                        if (!deleted) {
-                          setImages(prevImages => [...prevImages, photoUrl])
-                          alert('Failed to delete photo from database. Please try again.')
-                        }
-                      }}
-                      className="absolute top-1 right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center z-10"
-                    >
-                      <X size={14} className="text-white" />
-                    </button>
-                  </>
-                )}
+            {images.filter(img => img && img !== 'loading').map((img, i) => (
+              <div key={img} className="aspect-square bg-gray-200 rounded-lg relative overflow-hidden">
+                <img 
+                  src={img} 
+                  alt="" 
+                  className="w-full h-full object-cover" 
+                />
+                <button 
+                  onClick={async () => {
+                    if (!confirm('Delete this photo?')) return
+                    const deleted = await deletePhotoFromDatabase(img)
+                    if (deleted) {
+                      setImages(prev => prev.filter(url => url !== img))
+                    } else {
+                      alert('Failed to delete photo')
+                    }
+                  }}
+                  className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center shadow-lg"
+                >
+                  <Trash2 size={16} className="text-white" />
+                </button>
+              </div>
+            ))}
+            {images.filter(img => img === 'loading').map((_, i) => (
+              <div key={`loading-${i}`} className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
+                <div className="text-xs text-gray-500">Uploading...</div>
               </div>
             ))}
             <input
@@ -486,8 +455,6 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
                 about: aboutMe,
                 hobbies,
                 language: selectedLanguage,
-                // Remove image data from payload since photos are uploaded separately
-                // profilePic and gallery images are now stored as URLs in the database
               }
               
               console.log('Saving profile for user ID:', user.id)

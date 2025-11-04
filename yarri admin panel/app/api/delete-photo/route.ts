@@ -44,7 +44,7 @@ export async function DELETE(request: Request) {
     console.log('URLs to match:', urlsToMatch)
 
     // Remove from user's gallery (try all URL variations)
-    const updateResult = await db.collection('users').updateOne(
+    await db.collection('users').updateOne(
       { _id: new ObjectId(userId) },
       {
         $pull: { gallery: { $in: urlsToMatch } },
@@ -52,13 +52,23 @@ export async function DELETE(request: Request) {
       }
     )
 
-    // Clean up any empty strings or null values from gallery
+    // Clean up any empty, null, or whitespace-only values from gallery
     await db.collection('users').updateOne(
       { _id: new ObjectId(userId) },
       {
-        $pull: { gallery: { $in: ['', null] } }
+        $pull: { gallery: { $in: ['', null, ' '] } }
       }
     )
+
+    // Also remove any remaining falsy values using aggregation
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) })
+    if (user && user.gallery) {
+      const cleanGallery = user.gallery.filter((url: any) => url && typeof url === 'string' && url.trim())
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(userId) },
+        { $set: { gallery: cleanGallery } }
+      )
+    }
 
     // Remove from profilePic if matching
     await db.collection('users').updateOne(
