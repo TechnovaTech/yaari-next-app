@@ -38,9 +38,7 @@ export default function CustomerSupportScreen({ onBack }: CustomerSupportScreenP
             {t.hereToHelp}
           </p>
           <a
-            href="https://mail.google.com/mail/?view=cm&fs=1&to=support@yaari.me&su=Support Request"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="mailto:support@yaari.me"
             className="text-primary font-medium text-base mb-2 underline cursor-pointer inline-block"
           >
             support@yaari.me
