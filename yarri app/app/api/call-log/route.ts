@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
-import { ObjectId } from 'mongodb'
-import clientPromise from '@/lib/mongodb'
 
 export const runtime = 'nodejs'
 
+// CORS preflight
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
@@ -15,20 +14,13 @@ export async function OPTIONS() {
   })
 }
 
+// Proxy call-log to Admin API to avoid local DB dependency
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { 
-      callerId, 
-      receiverId, 
-      callType, 
-      action, 
-      duration, 
-      cost,
-      channelName,
-      status 
-    } = body
 
+    // Basic validation for required fields
+    const { callerId, receiverId, callType, action } = body || {}
     if (!callerId || !receiverId || !callType || !action) {
       return NextResponse.json({ error: 'Missing required fields' }, { 
         status: 400,
@@ -38,98 +30,49 @@ export async function POST(request: Request) {
       })
     }
 
-    const client = await clientPromise
-    const db = client.db('yarri')
-    
-    if (action === 'start') {
-      // Create new call record
-      const callRecord = {
-        callerId,
-        receiverId,
-        callType, // 'video' or 'audio'
-        channelName: channelName || null,
-        status: 'started',
-        startTime: new Date(),
-        endTime: null,
-        duration: 0,
-        cost: 0,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-      
-      const result = await db.collection('calls').insertOne(callRecord)
-      
-      return NextResponse.json({ 
-        success: true, 
-        callId: result.insertedId 
-      }, {
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-        },
-      })
-    } 
-    else if (action === 'end') {
-      // Update existing call record
-      const filter = {
-        $or: [
-          { callerId, receiverId },
-          { callerId: receiverId, receiverId: callerId }
-        ],
-        status: { $in: ['started', 'connected'] }
-      }
-      
-      const update = {
-        $set: {
-          status: status || 'completed',
-          endTime: new Date(),
-          duration: duration || 0,
-          cost: cost || 0,
-          updatedAt: new Date()
+    const candidates = [
+      'http://localhost:3002',
+      process.env.API_BASE,
+      process.env.NEXT_PUBLIC_API_URL,
+      'https://admin.yaari.me'
+    ].filter(Boolean) as string[]
+
+    let lastError: any = null
+    for (const base of candidates) {
+      try {
+        const res = await fetch(`${base}/api/call-log`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+
+        const data = await res
+          .json()
+          .catch(() => ({ error: 'Invalid JSON from upstream' }))
+
+        if (!res.ok) {
+          lastError = { status: res.status, data }
+          continue
         }
+
+        return NextResponse.json(data, {
+          headers: { 'Access-Control-Allow-Origin': '*'}
+        })
+      } catch (err) {
+        lastError = err
+        continue
       }
-      
-      const result = await db.collection('calls').updateOne(filter, update, { 
-        sort: { createdAt: -1 } 
-      })
-      
-      if (result.matchedCount === 0) {
-        // If no existing call found, create a completed call record
-        const callRecord = {
-          callerId,
-          receiverId,
-          callType,
-          channelName: channelName || null,
-          status: status || 'completed',
-          startTime: new Date(Date.now() - (duration * 1000 || 0)),
-          endTime: new Date(),
-          duration: duration || 0,
-          cost: cost || 0,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-        
-        await db.collection('calls').insertOne(callRecord)
-      }
-      
-      return NextResponse.json({ 
-        success: true,
-        updated: result.matchedCount > 0
-      }, {
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-        },
-      })
     }
-    else {
-      return NextResponse.json({ error: 'Invalid action' }, { 
-        status: 400,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-        },
-      })
-    }
+
+    // If all candidates failed
+    const status = typeof lastError?.status === 'number' ? lastError.status : 500
+    const message = lastError?.data?.error || 'Failed to log call'
+    return NextResponse.json({ error: message }, {
+      status,
+      headers: { 'Access-Control-Allow-Origin': '*'}
+    })
   } catch (error) {
-    console.error('Call log error:', error)
+    console.error('Call log proxy error:', error)
     return NextResponse.json({ error: 'Failed to log call' }, { 
       status: 500,
       headers: {
