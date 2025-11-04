@@ -2,6 +2,7 @@ package com.yaari.app;
 
 import android.content.Context;
 import android.media.AudioAttributes;
+import android.media.AudioDeviceInfo;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.os.Build;
@@ -41,7 +42,28 @@ public class AudioRoutingPlugin extends Plugin {
         try {
             if (audioManager != null) {
                 audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-                audioManager.setSpeakerphoneOn(on);
+
+                // Prefer explicit communication device routing on Android 12+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    AudioDeviceInfo[] outputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+                    int desiredType = on ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER : AudioDeviceInfo.TYPE_BUILTIN_EARPIECE;
+                    AudioDeviceInfo target = null;
+                    for (AudioDeviceInfo dev : outputs) {
+                        if (dev.getType() == desiredType) {
+                            target = dev;
+                            break;
+                        }
+                    }
+                    // If target device found, set it; otherwise fallback to legacy toggle
+                    if (target != null) {
+                        audioManager.setCommunicationDevice(target);
+                    } else {
+                        audioManager.setSpeakerphoneOn(on);
+                    }
+                } else {
+                    // Legacy routing
+                    audioManager.setSpeakerphoneOn(on);
+                }
             }
             call.resolve(new JSObject().put("status", "ok").put("speakerOn", on));
         } catch (Exception e) {
@@ -54,6 +76,10 @@ public class AudioRoutingPlugin extends Plugin {
         try {
             if (audioManager != null) {
                 // Turn off speaker and reset mode
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    // Clear any explicit communication device routing
+                    audioManager.setCommunicationDevice(null);
+                }
                 audioManager.setSpeakerphoneOn(false);
                 audioManager.setMode(AudioManager.MODE_NORMAL);
                 abandonAudioFocus();
