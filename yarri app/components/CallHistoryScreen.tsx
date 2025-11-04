@@ -67,10 +67,13 @@ export default function CallHistoryScreen({ onBack }: CallHistoryScreenProps) {
 
       const data = await response.json()
       console.log('Call history data:', data)
-      const fixedCalls = data.map((call: CallRecord) => ({
-        ...call,
-        otherUserAvatar: call.otherUserAvatar?.replace(/https?:\/\/(0\.0\.0\.0|localhost):\d+/g, 'https://admin.yaari.me')
-      }))
+      const fixedCalls = data.map((call: CallRecord) => {
+        console.log('Call duration:', call.duration, 'Status:', call.status)
+        return {
+          ...call,
+          otherUserAvatar: call.otherUserAvatar?.replace(/https?:\/\/(0\.0\.0\.0|localhost):\d+/g, 'https://admin.yaari.me')
+        }
+      })
       setCalls(fixedCalls)
     } catch (err) {
       console.error('Error fetching call history:', err)
@@ -90,6 +93,7 @@ export default function CallHistoryScreen({ onBack }: CallHistoryScreenProps) {
   }
 
   const formatDuration = (seconds: number) => {
+    if (!seconds || seconds === 0) return '00:00'
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = seconds % 60
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
@@ -182,16 +186,11 @@ export default function CallHistoryScreen({ onBack }: CallHistoryScreenProps) {
               
               <div className="text-right">
                 <p className="text-sm text-black font-medium">
-                  {formatTime(call.startTime)}
+                  {formatTime(call.startTime || call.createdAt)}
                 </p>
                 <p className="text-sm text-gray-500">
-                  {call.duration > 0 ? formatDuration(call.duration) : '--:--'}
+                  {formatDuration(call.duration || 0)}
                 </p>
-                {call.cost > 0 && (
-                  <p className="text-xs text-pink-500 font-medium">
-                    ₹{call.cost.toFixed(2)}
-                  </p>
-                )}
               </div>
             </div>
           ))

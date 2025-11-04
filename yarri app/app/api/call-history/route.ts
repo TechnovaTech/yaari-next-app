@@ -136,12 +136,12 @@ export async function GET(request: Request) {
       {
         $project: {
           _id: 1,
-          callType: 1,
-          duration: 1,
-          status: 1,
-          startTime: 1,
-          endTime: 1,
-          cost: 1,
+          callType: { $ifNull: ['$callType', 'audio'] },
+          duration: { $ifNull: ['$duration', 0] },
+          status: { $ifNull: ['$status', 'completed'] },
+          startTime: { $ifNull: ['$startTime', '$createdAt'] },
+          endTime: { $ifNull: ['$endTime', '$createdAt'] },
+          cost: { $ifNull: ['$cost', 0] },
           isOutgoing: 1,
           otherUserName: { $ifNull: ['$otherUserInfo.name', 'Unknown User'] },
           otherUserAvatar: '$otherUserInfo.profilePic',
