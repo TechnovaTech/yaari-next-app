@@ -19,10 +19,38 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
   const [hobbies, setHobbies] = useState<string[]>([])
   const [newHobby, setNewHobby] = useState('')
   const [images, setImages] = useState<string[]>([])
+  const [deletedKeys, setDeletedKeys] = useState<Set<string>>(new Set())
+  const [deletingKeys, setDeletingKeys] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [gender, setGender] = useState('')
   const [profilePic, setProfilePic] = useState('')
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'hi'>('en')
+
+  const canonicalUrlKey = (url: string): string => {
+    try {
+      const match = url.match(/\/uploads\/([^?#]+)/)
+      return (match && match[1]) ? match[1].toLowerCase() : url.toLowerCase()
+    } catch {
+      return url.toLowerCase()
+    }
+  }
+
+  const normalizeUrlHost = (url: string): string =>
+    url
+      ?.replace(/https?:\/\/localhost:\d+/g, 'https://admin.yaari.me')
+      ?.replace(/https?:\/\/0\.0\.0\.0:\d+/g, 'https://admin.yaari.me')
+
+  const dedupeByCanonical = (urls: string[]): string[] => {
+    const map = new Map<string, string>()
+    for (const raw of urls) {
+      const normalized = normalizeUrlHost(raw)
+      const key = canonicalUrlKey(normalized)
+      if (!map.has(key)) {
+        map.set(key, normalized)
+      }
+    }
+    return Array.from(map.values())
+  }
 
   // Build API URL that avoids CORS in local dev; force remote on native
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://admin.yaari.me'
@@ -57,6 +85,41 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
     }
   }
 
+  // Refresh gallery state from server and drop any broken image URLs
+  const refreshGalleryState = async (userId: string) => {
+    const imageData = await fetchUserImages(userId)
+    const urls: string[] = dedupeByCanonical(imageData.gallery)
+      .filter(url => url && url.trim())
+      // Do not re-introduce URLs we have explicitly deleted in this session
+      .filter(url => !deletedKeys.has(canonicalUrlKey(url)))
+
+    // Validate images by attempting to load; remove ones that fail
+    const validateUrl = (url: string): Promise<string | null> => {
+      return new Promise((resolve) => {
+        try {
+          const img = new Image()
+          const timer = setTimeout(() => resolve(null), 5000)
+          img.onload = () => { clearTimeout(timer); resolve(url) }
+          img.onerror = () => { clearTimeout(timer); resolve(null) }
+          img.src = url
+        } catch {
+          resolve(null)
+        }
+      })
+    }
+
+    try {
+      const validated = await Promise.all(urls.map(validateUrl))
+      const validUrls = validated.filter((u): u is string => !!u)
+      setProfilePic(imageData.profilePic)
+      setImages(dedupeByCanonical(validUrls))
+    } catch {
+      // Fallback to server-provided list if validation fails
+      setProfilePic(imageData.profilePic)
+      setImages(dedupeByCanonical(urls))
+    }
+  }
+
   useEffect(() => {
     trackScreenView('Edit Profile')
     const user = localStorage.getItem('user')
@@ -70,15 +133,12 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
       setGender(userData.gender || '')
       setSelectedLanguage(userData.language || 'en')
       
-      // Load images from database instead of localStorage
+      // Load images from database and validate to avoid broken placeholders
       if (userData.id) {
-        fetchUserImages(userData.id).then(imageData => {
-          setProfilePic(imageData.profilePic)
-          setImages(imageData.gallery.filter(url => url && url.trim()))
-        })
+        refreshGalleryState(userData.id)
       } else {
         setProfilePic(userData.profilePic || '')
-        setImages((userData.gallery || []).filter((url: string) => url && url.trim()))
+        setImages(dedupeByCanonical((userData.gallery || []).filter((url: string) => url && url.trim())))
       }
     }
   }, [])
@@ -326,21 +386,53 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
           <label className="block text-sm font-semibold text-gray-700 mb-2">{t.photoGallery}</label>
           <div className="grid grid-cols-3 gap-2">
             {images.filter(img => img && img !== 'loading').map((img, i) => (
-              <div key={img} className="aspect-square bg-gray-200 rounded-lg relative overflow-hidden">
+              <div key={canonicalUrlKey(img)} className="aspect-square bg-gray-200 rounded-lg relative overflow-hidden">
                 <img 
                   src={img} 
                   alt="" 
-                  className="w-full h-full object-cover" 
+                  className="w-full h-full object-cover"
+                  onError={() => {
+                    // Remove broken images so placeholders don't persist
+                    const key = canonicalUrlKey(img)
+                    setDeletedKeys(prev => new Set(prev).add(key))
+                    setImages(prev => dedupeByCanonical(prev.filter(url => canonicalUrlKey(url) !== key)))
+                  }} 
                 />
                 <button 
                   onClick={async () => {
                     if (!confirm('Delete this photo?')) return
+                    const key = canonicalUrlKey(img)
+                    setDeletingKeys(prev => new Set(prev).add(key))
+                    // Optimistic immediate removal so UI reflects the action
+                    setDeletedKeys(prev => new Set(prev).add(key))
+                    setImages(prev => {
+                      const next = dedupeByCanonical(prev.filter(url => canonicalUrlKey(url) !== key))
+                      // Persist to localStorage so other views don’t reintroduce the deleted image
+                      try {
+                        const user = JSON.parse(localStorage.getItem('user') || '{}')
+                        if (user && user.id) {
+                          const updatedUser = { ...user, gallery: next }
+                          localStorage.setItem('user', JSON.stringify(updatedUser))
+                        }
+                      } catch {}
+                      return next
+                    })
+
+                    // Perform server deletion; if it fails, alert the user.
+                    // We are no longer re-syncing from the server to prevent the image from reappearing.
                     const deleted = await deletePhotoFromDatabase(img)
-                    if (deleted) {
-                      setImages(prev => prev.filter(url => url !== img))
-                    } else {
-                      alert('Failed to delete photo')
+                    if (!deleted) {
+                      alert('Failed to delete photo. Please refresh the page.')
+                      // If deletion fails, we should ideally restore the image or handle it,
+                      // but for now, we just alert. A more robust solution could be added later.
                     }
+                    
+                    // Clear deleting state
+                    setDeletingKeys(prev => {
+                      const next = new Set(prev)
+                      next.delete(key)
+                      return next
+                    })
                   }}
                   className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center shadow-lg"
                 >
