@@ -30,6 +30,8 @@ export async function GET(request: Request) {
     const client = await clientPromise
     const db = client.db('yarri')
     
+    console.log('Fetching call history for userId:', userId)
+    
     const callHistory = await db.collection('callHistory')
       .find({
         $or: [
@@ -41,15 +43,28 @@ export async function GET(request: Request) {
       .limit(50)
       .toArray()
 
+    console.log('Found calls:', callHistory.length)
+
     const enrichedHistory = await Promise.all(
       callHistory.map(async (call) => {
         const isOutgoing = call.callerId === userId
         const otherUserId = isOutgoing ? call.receiverId : call.callerId
         
-        const otherUser = await db.collection('users').findOne(
-          { _id: new ObjectId(otherUserId) },
-          { projection: { name: 1, profilePic: 1, about: 1 } }
-        )
+        console.log('Processing call:', { callerId: call.callerId, receiverId: call.receiverId, isOutgoing, otherUserId })
+        
+        let otherUser = null
+        try {
+          otherUser = await db.collection('users').findOne(
+            { _id: new ObjectId(otherUserId) },
+            { projection: { name: 1, profilePic: 1, about: 1 } }
+          )
+        } catch (err) {
+          console.log('Error finding user with ObjectId, trying string:', otherUserId)
+          otherUser = await db.collection('users').findOne(
+            { _id: otherUserId },
+            { projection: { name: 1, profilePic: 1, about: 1 } }
+          )
+        }
 
         return {
           _id: call._id,
@@ -68,6 +83,7 @@ export async function GET(request: Request) {
       })
     )
 
+    console.log('Returning enriched history:', enrichedHistory.length)
     return NextResponse.json(enrichedHistory, {
       headers: { 'Access-Control-Allow-Origin': '*' }
     })

@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       const endTime = new Date()
 
       // Save to call history
-      await db.collection('callHistory').insertOne({
+      const callRecord = {
         callerId,
         receiverId,
         callType,
@@ -60,10 +60,13 @@ export async function POST(request: Request) {
         startTime,
         endTime,
         createdAt: new Date()
-      })
+      }
+      
+      console.log('Saving call to history:', callRecord)
+      const result = await db.collection('callHistory').insertOne(callRecord)
+      console.log('Call saved with ID:', result.insertedId)
 
-      console.log('Call saved to history:', { callerId, receiverId, duration })
-      return NextResponse.json({ success: true, message: 'Call logged' })
+      return NextResponse.json({ success: true, message: 'Call logged', id: result.insertedId })
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
