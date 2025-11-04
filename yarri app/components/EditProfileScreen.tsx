@@ -45,9 +45,11 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
           profilePic = profilePic.replace(/https?:\/\/(0\.0\.0\.0|localhost):\d+/g, 'https://admin.yaari.me')
         }
         
-        const gallery = (result.gallery || []).map((url: string) => 
-          url.replace(/https?:\/\/(0\.0\.0\.0|localhost):\d+/g, 'https://admin.yaari.me')
-        )
+        const gallery = (result.gallery || [])
+          .map((url: string) => 
+            (url || '').replace(/https?:\/\/(0\.0\.0\.0|localhost):\d+/g, 'https://admin.yaari.me')
+          )
+          .filter((url: string) => !!url && url.trim().length > 0)
         
         return {
           profilePic,
@@ -178,16 +180,23 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
   const deletePhotoFromDatabase = async (photoUrl: string): Promise<boolean> => {
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}')
+      const normalizedUrl = (photoUrl || '').replace(/https?:\/\/(0\.0\.0\.0|localhost):\d+/g, API_BASE)
       const response = await fetch(buildApiUrl('/delete-photo'), {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.id,
-          photoUrl: photoUrl
+          photoUrl: photoUrl,
+          normalizedPhotoUrl: normalizedUrl
         }),
       })
 
       if (response.ok) {
+        // Refresh gallery from server to ensure full deletion
+        if (user?.id) {
+          const imageData = await fetchUserImages(String(user.id))
+          setImages(imageData.gallery)
+        }
         return true
       } else {
         console.error('Photo deletion failed:', response.status, response.statusText)
@@ -346,7 +355,7 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
                       onClick={async () => {
                         const photoUrl = img
                         // Remove from UI immediately for better UX
-                        setImages(images.filter((_, idx) => idx !== i))
+                        setImages(prev => prev.filter((_, idx) => idx !== i))
                         
                         // Delete from database in background
                         const deleted = await deletePhotoFromDatabase(photoUrl)

@@ -234,14 +234,17 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
 
   const toggleSpeaker = async () => {
     const next = !isSpeakerOn
-    setIsSpeakerOn(next)
     if (Capacitor.isNativePlatform()) {
       try {
+        // Ensure we are in communication mode before routing changes
+        await AudioRouting.enterCommunicationMode()
+        // Route audio: true -> loudspeaker, false -> earpiece
         await AudioRouting.setSpeakerphoneOn({ on: next })
       } catch (e) {
         console.warn('Failed to toggle speakerphone:', e)
       }
     }
+    setIsSpeakerOn(next)
   }
 
   const handleEndCall = async () => {
