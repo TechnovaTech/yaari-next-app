@@ -36,17 +36,24 @@ export async function DELETE(request: Request) {
       urlsToMatch.push(normalizedPhotoUrl)
     }
 
-    // Get current user and clean gallery
     const user = await db.collection('users').findOne({ _id: new ObjectId(userId) })
+    console.log('User found:', !!user, 'Gallery length:', user?.gallery?.length)
+    console.log('Gallery before:', user?.gallery)
+    console.log('URLs to remove:', urlsToMatch)
+    
     if (user && user.gallery) {
       const cleanGallery = user.gallery
         .filter((url: any) => url && typeof url === 'string' && url.trim())
         .filter((url: string) => !urlsToMatch.includes(url))
       
-      await db.collection('users').updateOne(
+      console.log('Clean gallery length:', cleanGallery.length)
+      console.log('Clean gallery:', cleanGallery)
+      
+      const result = await db.collection('users').updateOne(
         { _id: new ObjectId(userId) },
         { $set: { gallery: cleanGallery, updatedAt: new Date() } }
       )
+      console.log('Update result:', result.modifiedCount, 'modified')
     }
 
     // Remove from profilePic if matching
@@ -70,6 +77,7 @@ export async function DELETE(request: Request) {
       }
     }
 
+    console.log('Delete completed successfully')
     return NextResponse.json({ success: true }, {
       headers: { 'Access-Control-Allow-Origin': '*' },
     })
