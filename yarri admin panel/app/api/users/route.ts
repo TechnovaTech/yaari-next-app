@@ -20,7 +20,10 @@ export async function GET() {
           isActive: 1,
           profilePic: 1,
           createdAt: 1,
-          callAccess: 1
+          callAccess: 1,
+          about: 1,
+          hobbies: 1,
+          gallery: 1
         }
       })
       .toArray()

@@ -19,7 +19,7 @@ export async function OPTIONS() {
 
 export async function DELETE(request: Request) {
   try {
-    const { userId, photoUrl } = await request.json()
+    const { userId, photoUrl, normalizedPhotoUrl } = await request.json()
     if (!userId || !photoUrl) {
       return NextResponse.json({ error: 'Missing userId or photoUrl' }, {
         status: 400,
@@ -30,19 +30,36 @@ export async function DELETE(request: Request) {
     const client = await clientPromise
     const db = client.db('yarri')
 
-    // Remove from user's gallery and profilePic if matching
-    await db.collection('users').updateOne(
+    // Try to match both original and normalized URLs
+    const urlsToMatch = [photoUrl]
+    if (normalizedPhotoUrl && normalizedPhotoUrl !== photoUrl) {
+      urlsToMatch.push(normalizedPhotoUrl)
+    }
+
+    // Remove from user's gallery (try all URL variations)
+    const updateResult = await db.collection('users').updateOne(
       { _id: new ObjectId(userId) },
       {
-        $pull: { gallery: photoUrl },
+        $pull: { gallery: { $in: urlsToMatch } },
         $set: { updatedAt: new Date() },
       }
     )
 
+    // Clean up any empty strings or null values from gallery
     await db.collection('users').updateOne(
-      { _id: new ObjectId(userId), profilePic: photoUrl },
+      { _id: new ObjectId(userId) },
+      {
+        $pull: { gallery: { $in: ['', null] } }
+      }
+    )
+
+    // Remove from profilePic if matching
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId), profilePic: { $in: urlsToMatch } },
       { $set: { profilePic: '' } }
     )
+
+    console.log('Photo deleted:', { userId, photoUrl, matched: updateResult.modifiedCount })
 
     // Attempt to delete the file from disk if it belongs to our uploads
     const marker = '/uploads/'

@@ -264,12 +264,12 @@ export default function UsersPage() {
                 </div>
               )}
 
-              {selectedUser.gallery && selectedUser.gallery.length > 0 && (
+              {selectedUser.gallery && selectedUser.gallery.filter((img: string) => img && img.trim()).length > 0 && (
                 <div>
                   <label className="text-sm font-semibold text-gray-600">Gallery</label>
                   <div className="grid grid-cols-3 gap-2 mt-2">
-                    {selectedUser.gallery.map((img: string, i: number) => (
-                      <img key={i} src={img} alt={`Gallery ${i}`} className="w-full h-24 object-cover rounded-lg" />
+                    {selectedUser.gallery.filter((img: string) => img && img.trim()).map((img: string, i: number) => (
+                      <img key={i} src={img} alt={`Gallery ${i + 1}`} className="w-full h-24 object-cover rounded-lg" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                     ))}
                   </div>
                 </div>
