@@ -7,15 +7,17 @@ import { useSocket } from '../contexts/SocketContext'
 import CallConfirmationScreen from './CallConfirmationScreen'
 import PermissionModal from './PermissionModal'
 import PermissionDeniedModal from './PermissionDeniedModal'
+import InsufficientCoinsModal from './InsufficientCoinsModal'
 import { trackEvent, trackScreenView, trackProfileView } from '@/utils/clevertap'
 
 interface UserDetailScreenProps {
   onBack: () => void
   userId: string
   onStartCall: (data: { userName: string; userAvatar: string; rate: number; type: 'video' | 'audio' }) => void
+  onCoinClick?: () => void
 }
 
-export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDetailScreenProps) {
+export default function UserDetailScreen({ onBack, userId, onStartCall, onCoinClick }: UserDetailScreenProps) {
   const { lang } = useLanguage()
   const t = translations[lang]
   const [user, setUser] = useState<any>(null)
@@ -33,6 +35,7 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
   const [audioCallRate, setAudioCallRate] = useState(5)
   const [videoCallRate, setVideoCallRate] = useState(10)
   const [callAccess, setCallAccess] = useState<'none' | 'audio' | 'video' | 'full'>('full')
+  const [showInsufficientCoins, setShowInsufficientCoins] = useState(false)
 
   useEffect(() => {
     fetchUser()
@@ -185,7 +188,7 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
 
   const handleCallClick = async (type: 'video' | 'audio', rate: number) => {
     if (balance < rate) {
-      alert(`Insufficient coins! You need at least ${rate} coins to make this call. Your balance: ${balance} coins`)
+      setShowInsufficientCoins(true)
       return
     }
     
@@ -379,6 +382,17 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
           onRetry={() => {
             setShowPermissionDenied(false)
             setShowPermissionModal(true)
+          }}
+        />
+      )}
+
+      {showInsufficientCoins && (
+        <InsufficientCoinsModal
+          onClose={() => setShowInsufficientCoins(false)}
+          onRecharge={() => {
+            setShowInsufficientCoins(false)
+            if (onCoinClick) onCoinClick()
+            else router.push('/coins')
           }}
         />
       )}

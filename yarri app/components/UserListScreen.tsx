@@ -5,6 +5,7 @@ import CallConfirmationScreen from './CallConfirmationScreen'
 import IncomingCallModal from './IncomingCallModal'
 import PermissionModal from './PermissionModal'
 import PermissionDeniedModal from './PermissionDeniedModal'
+import InsufficientCoinsModal from './InsufficientCoinsModal'
 import AdBanner from './AdBanner'
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
@@ -51,6 +52,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
   const [genderFilter, setGenderFilter] = useState<'all' | 'male' | 'female'>('all')
   const [audioCallRate, setAudioCallRate] = useState(5)
   const [videoCallRate, setVideoCallRate] = useState(10)
+  const [showInsufficientCoins, setShowInsufficientCoins] = useState(false)
 
   useEffect(() => {
     // Set default gender filter based on user's gender
@@ -254,7 +256,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
     e.stopPropagation()
     
     if (balance < rate) {
-      alert(`Insufficient coins! You need at least ${rate} coins to make this call. Your balance: ${balance} coins`)
+      setShowInsufficientCoins(true)
       return
     }
     
@@ -534,6 +536,16 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
           onRetry={() => {
             setShowPermissionDenied(false)
             setShowPermissionModal(true)
+          }}
+        />
+      )}
+
+      {showInsufficientCoins && (
+        <InsufficientCoinsModal
+          onClose={() => setShowInsufficientCoins(false)}
+          onRecharge={() => {
+            setShowInsufficientCoins(false)
+            onCoinClick()
           }}
         />
       )}
