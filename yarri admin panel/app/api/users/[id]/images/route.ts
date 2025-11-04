@@ -32,13 +32,20 @@ export async function GET(_request: Request, { params }: { params: { id: string 
       })
     }
 
+    const gallery = Array.isArray(user.gallery) 
+      ? user.gallery.filter((url: string) => url && url.trim())
+      : []
+
+    console.log('Fetching images for user:', params.id, 'Gallery count:', gallery.length)
+
     return NextResponse.json({
       profilePic: user.profilePic || '',
-      gallery: Array.isArray(user.gallery) ? user.gallery : [],
+      gallery,
     }, {
       headers: { 'Access-Control-Allow-Origin': '*' },
     })
   } catch (error) {
+    console.error('Error fetching images:', error)
     return NextResponse.json({ error: 'Failed to fetch images' }, {
       status: 500,
       headers: { 'Access-Control-Allow-Origin': '*' },

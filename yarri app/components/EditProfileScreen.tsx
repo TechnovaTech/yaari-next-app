@@ -176,11 +176,12 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
     return results.filter(url => url !== null) as string[]
   }
 
-  // Add function to delete photo from database
   const deletePhotoFromDatabase = async (photoUrl: string): Promise<boolean> => {
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}')
       const normalizedUrl = (photoUrl || '').replace(/https?:\/\/(0\.0\.0\.0|localhost):\d+/g, API_BASE)
+      console.log('Sending delete request:', { userId: user.id, photoUrl, normalizedUrl })
+      
       const response = await fetch(buildApiUrl('/delete-photo'), {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -191,15 +192,19 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
         }),
       })
 
+      const result = await response.json()
+      console.log('Delete API response:', result)
+
       if (response.ok) {
-        // Refresh gallery from server to ensure full deletion
+        console.log('Refreshing gallery from server...')
         if (user?.id) {
           const imageData = await fetchUserImages(String(user.id))
+          console.log('New gallery data:', imageData.gallery)
           setImages(imageData.gallery)
         }
         return true
       } else {
-        console.error('Photo deletion failed:', response.status, response.statusText)
+        console.error('Photo deletion failed:', response.status, result)
         return false
       }
     } catch (error) {
@@ -350,22 +355,28 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
                   </div>
                 ) : (
                   <>
-                    <img src={img} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
+                    <img 
+                      src={img} 
+                      alt="" 
+                      className="w-full h-full object-cover" 
+                      onError={(e) => {
+                        console.error('Failed to load image:', img)
+                        e.currentTarget.style.display = 'none'
+                      }}
+                    />
                     <button 
                       onClick={async () => {
+                        console.log('Deleting photo:', img)
                         const photoUrl = img
-                        // Remove from UI immediately for better UX
                         setImages(prev => prev.filter((_, idx) => idx !== i))
-                        
-                        // Delete from database in background
                         const deleted = await deletePhotoFromDatabase(photoUrl)
+                        console.log('Delete result:', deleted)
                         if (!deleted) {
-                          // If deletion failed, add the image back
                           setImages(prevImages => [...prevImages, photoUrl])
                           alert('Failed to delete photo from database. Please try again.')
                         }
                       }}
-                      className="absolute top-1 right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center"
+                      className="absolute top-1 right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center z-10"
                     >
                       <X size={14} className="text-white" />
                     </button>

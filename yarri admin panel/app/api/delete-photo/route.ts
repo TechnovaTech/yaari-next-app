@@ -20,6 +20,8 @@ export async function OPTIONS() {
 export async function DELETE(request: Request) {
   try {
     const { userId, photoUrl, normalizedPhotoUrl } = await request.json()
+    console.log('Delete photo request:', { userId, photoUrl, normalizedPhotoUrl })
+    
     if (!userId || !photoUrl) {
       return NextResponse.json({ error: 'Missing userId or photoUrl' }, {
         status: 400,
@@ -30,11 +32,16 @@ export async function DELETE(request: Request) {
     const client = await clientPromise
     const db = client.db('yarri')
 
+    // Get current user data to see what's in gallery
+    const userBefore = await db.collection('users').findOne({ _id: new ObjectId(userId) })
+    console.log('User gallery before delete:', userBefore?.gallery)
+
     // Try to match both original and normalized URLs
     const urlsToMatch = [photoUrl]
     if (normalizedPhotoUrl && normalizedPhotoUrl !== photoUrl) {
       urlsToMatch.push(normalizedPhotoUrl)
     }
+    console.log('URLs to match:', urlsToMatch)
 
     // Remove from user's gallery (try all URL variations)
     const updateResult = await db.collection('users').updateOne(
@@ -59,6 +66,9 @@ export async function DELETE(request: Request) {
       { $set: { profilePic: '' } }
     )
 
+    // Get user data after delete to verify
+    const userAfter = await db.collection('users').findOne({ _id: new ObjectId(userId) })
+    console.log('User gallery after delete:', userAfter?.gallery)
     console.log('Photo deleted:', { userId, photoUrl, matched: updateResult.modifiedCount })
 
     // Attempt to delete the file from disk if it belongs to our uploads
