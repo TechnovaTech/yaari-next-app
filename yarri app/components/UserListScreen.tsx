@@ -204,7 +204,7 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
       const currentUser = localStorage.getItem('user')
       const currentUserId = currentUser ? JSON.parse(currentUser).id : null
       
-      const res = await fetch('https://admin.yaari.me/api/users')
+      const res = await fetch('https://admin.yaari.me/api/users-list')
       const data = await res.json()
       
       const formattedUsers = data

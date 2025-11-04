@@ -1,5 +1,5 @@
 'use client'
-import { LayoutDashboard, Users, CreditCard, Wallet, Settings, LogOut, Package, Image } from 'lucide-react'
+import { LayoutDashboard, Users, CreditCard, Wallet, Settings, LogOut, Package, Image, Phone } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
@@ -10,6 +10,7 @@ export default function Sidebar() {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Users, label: 'User Management', path: '/dashboard/users' },
+    { icon: Phone, label: 'Call Access', path: '/dashboard/call-access' },
     { icon: CreditCard, label: 'Payment Management', path: '/dashboard/payments' },
     { icon: Wallet, label: 'Wallet Management', path: '/dashboard/wallet' },
     { icon: Package, label: 'Manage Plans', path: '/dashboard/plans' },

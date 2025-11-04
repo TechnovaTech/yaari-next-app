@@ -22,21 +22,24 @@ export default function UsersPage() {
   const [search, setSearch] = useState('')
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [showModal, setShowModal] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadUsers()
   }, [])
 
   const loadUsers = () => {
+    setLoading(true)
     fetch('/api/users')
       .then(res => res.json())
       .then(data => {
-        // Ensure data is always an array to prevent filter errors
         setUsers(Array.isArray(data) ? data : [])
       })
       .catch(() => {
-        // Set empty array on error
         setUsers([])
+      })
+      .finally(() => {
+        setLoading(false)
       })
   }
 
@@ -76,6 +79,20 @@ export default function UsersPage() {
     } catch (error) {
       alert('Error updating user status')
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="p-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-800">User Management</h1>
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col items-center justify-center" style={{ minHeight: '400px' }}>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading users...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

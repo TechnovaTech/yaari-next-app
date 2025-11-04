@@ -32,6 +32,7 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
   const [balance, setBalance] = useState(0)
   const [audioCallRate, setAudioCallRate] = useState(5)
   const [videoCallRate, setVideoCallRate] = useState(10)
+  const [callAccess, setCallAccess] = useState<'none' | 'audio' | 'video' | 'full'>('full')
 
   useEffect(() => {
     fetchUser()
@@ -157,6 +158,7 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
       }
       
       setUser(data)
+      setCallAccess(data.callAccess || 'full')
     } catch (error) {
       console.error('Error fetching user:', error)
     } finally {
@@ -327,32 +329,38 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg">
-        <div className="flex space-x-3">
-          <button 
-            onClick={() => handleCallClick('video', videoCallRate)}
-              className="flex-1 bg-primary text-white py-4 rounded-full font-semibold flex items-center justify-center gap-2"
-          >
-            <Video size={18} />
-            <span className="flex items-center gap-0.5" style={{ marginTop: '10px' }}>
-                      {videoCallRate}
-                      <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
-                      / min
-                    </span>
-          </button>
-          <button 
-            onClick={() => handleCallClick('audio', audioCallRate)}
-            className="flex-1 bg-primary text-white py-4 rounded-full font-semibold flex items-center justify-center gap-2"
-          >
-            <Phone size={18} />
-            <span className="flex items-center gap-0.5" style={{ marginTop: '10px' }}>
-                      {audioCallRate}
-                      <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
-                      / min
-                    </span>
-          </button>
+      {callAccess !== 'none' && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg">
+          <div className="flex space-x-3">
+            {(callAccess === 'video' || callAccess === 'full') && (
+              <button 
+                onClick={() => handleCallClick('video', videoCallRate)}
+                className="flex-1 bg-primary text-white py-4 rounded-full font-semibold flex items-center justify-center gap-2"
+              >
+                <Video size={18} />
+                <span className="flex items-center gap-0.5" style={{ marginTop: '10px' }}>
+                  {videoCallRate}
+                  <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
+                  / min
+                </span>
+              </button>
+            )}
+            {(callAccess === 'audio' || callAccess === 'full') && (
+              <button 
+                onClick={() => handleCallClick('audio', audioCallRate)}
+                className="flex-1 bg-primary text-white py-4 rounded-full font-semibold flex items-center justify-center gap-2"
+              >
+                <Phone size={18} />
+                <span className="flex items-center gap-0.5" style={{ marginTop: '10px' }}>
+                  {audioCallRate}
+                  <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
+                  / min
+                </span>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {showPermissionModal && (
         <PermissionModal
