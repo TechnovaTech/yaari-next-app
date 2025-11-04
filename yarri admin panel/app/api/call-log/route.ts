@@ -5,6 +5,17 @@ export const runtime = 'nodejs'
 
 const activeCallSessions = new Map<string, any>()
 
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
@@ -29,7 +40,9 @@ export async function POST(request: Request) {
       })
       
       console.log('Call session started:', sessionKey)
-      return NextResponse.json({ success: true, message: 'Call started' })
+      return NextResponse.json({ success: true, message: 'Call started' }, {
+        headers: { 'Access-Control-Allow-Origin': '*' }
+      })
     }
 
     if (action === 'end') {
@@ -66,12 +79,20 @@ export async function POST(request: Request) {
       const result = await db.collection('callHistory').insertOne(callRecord)
       console.log('Call saved with ID:', result.insertedId)
 
-      return NextResponse.json({ success: true, message: 'Call logged', id: result.insertedId })
+      return NextResponse.json({ success: true, message: 'Call logged', id: result.insertedId }, {
+        headers: { 'Access-Control-Allow-Origin': '*' }
+      })
     }
 
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid action' }, { 
+      status: 400,
+      headers: { 'Access-Control-Allow-Origin': '*' }
+    })
   } catch (error) {
     console.error('Call log error:', error)
-    return NextResponse.json({ error: 'Failed to log call' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to log call' }, { 
+      status: 500,
+      headers: { 'Access-Control-Allow-Origin': '*' }
+    })
   }
 }
