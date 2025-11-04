@@ -606,6 +606,11 @@ export default function ManageAdsPage() {
                     <p className="text-xs text-gray-500 mt-2">
                       Max file size: 50MB. Supported formats: {formData.mediaType === 'photo' ? 'JPEG, PNG, GIF, WebP' : 'MP4, WebM, OGG, AVI, MOV'}
                     </p>
+                    {formData.mediaType === 'video' && (
+                      <p className="text-xs text-orange-600 mt-1 font-medium">
+                        ⚠️ For videos, we recommend using URL option (YouTube, Vimeo, etc.) for better performance
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

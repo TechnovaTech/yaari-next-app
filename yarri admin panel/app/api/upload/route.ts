@@ -7,6 +7,15 @@ import { existsSync } from 'fs'
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
+// IMPORTANT: Disable body size limit for this route
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb',
+    },
+  },
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Check content-length header first
