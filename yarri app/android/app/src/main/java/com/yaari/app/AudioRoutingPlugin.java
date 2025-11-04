@@ -45,6 +45,10 @@ public class AudioRoutingPlugin extends Plugin {
 
                 // Prefer explicit communication device routing on Android 12+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    // Proactively disable BT SCO to avoid hijacking route
+                    try { audioManager.stopBluetoothSco(); } catch (Throwable ignored) {}
+                    try { audioManager.setBluetoothScoOn(false); } catch (Throwable ignored) {}
+
                     AudioDeviceInfo[] outputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
                     int desiredType = on ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER : AudioDeviceInfo.TYPE_BUILTIN_EARPIECE;
                     AudioDeviceInfo target = null;
@@ -57,6 +61,14 @@ public class AudioRoutingPlugin extends Plugin {
                     // If target device found, set it; otherwise fallback to legacy toggle
                     if (target != null) {
                         audioManager.setCommunicationDevice(target);
+                        // Double-assurance: some OEMs ignore communication device for WebView audio
+                        if (!on) {
+                            audioManager.setSpeakerphoneOn(false);
+                            audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+                            audioManager.setSpeakerphoneOn(false);
+                        } else {
+                            audioManager.setSpeakerphoneOn(true);
+                        }
                     } else {
                         audioManager.setSpeakerphoneOn(on);
                     }
@@ -90,6 +102,8 @@ public class AudioRoutingPlugin extends Plugin {
                     // Clear any explicit communication device routing
                     audioManager.setCommunicationDevice(null);
                 }
+                try { audioManager.stopBluetoothSco(); } catch (Throwable ignored) {}
+                try { audioManager.setBluetoothScoOn(false); } catch (Throwable ignored) {}
                 audioManager.setSpeakerphoneOn(false);
                 audioManager.setMode(AudioManager.MODE_NORMAL);
                 abandonAudioFocus();
