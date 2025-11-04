@@ -8,6 +8,8 @@ import { useRouter } from 'next/navigation'
 import { useBackButton } from '../hooks/useBackButton'
 import { trackEvent, trackScreenView } from '@/utils/clevertap'
 import { deductCoins } from '@/utils/coinDeduction'
+import { Capacitor } from '@capacitor/core'
+import AudioRouting from '@/utils/audioRouting'
 
 interface AudioCallScreenProps {
   userName: string
@@ -146,6 +148,16 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
         
         await client.publish([audioTrack])
 
+        // Ensure proper audio routing on native (speaker by default)
+        if (Capacitor.isNativePlatform()) {
+          try {
+            await AudioRouting.enterCommunicationMode()
+            await AudioRouting.setSpeakerphoneOn({ on: true })
+          } catch (e) {
+            console.warn('AudioRouting init failed:', e)
+          }
+        }
+
         // Log call start
         const callData = sessionStorage.getItem('callData')
         if (callData) {
@@ -207,6 +219,9 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     return () => {
       localAudioTrack?.close()
       client.leave()
+      if (Capacitor.isNativePlatform()) {
+        try { AudioRouting.resetAudio() } catch {}
+      }
     }
   }, [])
 
@@ -214,6 +229,18 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     if (localAudioTrack) {
       await localAudioTrack.setEnabled(isMuted)
       setIsMuted(!isMuted)
+    }
+  }
+
+  const toggleSpeaker = async () => {
+    const next = !isSpeakerOn
+    setIsSpeakerOn(next)
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await AudioRouting.setSpeakerphoneOn({ on: next })
+      } catch (e) {
+        console.warn('Failed to toggle speakerphone:', e)
+      }
     }
   }
 
@@ -304,6 +331,11 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     client.leave()
     sessionStorage.removeItem('callData')
     sessionStorage.removeItem('channelName')
+
+    // Reset audio routing on native
+    if (Capacitor.isNativePlatform()) {
+      try { await AudioRouting.resetAudio() } catch {}
+    }
     
     console.log('Navigating back to users page')
     // Navigate back
@@ -338,7 +370,7 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
 
       <div className="flex justify-center items-center space-x-6 mb-8">
         <button
-          onClick={() => setIsSpeakerOn(!isSpeakerOn)}
+          onClick={toggleSpeaker}
           className={`w-14 h-14 rounded-full flex items-center justify-center ${isSpeakerOn ? 'bg-white' : 'bg-white/30'}`}
         >
           <Volume2 className={isSpeakerOn ? 'text-primary' : 'text-white'} size={24} />

@@ -8,6 +8,8 @@ import { useRouter } from 'next/navigation'
 import { useBackButton } from '../hooks/useBackButton'
 import { trackEvent, trackScreenView } from '@/utils/clevertap'
 import { deductCoins } from '@/utils/coinDeduction'
+import { Capacitor } from '@capacitor/core'
+import AudioRouting from '@/utils/audioRouting'
 
 interface VideoCallScreenProps {
   userName: string
@@ -159,6 +161,16 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
         // Enable loudspeaker by default
         audioTrack.setVolume(100)
 
+        // Ensure proper audio routing on native (speaker by default)
+        if (Capacitor.isNativePlatform()) {
+          try {
+            await AudioRouting.enterCommunicationMode()
+            await AudioRouting.setSpeakerphoneOn({ on: true })
+          } catch (e) {
+            console.warn('AudioRouting init failed (video):', e)
+          }
+        }
+
         // Log call start
         const callData = sessionStorage.getItem('callData')
         if (callData) {
@@ -229,6 +241,9 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
       localVideoTrack?.close()
       localAudioTrack?.close()
       client.leave()
+      if (Capacitor.isNativePlatform()) {
+        try { AudioRouting.resetAudio() } catch {}
+      }
     }
   }, [])
 
@@ -370,6 +385,9 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
     
     console.log('Navigating back to users page')
     // Navigate back
+    if (Capacitor.isNativePlatform()) {
+      try { await AudioRouting.resetAudio() } catch {}
+    }
     window.location.href = '/users'
   }
 

@@ -1,0 +1,95 @@
+package com.yaari.app;
+
+import android.content.Context;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
+import android.os.Build;
+
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+
+@CapacitorPlugin(name = "AudioRouting")
+public class AudioRoutingPlugin extends Plugin {
+    private AudioManager audioManager;
+    private AudioFocusRequest focusRequest;
+
+    @Override
+    public void load() {
+        audioManager = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+    }
+
+    @PluginMethod
+    public void enterCommunicationMode(PluginCall call) {
+        try {
+            if (audioManager != null) {
+                audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+                requestAudioFocus();
+            }
+            call.resolve(new JSObject().put("status", "ok"));
+        } catch (Exception e) {
+            call.reject("Failed to enter communication mode: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void setSpeakerphoneOn(PluginCall call) {
+        boolean on = call.getBoolean("on", true);
+        try {
+            if (audioManager != null) {
+                audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+                audioManager.setSpeakerphoneOn(on);
+            }
+            call.resolve(new JSObject().put("status", "ok").put("speakerOn", on));
+        } catch (Exception e) {
+            call.reject("Failed to set speakerphone: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void resetAudio(PluginCall call) {
+        try {
+            if (audioManager != null) {
+                // Turn off speaker and reset mode
+                audioManager.setSpeakerphoneOn(false);
+                audioManager.setMode(AudioManager.MODE_NORMAL);
+                abandonAudioFocus();
+            }
+            call.resolve(new JSObject().put("status", "ok"));
+        } catch (Exception e) {
+            call.reject("Failed to reset audio: " + e.getMessage());
+        }
+    }
+
+    private void requestAudioFocus() {
+        if (audioManager == null) return;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            AudioAttributes attrs = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build();
+            focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                .setAudioAttributes(attrs)
+                .setOnAudioFocusChangeListener(focusChange -> {})
+                .build();
+            audioManager.requestAudioFocus(focusRequest);
+        } else {
+            audioManager.requestAudioFocus(null, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+        }
+    }
+
+    private void abandonAudioFocus() {
+        if (audioManager == null) return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (focusRequest != null) {
+                audioManager.abandonAudioFocusRequest(focusRequest);
+            }
+        } else {
+            audioManager.abandonAudioFocus(null);
+        }
+    }
+}

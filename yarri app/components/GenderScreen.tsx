@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
 import { trackScreenView, trackEvent } from '../utils/clevertap'
+import { Capacitor } from '@capacitor/core'
 
 interface GenderScreenProps {
   onNext: () => void
@@ -20,6 +21,14 @@ export default function GenderScreen({ onNext }: GenderScreenProps) {
     trackScreenView('Gender Select')
   }, [])
 
+  // Build API URL that avoids CORS in local dev; force remote on native
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://admin.yaari.me'
+  const buildApiUrl = (path: string) => {
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    const isNative = Capacitor.isNativePlatform()
+    return (!isLocal || isNative) ? `${API_BASE}/api${path}` : `/api${path}`
+  }
+
   const handleNext = async () => {
     setLoading(true)
     try {
@@ -29,7 +38,13 @@ export default function GenderScreen({ onNext }: GenderScreenProps) {
       })
       
       const user = JSON.parse(localStorage.getItem('user') || '{}')
-      const res = await fetch(`/api/users/${user.id}`, {
+      if (!user?.id) {
+        alert('User session invalid. Please log in again.')
+        setLoading(false)
+        return
+      }
+
+      const res = await fetch(buildApiUrl(`/users/${user.id}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gender: selectedGender }),
