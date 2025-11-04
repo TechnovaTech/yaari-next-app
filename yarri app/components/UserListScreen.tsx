@@ -212,9 +212,11 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
         .map((user: any) => {
           let displayPic = user.profilePic
           
-          // Fix localhost URLs
-          if (displayPic && displayPic.includes('localhost')) {
-            displayPic = displayPic.replace(/https?:\/\/0\.0\.0\.0:\d+/, 'https://admin.yaari.me')
+          // Fix localhost and 0.0.0.0 URLs
+          if (displayPic) {
+            displayPic = displayPic
+              .replace(/https?:\/\/localhost:\d+/, 'https://admin.yaari.me')
+              .replace(/https?:\/\/0\.0\.0\.0:\d+/, 'https://admin.yaari.me')
           }
           
           if (!displayPic || displayPic.includes('googleusercontent.com')) {
@@ -249,15 +251,17 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
   const handleCallClick = async (user: User, type: 'video' | 'audio', rate: number, e: React.MouseEvent) => {
     e.stopPropagation()
     
-    // Check if permissions already granted
+    if (balance < rate) {
+      alert(`Insufficient coins! You need at least ${rate} coins to make this call. Your balance: ${balance} coins`)
+      return
+    }
+    
     const permissionsGranted = localStorage.getItem('mediaPermissionsGranted')
     
     if (permissionsGranted === 'true') {
-      // Permissions already granted, proceed directly
       setSelectedCall({ user, type, rate })
       setShowCallModal(true)
     } else {
-      // Ask for permissions first
       setSelectedCall({ user, type, rate })
       setPermissionType(type)
       setShowPermissionModal(true)

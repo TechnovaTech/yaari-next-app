@@ -22,6 +22,7 @@ export default function GlobalCallUI() {
       type: callType,
       channelName,
       otherUserId: callerId,
+      isCaller: false
     }))
 
     socket.emit('accept-call', {

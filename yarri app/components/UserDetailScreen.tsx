@@ -29,14 +29,46 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
   const [permissionType, setPermissionType] = useState<'video' | 'audio'>('video')
   const [selectedCall, setSelectedCall] = useState<{ userName: string; userAvatar: string; rate: number; type: 'video' | 'audio' } | null>(null)
   const [isRinging, setIsRinging] = useState(false)
+  const [balance, setBalance] = useState(0)
+  const [audioCallRate, setAudioCallRate] = useState(5)
+  const [videoCallRate, setVideoCallRate] = useState(10)
 
   useEffect(() => {
     fetchUser()
+    fetchBalance()
+    fetchCallRates()
     
     // Track screen view and profile view
     trackScreenView('User Detail')
     trackProfileView(userId)
   }, [userId])
+
+  const fetchBalance = async () => {
+    try {
+      const user = localStorage.getItem('user')
+      if (user) {
+        const userData = JSON.parse(user)
+        const res = await fetch(`https://admin.yaari.me/api/users/${userData.id}/balance`)
+        const data = await res.json()
+        if (res.ok) {
+          setBalance(data.balance || 0)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching balance:', error)
+    }
+  }
+
+  const fetchCallRates = async () => {
+    try {
+      const res = await fetch('https://admin.yaari.me/api/settings')
+      const data = await res.json()
+      if (data.audioCallRate) setAudioCallRate(data.audioCallRate)
+      if (data.videoCallRate) setVideoCallRate(data.videoCallRate)
+    } catch (error) {
+      console.error('Error fetching call rates:', error)
+    }
+  }
 
   useEffect(() => {
     if (!socket) return
@@ -64,6 +96,12 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
       const callData = sessionStorage.getItem('callData')
       if (callData) {
         const data = JSON.parse(callData)
+        data.channelName = channelName
+        if (data.isCaller === undefined) {
+          data.isCaller = true
+        }
+        sessionStorage.setItem('callData', JSON.stringify(data))
+        console.log('Call accepted, updated callData:', data)
         setTimeout(() => {
           router.push(data.type === 'video' ? '/video-call' : '/audio-call')
         }, 100)
@@ -103,14 +141,18 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
       const res = await fetch(`https://admin.yaari.me/api/users/${userId}`)
       const data = await res.json()
       
-      // Fix localhost URLs
-      if (data.profilePic && data.profilePic.includes('localhost')) {
-        data.profilePic = data.profilePic.replace(/https?:\/\/0\.0\.0\.0:\d+/, 'https://admin.yaari.me')
+      // Fix localhost and 0.0.0.0 URLs
+      if (data.profilePic) {
+        data.profilePic = data.profilePic
+          .replace(/https?:\/\/localhost:\d+/, 'https://admin.yaari.me')
+          .replace(/https?:\/\/0\.0\.0\.0:\d+/, 'https://admin.yaari.me')
       }
       
       if (data.gallery && Array.isArray(data.gallery)) {
         data.gallery = data.gallery.map((url: string) => 
-          url.includes('localhost') ? url.replace(/https?:\/\/0\.0\.0\.0:\d+/, 'https://admin.yaari.me') : url
+          url
+            .replace(/https?:\/\/localhost:\d+/, 'https://admin.yaari.me')
+            .replace(/https?:\/\/0\.0\.0\.0:\d+/, 'https://admin.yaari.me')
         )
       }
       
@@ -139,7 +181,12 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
   }
 
 
-  const handleCallClick = (type: 'video' | 'audio', rate: number) => {
+  const handleCallClick = async (type: 'video' | 'audio', rate: number) => {
+    if (balance < rate) {
+      alert(`Insufficient coins! You need at least ${rate} coins to make this call. Your balance: ${balance} coins`)
+      return
+    }
+    
     const userName = user?.name || 'User'
     const userAvatar = user?.profilePic || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
     const permissionsGranted = localStorage.getItem('mediaPermissionsGranted')
@@ -175,14 +222,17 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
     const userData = user ? JSON.parse(user) : null
     const channelName = `call_${Date.now()}`
 
-    sessionStorage.setItem('callData', JSON.stringify({
+    const callDataToSave = {
       userName: selectedCall.userName,
       userAvatar: selectedCall.userAvatar,
       rate: selectedCall.rate,
       type: selectedCall.type,
       channelName,
-      otherUserId: userId
-    }))
+      otherUserId: userId,
+      isCaller: true
+    }
+    console.log('Saving call data with isCaller=true:', callDataToSave)
+    sessionStorage.setItem('callData', JSON.stringify(callDataToSave))
 
     socket.emit('call-user', {
       callerId: userData?.id,
@@ -280,23 +330,23 @@ export default function UserDetailScreen({ onBack, userId, onStartCall }: UserDe
       <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg">
         <div className="flex space-x-3">
           <button 
-            onClick={() => handleCallClick('video', 10)}
+            onClick={() => handleCallClick('video', videoCallRate)}
               className="flex-1 bg-primary text-white py-4 rounded-full font-semibold flex items-center justify-center gap-2"
           >
             <Video size={18} />
             <span className="flex items-center gap-0.5" style={{ marginTop: '10px' }}>
-                      10
+                      {videoCallRate}
                       <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
                       / min
                     </span>
           </button>
           <button 
-            onClick={() => handleCallClick('audio', 5)}
+            onClick={() => handleCallClick('audio', audioCallRate)}
             className="flex-1 bg-primary text-white py-4 rounded-full font-semibold flex items-center justify-center gap-2"
           >
             <Phone size={18} />
             <span className="flex items-center gap-0.5" style={{ marginTop: '10px' }}>
-                      5
+                      {audioCallRate}
                       <img src="/images/coinicon.png" alt="coin" className="w-3 h-3 object-contain inline rounded-full border border-white mb-2.5"/>
                       / min
                     </span>

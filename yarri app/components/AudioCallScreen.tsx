@@ -36,9 +36,23 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
 
   const handleCoinDeduction = async () => {
     try {
+      const callData = sessionStorage.getItem('callData')
+      console.log('Call data from session:', callData)
+      if (!callData) return
+      const data = JSON.parse(callData)
+      console.log('Parsed call data:', data)
+      console.log('isCaller value:', data.isCaller)
+      
       const user = localStorage.getItem('user')
       if (!user) return
       const userData = JSON.parse(user)
+      
+      if (data.isCaller === false) {
+        console.log('Receiver - not deducting coins')
+        return
+      }
+      
+      console.log('Caller - deducting coins')
       console.log(`Attempting to deduct ${rate} coins at ${duration}s`)
       await deductCoins(userData.id, rate, 'audio')
       console.log(`Successfully deducted ${rate} coins`)
