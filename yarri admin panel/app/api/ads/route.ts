@@ -9,16 +9,39 @@ async function connectToDatabase() {
   return client.db('yarri')
 }
 
+// OPTIONS - Handle CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
+}
+
 // GET - Fetch all ads
 export async function GET() {
   try {
     const db = await connectToDatabase()
     const ads = await db.collection('ads').find({}).sort({ createdAt: -1 }).toArray()
     
-    return NextResponse.json({ success: true, ads })
+    return NextResponse.json({ success: true, ads }, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    })
   } catch (error) {
     console.error('Error fetching ads:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch ads' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to fetch ads' }, { 
+      status: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      }
+    })
   }
 }
 

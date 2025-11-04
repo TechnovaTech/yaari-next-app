@@ -49,7 +49,8 @@ export default function AdBanner() {
 
   const fetchAds = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ads`)
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+      const response = await fetch(`${apiUrl}/api/ads`)
       const data = await response.json()
       if (data.success && data.ads.length > 0) {
         // Filter only active ads and process URLs
