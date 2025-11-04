@@ -30,6 +30,7 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
   const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCRemoteUser[]>([])
   const [client] = useState(() => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }))
   const [coinDeductionStarted, setCoinDeductionStarted] = useState(false)
+  const [remainingBalance, setRemainingBalance] = useState<number | null>(null)
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -58,8 +59,11 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
       
       console.log('Caller - deducting coins')
       console.log(`Attempting to deduct ${rate} coins at ${duration}s`)
-      await deductCoins(userData.id, rate, 'video')
+      const result = await deductCoins(userData.id, rate, 'video')
       console.log(`Successfully deducted ${rate} coins`)
+      if (result?.newBalance !== undefined) {
+        setRemainingBalance(result.newBalance)
+      }
     } catch (error: any) {
       console.error('Coin deduction failed:', error)
       if (error.message?.includes('Insufficient')) {
@@ -364,6 +368,12 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
           <h2 className="text-2xl font-bold mb-2">{userName}</h2>
           <p className="text-lg">{formatTime(duration)}</p>
           <p className="text-sm text-gray-400 mt-1">₹{cost}</p>
+          {remainingBalance !== null && remainingBalance <= rate && (
+            <div className="mt-3 inline-flex bg-red-500/90 backdrop-blur-sm px-4 py-2 rounded-full items-center gap-2 animate-pulse">
+              <img src="/images/coinicon.png" alt="coin" className="w-4 h-4 object-contain" />
+              <span className="text-white font-semibold text-sm mt-2.5">{remainingBalance} coins left</span>
+            </div>
+          )}
         </div>
 
         <div className="absolute bottom-32 left-4 z-10">

@@ -55,12 +55,18 @@ export default function CallHistoryScreen({ onBack }: CallHistoryScreenProps) {
       const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
       const apiUrl = isLocal ? `/api/call-history?userId=${user.id}` : `${API_BASE}/api/call-history?userId=${user.id}`
       
+      console.log('Fetching call history from:', apiUrl)
       const response = await fetch(apiUrl)
+      console.log('Response status:', response.status)
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch call history')
+        const errorData = await response.json().catch(() => ({}))
+        console.error('API error:', errorData)
+        throw new Error(errorData.error || 'Failed to fetch call history')
       }
 
       const data = await response.json()
+      console.log('Call history data:', data)
       const fixedCalls = data.map((call: CallRecord) => ({
         ...call,
         otherUserAvatar: call.otherUserAvatar?.replace(/https?:\/\/(0\.0\.0\.0|localhost):\d+/g, 'https://admin.yaari.me')

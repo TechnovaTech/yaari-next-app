@@ -26,6 +26,7 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
   const [localAudioTrack, setLocalAudioTrack] = useState<IMicrophoneAudioTrack | null>(null)
   const [client] = useState(() => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }))
   const [coinDeductionStarted, setCoinDeductionStarted] = useState(false)
+  const [remainingBalance, setRemainingBalance] = useState<number | null>(null)
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -54,8 +55,11 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
       
       console.log('Caller - deducting coins')
       console.log(`Attempting to deduct ${rate} coins at ${duration}s`)
-      await deductCoins(userData.id, rate, 'audio')
+      const result = await deductCoins(userData.id, rate, 'audio')
       console.log(`Successfully deducted ${rate} coins`)
+      if (result?.newBalance !== undefined) {
+        setRemainingBalance(result.newBalance)
+      }
     } catch (error: any) {
       console.error('Coin deduction failed:', error)
       if (error.message?.includes('Insufficient')) {
@@ -298,6 +302,12 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
         <h2 className="text-3xl font-bold text-white mb-4">{userName}</h2>
         <p className="text-2xl text-white mb-2">{formatTime(duration)}</p>
         <p className="text-lg text-white/80">₹{cost}</p>
+        {remainingBalance !== null && remainingBalance <= rate && (
+          <div className="mt-4 bg-red-500/90 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2 animate-pulse">
+            <img src="/images/coinicon.png" alt="coin" className="w-4 h-4 object-contain" />
+            <span className="text-white font-semibold mt-2.5">{remainingBalance} coins left</span>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-center items-center space-x-6 mb-8">
