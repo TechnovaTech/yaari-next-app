@@ -156,7 +156,7 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
           if (userData?.id && data.otherUserId) {
             try {
               console.log('📤 Logging audio call start:', { callerId: userData.id, receiverId: data.otherUserId })
-              const response = await fetch('https://admin.yaari.me/api/call-log', {
+              const response = await fetch('/api/call-log', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -237,7 +237,7 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
       if (userData?.id && data.otherUserId) {
         try {
           console.log('📤 Logging audio call end:', { callerId: userData.id, receiverId: data.otherUserId, duration, cost })
-          const response = await fetch('https://admin.yaari.me/api/call-log', {
+          const response = await fetch('/api/call-log', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

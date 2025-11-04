@@ -33,7 +33,7 @@ const nextConfig = {
         source: '/api/:path*',
         destination: process.env.NEXT_PUBLIC_API_URL
           ? `${process.env.NEXT_PUBLIC_API_URL}/api/:path*`
-          : 'http://https://admin.yaari.me/api/:path*',
+          : 'https://admin.yaari.me/api/:path*',
       },
     ]
   },

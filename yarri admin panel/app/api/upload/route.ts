@@ -7,14 +7,8 @@ import { existsSync } from 'fs'
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-// IMPORTANT: Disable body size limit for this route
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '50mb',
-    },
-  },
-}
+// Note: Next.js App Router no longer supports `export const config`
+// Size limits are enforced via `content-length` header and `file.size` checks below.
 
 export async function POST(request: NextRequest) {
   try {

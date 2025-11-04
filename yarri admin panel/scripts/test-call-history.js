@@ -1,6 +1,7 @@
 const fetch = require('node-fetch')
 
-const API_BASE = 'http://localhost:3000'
+// Allow overriding API base via env; default to local admin server on 3002
+const API_BASE = process.env.API_BASE || 'http://localhost:3002'
 
 async function testCallHistory() {
   console.log('🧪 Testing Call History Functionality\n')
@@ -24,7 +25,10 @@ async function testCallHistory() {
       })
     })
     
-    const startResult = await startResponse.json()
+    // Try to parse JSON; if it fails, log text for diagnostics
+    let startText = await startResponse.text()
+    let startResult
+    try { startResult = JSON.parse(startText) } catch { startResult = { raw: startText } }
     console.log('   Status:', startResponse.status)
     console.log('   Response:', startResult)
     
@@ -53,7 +57,9 @@ async function testCallHistory() {
       })
     })
     
-    const endResult = await endResponse.json()
+    let endText = await endResponse.text()
+    let endResult
+    try { endResult = JSON.parse(endText) } catch { endResult = { raw: endText } }
     console.log('   Status:', endResponse.status)
     console.log('   Response:', endResult)
     

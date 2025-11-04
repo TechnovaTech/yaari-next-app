@@ -4,11 +4,6 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: [],
   },
-  api: {
-    bodyParser: {
-      sizeLimit: '50mb',
-    },
-  },
 }
 
 module.exports = nextConfig

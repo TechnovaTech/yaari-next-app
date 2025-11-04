@@ -3,16 +3,7 @@ import clientPromise from '@/lib/mongodb'
 
 export const runtime = 'nodejs'
 
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  })
-}
+// Single OPTIONS handler defined above to avoid duplicate export errors
 
 export async function POST(request: Request) {
   try {
@@ -21,12 +12,15 @@ export async function POST(request: Request) {
     console.log('📞 Request body:', body)
     const { callerId, receiverId, callType, action, duration, cost, status, channelName } = body
 
+    const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' }
+
     if (!callerId || !receiverId || !callType || !action) {
       console.log('❌ Missing required fields')
-      return NextResponse.json({ error: 'Missing required fields' }, { 
-        status: 400,
-        headers: { 'Access-Control-Allow-Origin': '*' }
-      })
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders })
+    }
+
+    if (!['audio', 'video'].includes(String(callType))) {
+      return NextResponse.json({ error: 'Invalid callType' }, { status: 400, headers: corsHeaders })
     }
 
     console.log('🔌 Connecting to database...')
@@ -48,9 +42,7 @@ export async function POST(request: Request) {
       const result = await db.collection('activeCalls').insertOne(callSession)
       console.log('✅ Call session started in DB:', result.insertedId)
       
-      return NextResponse.json({ success: true, message: 'Call started', sessionId: result.insertedId }, {
-        headers: { 'Access-Control-Allow-Origin': '*' }
-      })
+      return NextResponse.json({ success: true, message: 'Call started', sessionId: result.insertedId }, { headers: corsHeaders })
     }
 
     if (action === 'end') {
@@ -76,7 +68,8 @@ export async function POST(request: Request) {
         cost: cost || 0,
         startTime,
         endTime,
-        createdAt: new Date()
+        createdAt: new Date(),
+        participants: [callerId, receiverId]
       }
       
       console.log('💾 Saving call to history:', callRecord)
@@ -95,23 +88,23 @@ export async function POST(request: Request) {
       }
       console.log('✅ Verified saved call')
       
-      return NextResponse.json({ success: true, message: 'Call logged', id: result.insertedId, verified: true }, {
-        headers: { 'Access-Control-Allow-Origin': '*' }
-      })
+      return NextResponse.json({ success: true, message: 'Call logged', id: result.insertedId, verified: true }, { headers: corsHeaders })
     }
 
-    return NextResponse.json({ error: 'Invalid action' }, { 
-      status: 400,
-      headers: { 'Access-Control-Allow-Origin': '*' }
-    })
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400, headers: corsHeaders })
   } catch (error) {
     console.error('❌ Call log error:', error)
-    return NextResponse.json({ 
-      error: 'Failed to log call', 
-      details: error instanceof Error ? error.message : 'Unknown error' 
-    }, { 
-      status: 500,
-      headers: { 'Access-Control-Allow-Origin': '*' }
-    })
+    return NextResponse.json({ error: 'Failed to log call', details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } })
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
 }

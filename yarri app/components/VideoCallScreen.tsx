@@ -169,7 +169,7 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
           if (userData?.id && data.otherUserId) {
             try {
               console.log('📤 Logging call start:', { callerId: userData.id, receiverId: data.otherUserId, callType: 'video' })
-              const response = await fetch('https://admin.yaari.me/api/call-log', {
+              const response = await fetch('/api/call-log', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -297,7 +297,7 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
       if (userData?.id && data.otherUserId) {
         try {
           console.log('📤 Logging call end:', { callerId: userData.id, receiverId: data.otherUserId, duration, cost })
-          const response = await fetch('https://admin.yaari.me/api/call-log', {
+          const response = await fetch('/api/call-log', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

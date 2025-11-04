@@ -4,16 +4,7 @@ import { ObjectId } from 'mongodb'
 
 export const runtime = 'nodejs'
 
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  })
-}
+// Single OPTIONS handler defined above to avoid duplicate export errors
 
 export async function GET(request: Request) {
   try {
@@ -103,15 +94,10 @@ export async function GET(request: Request) {
     )
 
     console.log('Returning enriched history:', enrichedHistory.length)
-    return NextResponse.json(enrichedHistory, {
-      headers: { 'Access-Control-Allow-Origin': '*' }
-    })
+    return NextResponse.json(enrichedHistory, { headers: { 'Access-Control-Allow-Origin': '*' } })
   } catch (error) {
     console.error('Call history error:', error)
-    return NextResponse.json({ error: 'Failed to fetch call history' }, { 
-      status: 500,
-      headers: { 'Access-Control-Allow-Origin': '*' }
-    })
+    return NextResponse.json({ error: 'Failed to fetch call history' }, { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } })
   }
 }
 
@@ -142,14 +128,20 @@ export async function POST(request: Request) {
       createdAt: new Date()
     })
 
-    return NextResponse.json({ success: true, id: result.insertedId }, {
-      headers: { 'Access-Control-Allow-Origin': '*' }
-    })
+    return NextResponse.json({ success: true, id: result.insertedId }, { headers: { 'Access-Control-Allow-Origin': '*' } })
   } catch (error) {
     console.error('Create call history error:', error)
-    return NextResponse.json({ error: 'Failed to create call history' }, { 
-      status: 500,
-      headers: { 'Access-Control-Allow-Origin': '*' }
-    })
+    return NextResponse.json({ error: 'Failed to create call history' }, { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } })
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
 }
