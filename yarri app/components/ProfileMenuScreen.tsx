@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
 import { trackScreenView, trackEvent } from '../utils/clevertap'
+import { Capacitor } from '@capacitor/core'
 
 interface ProfileMenuScreenProps {
   onBack: () => void
@@ -21,6 +22,19 @@ export default function ProfileMenuScreen({ onBack, onCallHistory, onTransaction
   const [email, setEmail] = useState('')
   const [profilePic, setProfilePic] = useState('')
 
+  // Build API URL that avoids CORS in local dev; force remote on native
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://admin.yaari.me'
+  const buildApiUrl = (path: string) => {
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    const isNative = Capacitor.isNativePlatform()
+    return (!isLocal || isNative) ? `${API_BASE}/api${path}` : `/api${path}`
+  }
+
+  const normalizeUrl = (url: string) =>
+    url
+      ?.replace(/https?:\/\/localhost:\d+/g, 'https://admin.yaari.me')
+      ?.replace(/https?:\/\/0\.0\.0\.0:\d+/g, 'https://admin.yaari.me')
+
   useEffect(() => {
     trackScreenView('Profile Menu')
     const user = localStorage.getItem('user')
@@ -30,9 +44,28 @@ export default function ProfileMenuScreen({ onBack, onCallHistory, onTransaction
       setPhone(userData.phone || '')
       setEmail(userData.email || '')
       
-      // Priority: 1. Uploaded profile pic (non-Google URL), 2. Google profile pic, 3. None
+      // Use stored profile pic but normalize any localhost/0.0.0.0 URLs
       if (userData.profilePic) {
-        setProfilePic(userData.profilePic)
+        setProfilePic(normalizeUrl(userData.profilePic))
+      }
+
+      // Fetch latest profile image from server to avoid stale localStorage
+      if (userData.id) {
+        fetch(buildApiUrl(`/users/${userData.id}/images`))
+          .then(async (res) => {
+            if (!res.ok) return null
+            try { return await res.json() } catch { return null }
+          })
+          .then((data) => {
+            if (!data) return
+            const serverPic = normalizeUrl(data.profilePic || '')
+            if (serverPic) {
+              setProfilePic(serverPic)
+            }
+          })
+          .catch((err) => {
+            console.error('Failed to fetch latest profile image:', err)
+          })
       }
     }
   }, [])

@@ -1,5 +1,6 @@
 import { User, Plus, X, ChevronLeft } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { Capacitor } from '@capacitor/core'
 import { useLanguage } from '../contexts/LanguageContext'
 import { translations } from '../utils/translations'
 import { trackScreenView, trackEvent, updateUserProfile } from '../utils/clevertap'
@@ -23,11 +24,12 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
   const [profilePic, setProfilePic] = useState('')
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'hi'>('en')
 
-  // Build API URL that avoids CORS in local dev by using Next.js rewrites
+  // Build API URL that avoids CORS in local dev; force remote on native
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://admin.yaari.me'
   const buildApiUrl = (path: string) => {
     const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    return isLocal ? `/api${path}` : `${API_BASE}/api${path}`
+    const isNative = Capacitor.isNativePlatform()
+    return (!isLocal || isNative) ? `${API_BASE}/api${path}` : `/api${path}`
   }
 
   // Add function to fetch user images from database
