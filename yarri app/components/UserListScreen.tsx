@@ -112,14 +112,14 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
     })
 
     socket.on('call-declined', () => {
-      console.log('Call declined by receiver')
+      console.log('Call declined')
       setIsRinging(false)
       sessionStorage.removeItem('callData')
-      alert('Call declined by user')
+      alert('Call declined')
     })
 
     socket.on('call-ended', () => {
-      console.log('Call ended by other user')
+      console.log('Call ended')
       setIsRinging(false)
       sessionStorage.removeItem('callData')
       router.push('/users')
