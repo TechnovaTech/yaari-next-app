@@ -168,7 +168,8 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
           
           if (userData?.id && data.otherUserId) {
             try {
-              await fetch('https://admin.yaari.me/api/call-log', {
+              console.log('📤 Logging call start:', { callerId: userData.id, receiverId: data.otherUserId, callType: 'video' })
+              const response = await fetch('https://admin.yaari.me/api/call-log', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -179,9 +180,10 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
                   channelName: channelName
                 })
               })
-              console.log('Call start logged successfully')
+              const result = await response.json()
+              console.log('✅ Call start logged:', result)
             } catch (error) {
-              console.error('Failed to log call start:', error)
+              console.error('❌ Failed to log call start:', error)
             }
           }
         }
@@ -287,7 +289,8 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
       
       if (userData?.id && data.otherUserId) {
         try {
-          await fetch('https://admin.yaari.me/api/call-log', {
+          console.log('📤 Logging call end:', { callerId: userData.id, receiverId: data.otherUserId, duration, cost })
+          const response = await fetch('https://admin.yaari.me/api/call-log', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -300,9 +303,10 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
               status: 'completed'
             })
           })
-          console.log('Call end logged successfully')
+          const result = await response.json()
+          console.log('✅ Call end logged:', result)
         } catch (error) {
-          console.error('Failed to log call end:', error)
+          console.error('❌ Failed to log call end:', error)
         }
       }
     }

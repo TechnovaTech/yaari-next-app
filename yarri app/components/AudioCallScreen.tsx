@@ -155,7 +155,8 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
           
           if (userData?.id && data.otherUserId) {
             try {
-              await fetch('https://admin.yaari.me/api/call-log', {
+              console.log('📤 Logging audio call start:', { callerId: userData.id, receiverId: data.otherUserId })
+              const response = await fetch('https://admin.yaari.me/api/call-log', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -166,9 +167,10 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
                   channelName: channelName
                 })
               })
-              console.log('Audio call start logged successfully')
+              const result = await response.json()
+              console.log('✅ Audio call start logged:', result)
             } catch (error) {
-              console.error('Failed to log audio call start:', error)
+              console.error('❌ Failed to log audio call start:', error)
             }
           }
         }
@@ -227,7 +229,8 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
       
       if (userData?.id && data.otherUserId) {
         try {
-          await fetch('https://admin.yaari.me/api/call-log', {
+          console.log('📤 Logging audio call end:', { callerId: userData.id, receiverId: data.otherUserId, duration, cost })
+          const response = await fetch('https://admin.yaari.me/api/call-log', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -240,9 +243,10 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
               status: 'completed'
             })
           })
-          console.log('Audio call end logged successfully')
+          const result = await response.json()
+          console.log('✅ Audio call end logged:', result)
         } catch (error) {
-          console.error('Failed to log audio call end:', error)
+          console.error('❌ Failed to log audio call end:', error)
         }
       }
     }
