@@ -109,7 +109,12 @@ export async function GET(request: Request) {
           pipeline: [
             {
               $match: {
-                $expr: { $eq: ['$_id', { $toObjectId: '$$otherUserId' }] }
+                $expr: { 
+                  $eq: [
+                    { $toString: '$_id' }, 
+                    '$$otherUserId'
+                  ] 
+                }
               }
             },
             {
