@@ -62,7 +62,17 @@ public class AudioRoutingPlugin extends Plugin {
                     }
                 } else {
                     // Legacy routing
-                    audioManager.setSpeakerphoneOn(on);
+                    if (!on) {
+                        // Ensure BT SCO is not forcing route away from earpiece
+                        try { audioManager.stopBluetoothSco(); } catch (Throwable ignored) {}
+                        try { audioManager.setBluetoothScoOn(false); } catch (Throwable ignored) {}
+                        // Some OEMs require reasserting mode and toggling twice
+                        audioManager.setSpeakerphoneOn(false);
+                        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+                        audioManager.setSpeakerphoneOn(false);
+                    } else {
+                        audioManager.setSpeakerphoneOn(true);
+                    }
                 }
             }
             call.resolve(new JSObject().put("status", "ok").put("speakerOn", on));
