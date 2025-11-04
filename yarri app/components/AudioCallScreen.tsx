@@ -7,6 +7,7 @@ import { useSocket } from '../contexts/SocketContext'
 import { useRouter } from 'next/navigation'
 import { useBackButton } from '../hooks/useBackButton'
 import { trackEvent, trackScreenView } from '@/utils/clevertap'
+import { deductCoins } from '@/utils/coinDeduction'
 
 interface AudioCallScreenProps {
   userName: string
@@ -24,6 +25,7 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
   const [isSpeakerOn, setIsSpeakerOn] = useState(true)
   const [localAudioTrack, setLocalAudioTrack] = useState<IMicrophoneAudioTrack | null>(null)
   const [client] = useState(() => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }))
+  const [coinDeductionStarted, setCoinDeductionStarted] = useState(false)
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -31,6 +33,34 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     }, 1000)
     return () => clearInterval(timer)
   }, [])
+
+  const handleCoinDeduction = async () => {
+    try {
+      const user = localStorage.getItem('user')
+      if (!user) return
+      const userData = JSON.parse(user)
+      console.log(`Attempting to deduct ${rate} coins at ${duration}s`)
+      await deductCoins(userData.id, rate, 'audio')
+      console.log(`Successfully deducted ${rate} coins`)
+    } catch (error: any) {
+      console.error('Coin deduction failed:', error)
+      if (error.message?.includes('Insufficient')) {
+        alert('Insufficient coins! Call will end.')
+        handleEndCall()
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (duration === 10 && !coinDeductionStarted) {
+      console.log('First deduction at 10 seconds')
+      setCoinDeductionStarted(true)
+      handleCoinDeduction()
+    } else if (coinDeductionStarted && duration > 10 && (duration - 10) % 60 === 0) {
+      console.log(`Deduction at ${duration} seconds`)
+      handleCoinDeduction()
+    }
+  }, [duration])
 
   useEffect(() => {
     if (!socket) {
