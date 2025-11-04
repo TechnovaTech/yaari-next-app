@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
     console.log('🔌 Connecting to database...')
     const client = await clientPromise
-    const db = client.db('yaari')
+    const db = client.db('yarri')
     console.log('✅ Database connected')
 
     if (action === 'start') {

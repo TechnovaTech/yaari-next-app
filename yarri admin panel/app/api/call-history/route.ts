@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     }
 
     const client = await clientPromise
-    const db = client.db('yaari')
+    const db = client.db('yarri')
     
     console.log('Fetching call history for userId:', userId)
     
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
     }
 
     const client = await clientPromise
-    const db = client.db('yaari')
+    const db = client.db('yarri')
     
     const result = await db.collection('callHistory').insertOne({
       callerId,
