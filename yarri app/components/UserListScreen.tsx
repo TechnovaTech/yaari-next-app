@@ -550,19 +550,36 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
       )}
 
 
-      {isRinging && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="text-center">
-            <div className="w-24 h-24 bg-primary rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse">
-              <Phone size={40} className="text-white" />
+      {isRinging && selectedCall && (
+        <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black flex flex-col items-center justify-center z-50 p-6">
+          <div className="flex flex-col items-center">
+            <div className="relative mb-8">
+              <div className="absolute inset-0 bg-primary rounded-full animate-ping opacity-20"></div>
+              <div className="relative w-32 h-32 bg-gray-300 rounded-full overflow-hidden border-4 border-primary">
+                {selectedCall.user.profilePic ? (
+                  <img src={selectedCall.user.profilePic} alt="User" className="w-full h-full object-cover" />
+                ) : (
+                  <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedCall.user.id}`} alt="User" className="w-full h-full object-cover" />
+                )}
+              </div>
             </div>
-            <p className="text-white text-xl">Ringing...</p>
+            
+            <h2 className="text-white text-2xl font-bold mb-2">{selectedCall.user.name}</h2>
+            <p className="text-gray-400 text-lg mb-8">Calling...</p>
+            
+            <div className="flex items-center space-x-2 mb-12">
+              <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+            
             <button
               onClick={handleCancelRinging}
-              className="mt-6 px-4 py-2 bg-red-600 text-white rounded-lg"
+              className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center shadow-lg hover:bg-red-700 transition"
             >
-              End Call
+              <Phone size={32} className="text-white transform rotate-135" style={{ transform: 'rotate(135deg)' }} />
             </button>
+            <p className="text-white text-sm mt-4">End Call</p>
           </div>
         </div>
       )}
