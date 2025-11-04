@@ -52,16 +52,18 @@ export default function AdBanner() {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ads`)
       const data = await response.json()
       if (data.success && data.ads.length > 0) {
-        // Process ads to ensure image URLs are complete
-        const processedAds = data.ads.map((ad: Ad) => ({
-          ...ad,
-          imageUrl: ad.imageUrl && ad.imageUrl.startsWith('/uploads/') 
-            ? `https://admin.yaari.me${ad.imageUrl}` 
-            : ad.imageUrl,
-          videoUrl: ad.videoUrl && ad.videoUrl.startsWith('/uploads/') 
-            ? `https://admin.yaari.me${ad.videoUrl}` 
-            : ad.videoUrl
-        }))
+        // Filter only active ads and process URLs
+        const processedAds = data.ads
+          .filter((ad: Ad) => ad.isActive)
+          .map((ad: Ad) => ({
+            ...ad,
+            imageUrl: ad.imageUrl && ad.imageUrl.startsWith('/uploads/') 
+              ? `https://admin.yaari.me${ad.imageUrl}` 
+              : ad.imageUrl,
+            videoUrl: ad.videoUrl && ad.videoUrl.startsWith('/uploads/') 
+              ? `https://admin.yaari.me${ad.videoUrl}` 
+              : ad.videoUrl
+          }))
         setAds(processedAds)
       }
     } catch (error) {
