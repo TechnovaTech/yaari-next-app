@@ -3,8 +3,6 @@ import clientPromise from '@/lib/mongodb'
 
 export const runtime = 'nodejs'
 
-const activeCallSessions = new Map<string, any>()
-
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
@@ -33,54 +31,42 @@ export async function POST(request: Request) {
 
     console.log('🔌 Connecting to database...')
     const client = await clientPromise
-    const db = client.db('yarri')
+    const db = client.db('yaari')
     console.log('✅ Database connected')
 
     if (action === 'start') {
-      // Store call session
-      const sessionKey = `${callerId}-${receiverId}-${channelName}`
-      activeCallSessions.set(sessionKey, {
+      const callSession = {
         callerId,
         receiverId,
         callType,
         startTime: new Date(),
-        channelName
-      })
+        channelName,
+        status: 'active',
+        createdAt: new Date()
+      }
       
-      console.log('✅ Call session started:', sessionKey)
-      console.log('📊 Active sessions:', activeCallSessions.size)
-      return NextResponse.json({ success: true, message: 'Call started' }, {
+      const result = await db.collection('activeCalls').insertOne(callSession)
+      console.log('✅ Call session started in DB:', result.insertedId)
+      
+      return NextResponse.json({ success: true, message: 'Call started', sessionId: result.insertedId }, {
         headers: { 'Access-Control-Allow-Origin': '*' }
       })
     }
 
     if (action === 'end') {
       console.log('🔚 Ending call...')
-      // Find and remove session
-      const sessionKey = `${callerId}-${receiverId}`
-      let session = null
       
-      console.log('🔍 Looking for session with key pattern:', sessionKey)
-      console.log('📊 Current active sessions:', Array.from(activeCallSessions.keys()))
-      
-      // Find session by matching caller and receiver
-      for (const [key, value] of activeCallSessions.entries()) {
-        if (key.includes(callerId) && key.includes(receiverId)) {
-          session = value
-          activeCallSessions.delete(key)
-          console.log('✅ Found and removed session:', key)
-          break
-        }
-      }
+      const activeCall = await db.collection('activeCalls').findOne({
+        $or: [
+          { callerId, receiverId },
+          { callerId: receiverId, receiverId: callerId }
+        ],
+        status: 'active'
+      })
 
-      if (!session) {
-        console.log('⚠️ No session found, using current time')
-      }
-
-      const startTime = session?.startTime || new Date()
+      const startTime = activeCall?.startTime || new Date(Date.now() - (duration || 0) * 1000)
       const endTime = new Date()
 
-      // Save to call history
       const callRecord = {
         callerId,
         receiverId,
@@ -95,21 +81,23 @@ export async function POST(request: Request) {
       
       console.log('💾 Saving call to history:', callRecord)
       
-      try {
-        const result = await db.collection('callHistory').insertOne(callRecord)
-        console.log('✅ Call saved successfully with ID:', result.insertedId)
-        
-        // Verify it was saved
-        const savedCall = await db.collection('callHistory').findOne({ _id: result.insertedId })
-        console.log('✅ Verified saved call:', savedCall)
-        
-        return NextResponse.json({ success: true, message: 'Call logged', id: result.insertedId }, {
-          headers: { 'Access-Control-Allow-Origin': '*' }
-        })
-      } catch (dbError) {
-        console.error('❌ Database error:', dbError)
-        throw dbError
+      const result = await db.collection('callHistory').insertOne(callRecord)
+      console.log('✅ Call saved with ID:', result.insertedId)
+      
+      if (activeCall) {
+        await db.collection('activeCalls').deleteOne({ _id: activeCall._id })
+        console.log('✅ Removed active call session')
       }
+      
+      const savedCall = await db.collection('callHistory').findOne({ _id: result.insertedId })
+      if (!savedCall) {
+        throw new Error('Failed to verify call was saved')
+      }
+      console.log('✅ Verified saved call')
+      
+      return NextResponse.json({ success: true, message: 'Call logged', id: result.insertedId, verified: true }, {
+        headers: { 'Access-Control-Allow-Origin': '*' }
+      })
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { 
@@ -117,8 +105,11 @@ export async function POST(request: Request) {
       headers: { 'Access-Control-Allow-Origin': '*' }
     })
   } catch (error) {
-    console.error('Call log error:', error)
-    return NextResponse.json({ error: 'Failed to log call' }, { 
+    console.error('❌ Call log error:', error)
+    return NextResponse.json({ 
+      error: 'Failed to log call', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    }, { 
       status: 500,
       headers: { 'Access-Control-Allow-Origin': '*' }
     })

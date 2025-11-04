@@ -167,10 +167,17 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
                   channelName: channelName
                 })
               })
+              if (!response.ok) {
+                throw new Error(`Failed to log call start: ${response.status}`)
+              }
               const result = await response.json()
+              if (result.sessionId) {
+                sessionStorage.setItem('callSessionId', result.sessionId)
+              }
               console.log('✅ Audio call start logged:', result)
             } catch (error) {
               console.error('❌ Failed to log audio call start:', error)
+              alert('Warning: Call logging failed. Call may not appear in history.')
             }
           }
         }
@@ -243,10 +250,17 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
               status: 'completed'
             })
           })
+          if (!response.ok) {
+            throw new Error(`Failed to log call end: ${response.status}`)
+          }
           const result = await response.json()
+          if (!result.verified) {
+            console.warn('⚠️ Call saved but verification failed')
+          }
           console.log('✅ Audio call end logged:', result)
         } catch (error) {
           console.error('❌ Failed to log audio call end:', error)
+          alert('Warning: Failed to save call to history.')
         }
       }
     }
