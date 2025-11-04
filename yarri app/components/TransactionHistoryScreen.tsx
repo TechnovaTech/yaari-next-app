@@ -103,7 +103,7 @@ export default function TransactionHistoryScreen({ onBack }: TransactionHistoryS
               {t.yourTransactions}
             </p>
             <p className="text-sm text-gray-600 mb-2">{t.questionsText}</p>
-            <p className="text-sm text-primary font-semibold mb-2">support@yaari.me</p>
+            <a href="mailto:support@yaari.me" className="text-sm text-primary font-semibold mb-2 block hover:underline">support@yaari.me</a>
             <p className="text-sm text-gray-600">{t.ourTeam}</p>
           </div>
         </div>
