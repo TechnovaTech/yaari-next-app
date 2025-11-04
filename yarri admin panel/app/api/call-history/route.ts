@@ -32,6 +32,7 @@ export async function GET(request: Request) {
     
     console.log('Fetching call history for userId:', userId)
     
+    // Get all calls where user is either caller or receiver
     const callHistory = await db.collection('callHistory')
       .find({
         $or: [
@@ -44,29 +45,44 @@ export async function GET(request: Request) {
       .toArray()
 
     console.log('Found calls:', callHistory.length)
+    console.log('Sample call:', callHistory[0])
 
     const enrichedHistory = await Promise.all(
       callHistory.map(async (call) => {
-        const isOutgoing = call.callerId === userId
+        // Determine if this is an outgoing call
+        const isOutgoing = String(call.callerId) === String(userId)
         const otherUserId = isOutgoing ? call.receiverId : call.callerId
         
-        console.log('Processing call:', { callerId: call.callerId, receiverId: call.receiverId, isOutgoing, otherUserId })
+        console.log('Processing call:', { 
+          callerId: call.callerId, 
+          receiverId: call.receiverId, 
+          userId, 
+          isOutgoing, 
+          otherUserId 
+        })
         
+        // Try to find the other user
         let otherUser = null
-        try {
-          otherUser = await db.collection('users').findOne(
-            { _id: new ObjectId(otherUserId) },
-            { projection: { name: 1, profilePic: 1, about: 1 } }
-          )
-        } catch (err) {
-          console.log('Error finding user with ObjectId, trying string:', otherUserId)
-          otherUser = await db.collection('users').findOne(
-            { _id: otherUserId },
-            { projection: { name: 1, profilePic: 1, about: 1 } }
-          )
+        
+        // First try as string (most common)
+        otherUser = await db.collection('users').findOne(
+          { _id: otherUserId },
+          { projection: { name: 1, profilePic: 1, about: 1 } }
+        )
+        
+        // If not found, try as ObjectId
+        if (!otherUser) {
+          try {
+            otherUser = await db.collection('users').findOne(
+              { _id: new ObjectId(otherUserId) },
+              { projection: { name: 1, profilePic: 1, about: 1 } }
+            )
+          } catch (err) {
+            console.log('Could not find user:', otherUserId)
+          }
         }
 
-        return {
+        const enrichedCall = {
           _id: call._id,
           callType: call.callType || 'audio',
           duration: call.duration || 0,
@@ -80,6 +96,9 @@ export async function GET(request: Request) {
           otherUserAbout: otherUser?.about || '',
           createdAt: call.createdAt
         }
+        
+        console.log('Enriched call:', enrichedCall)
+        return enrichedCall
       })
     )
 
