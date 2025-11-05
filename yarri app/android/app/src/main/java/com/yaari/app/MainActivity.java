@@ -5,6 +5,7 @@ import android.view.WindowManager;
 import android.util.Log;
 import androidx.core.view.WindowCompat;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.Plugin;
 
 public class MainActivity extends BridgeActivity {
     private static final String TAG = "MainActivity";
@@ -13,6 +14,12 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         try {
             super.onCreate(savedInstanceState);
+            try {
+                // Register custom plugins
+                registerPlugin(AudioRoutingPlugin.class);
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to register AudioRoutingPlugin", e);
+            }
             
             // Configure window settings safely
             try {

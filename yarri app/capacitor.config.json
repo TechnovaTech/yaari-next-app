@@ -24,8 +24,8 @@
       "style": "dark"
     },
     "StatusBar": {
-      "style": "light",
-      "backgroundColor": "#FF6B35",
+      "style": "dark",
+      "backgroundColor": "#FF6B00",
       "overlaysWebView": false
     },
     "GoogleAuth": {

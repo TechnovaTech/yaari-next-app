@@ -7,6 +7,7 @@ import NativeStatusBar from '../components/NativeStatusBar'
 import CleverTapInit from '../components/CleverTapInit'
 import RouteAnalytics from '../components/RouteAnalytics'
 import ErrorBoundary from '../components/ErrorBoundary'
+import StatusBarInit from '../components/StatusBarInit'
 
 const balooTammudu = Baloo_Tammudu_2({ 
   subsets: ['latin'],
@@ -26,7 +27,7 @@ export const viewport = {
   userScalable: false,
   viewportFit: 'cover',
   interactiveWidget: 'resizes-content',
-  themeColor: '#FF6B35',
+  themeColor: '#FF6B00',
 }
 
 export default function RootLayout({
@@ -38,9 +39,8 @@ export default function RootLayout({
     <html lang="en" className={balooTammudu.variable}>
       <body className={balooTammudu.className}>
         <ErrorBoundary>
-          {/* Client-only status bar configuration */}
+          <StatusBarInit />
           <NativeStatusBar />
-          {/* CleverTap initialization */}
           <CleverTapInit />
           <SocketProvider>
             <LanguageProvider>

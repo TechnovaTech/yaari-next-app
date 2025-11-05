@@ -37,9 +37,9 @@ class SMSService {
         : `91${phoneNumber.replace(/^\+?91/, '')}`;
 
       // DLT template exact text from CSV (with newline):
-      // "Dear Yaari User,\nYour OTP is @__123__@. Do not share it with anyone. Valid for 10 minutes."
+      // "Dear Yaari User,\n The OTP for login is @__123__@. Bitesize Learning Private Limited."
       // Replace placeholder with actual OTP. Keep punctuation/spacing identical.
-      const message = `Dear Yaari User,\nYour OTP is ${otp}. Do not share it with anyone. Valid for 10 minutes.`;
+      const message = `Dear Yaari User,\n The OTP for login is ${otp}. Bitesize Learning Private Limited.`;
 
       const params = new URLSearchParams({
         userid: this.config.userid,

@@ -24,7 +24,7 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
   useBackButton(() => handleEndCall())
   const [duration, setDuration] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
-  const [isSpeakerOn, setIsSpeakerOn] = useState(true)
+  const [isSpeakerOn, setIsSpeakerOn] = useState(false)
   const [localAudioTrack, setLocalAudioTrack] = useState<IMicrophoneAudioTrack | null>(null)
   const [client] = useState(() => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }))
   const [coinDeductionStarted, setCoinDeductionStarted] = useState(false)
@@ -148,11 +148,17 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
         
         await client.publish([audioTrack])
 
-        // Ensure proper audio routing on native (speaker by default)
+        // Ensure proper audio routing on native (earpiece by default)
         if (Capacitor.isNativePlatform()) {
           try {
             await AudioRouting.enterCommunicationMode()
-            await AudioRouting.setSpeakerphoneOn({ on: true })
+            await AudioRouting.setSpeakerphoneOn({ on: false })
+            // Reinforce after delay
+            setTimeout(async () => {
+              try {
+                await AudioRouting.setSpeakerphoneOn({ on: false })
+              } catch {}
+            }, 500)
           } catch (e) {
             console.warn('AudioRouting init failed:', e)
           }

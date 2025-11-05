@@ -41,50 +41,24 @@ public class AudioRoutingPlugin extends Plugin {
         boolean on = call.getBoolean("on", true);
         try {
             if (audioManager != null) {
+                // Stop any bluetooth routing first
+                try { audioManager.stopBluetoothSco(); } catch (Throwable ignored) {}
+                try { audioManager.setBluetoothScoOn(false); } catch (Throwable ignored) {}
+                
+                // Set communication mode
                 audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-
-                // Prefer explicit communication device routing on Android 12+
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    // Proactively disable BT SCO to avoid hijacking route
-                    try { audioManager.stopBluetoothSco(); } catch (Throwable ignored) {}
-                    try { audioManager.setBluetoothScoOn(false); } catch (Throwable ignored) {}
-
-                    AudioDeviceInfo[] outputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
-                    int desiredType = on ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER : AudioDeviceInfo.TYPE_BUILTIN_EARPIECE;
-                    AudioDeviceInfo target = null;
-                    for (AudioDeviceInfo dev : outputs) {
-                        if (dev.getType() == desiredType) {
-                            target = dev;
-                            break;
-                        }
-                    }
-                    // If target device found, set it; otherwise fallback to legacy toggle
-                    if (target != null) {
-                        audioManager.setCommunicationDevice(target);
-                        // Double-assurance: some OEMs ignore communication device for WebView audio
-                        if (!on) {
-                            audioManager.setSpeakerphoneOn(false);
+                
+                // Set speaker state multiple times to ensure it sticks
+                audioManager.setSpeakerphoneOn(on);
+                
+                // For earpiece, force it again after a tiny delay
+                if (!on) {
+                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                        try {
                             audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
                             audioManager.setSpeakerphoneOn(false);
-                        } else {
-                            audioManager.setSpeakerphoneOn(true);
-                        }
-                    } else {
-                        audioManager.setSpeakerphoneOn(on);
-                    }
-                } else {
-                    // Legacy routing
-                    if (!on) {
-                        // Ensure BT SCO is not forcing route away from earpiece
-                        try { audioManager.stopBluetoothSco(); } catch (Throwable ignored) {}
-                        try { audioManager.setBluetoothScoOn(false); } catch (Throwable ignored) {}
-                        // Some OEMs require reasserting mode and toggling twice
-                        audioManager.setSpeakerphoneOn(false);
-                        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-                        audioManager.setSpeakerphoneOn(false);
-                    } else {
-                        audioManager.setSpeakerphoneOn(true);
-                    }
+                        } catch (Exception ignored) {}
+                    }, 100);
                 }
             }
             call.resolve(new JSObject().put("status", "ok").put("speakerOn", on));
