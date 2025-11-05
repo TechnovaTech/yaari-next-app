@@ -54,6 +54,8 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
   const [videoCallRate, setVideoCallRate] = useState(10)
   const [showInsufficientCoins, setShowInsufficientCoins] = useState(false)
   const [currentUserProfilePic, setCurrentUserProfilePic] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [touchStart, setTouchStart] = useState(0)
 
   useEffect(() => {
     const user = localStorage.getItem('user')
@@ -392,8 +394,34 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
     }
   }
 
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await Promise.all([fetchUsers(), fetchBalance()])
+    setRefreshing(false)
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (window.scrollY === 0) {
+      setTouchStart(e.touches[0].clientY)
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStart > 0 && window.scrollY === 0) {
+      const touchCurrent = e.touches[0].clientY
+      if (touchCurrent - touchStart > 80 && !refreshing) {
+        handleRefresh()
+        setTouchStart(0)
+      }
+    }
+  }
+
+  const handleTouchEnd = () => {
+    setTouchStart(0)
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
       <div className="fixed top-0 left-0 right-0 z-50 bg-white p-4 flex items-center justify-between shadow-sm" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center gap-2" style={{ alignItems: 'center' }}>
           <Heart className="text-primary" size={24} fill="#FF6B35" style={{ marginTop: '4px' }} />
@@ -436,6 +464,11 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
       </div>
 
       <div className="p-4" style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top))' }}>
+        {refreshing && (
+          <div className="flex justify-center py-2">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+          </div>
+        )}
         <AdBanner />
         
 
