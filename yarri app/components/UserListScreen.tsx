@@ -53,9 +53,9 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
   const [audioCallRate, setAudioCallRate] = useState(5)
   const [videoCallRate, setVideoCallRate] = useState(10)
   const [showInsufficientCoins, setShowInsufficientCoins] = useState(false)
+  const [currentUserProfilePic, setCurrentUserProfilePic] = useState<string | null>(null)
 
   useEffect(() => {
-    // Set default gender filter based on user's gender
     const user = localStorage.getItem('user')
     if (user) {
       const userData = JSON.parse(user)
@@ -64,12 +64,21 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
       } else if (userData.gender === 'female') {
         setGenderFilter('male')
       }
+      
+      if (userData.id) {
+        fetch(`https://admin.yaari.me/api/users/${userData.id}/images`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.profilePic) {
+              setCurrentUserProfilePic(data.profilePic.replace(/https?:\/\/(localhost|0\.0\.0\.0):\d+/g, 'https://admin.yaari.me'))
+            }
+          })
+          .catch(() => {})
+      }
     }
     
     fetchBalance()
     fetchCallRates()
-    
-    // Track screen view
     trackScreenView('User List')
   }, [])
 
@@ -415,9 +424,13 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
           </button>
           <button 
             onClick={onProfileClick}
-            className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center mt-2.5"
+            className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center mt-2.5 overflow-hidden"
           >
-            <UserIcon className="text-white" size={20} />
+            {currentUserProfilePic ? (
+              <img src={currentUserProfilePic} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <UserIcon className="text-white" size={20} />
+            )}
           </button>
         </div>
       </div>
