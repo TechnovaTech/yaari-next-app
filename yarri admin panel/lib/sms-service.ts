@@ -24,7 +24,7 @@ class SMSService {
       password: process.env.GUPSHUP_PASSWORD || '*v$4g3My',
       baseUrl: process.env.GUPSHUP_BASE_URL || 'https://enterprise.smsgupshup.com',
       mask: process.env.GUPSHUP_MASK || 'YAARI',
-      dltTemplateId: process.env.DLT_TEMPLATE_ID || '1707176111063116056',
+      dltTemplateId: process.env.DLT_TEMPLATE_ID || '1707176166167640000',
       dltEntityId: process.env.DLT_ENTITY_ID || undefined,
     };
   }
