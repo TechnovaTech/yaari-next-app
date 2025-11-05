@@ -37,6 +37,44 @@ export default function UserDetailScreen({ onBack, userId, onStartCall, onCoinCl
   const [callAccess, setCallAccess] = useState<'none' | 'audio' | 'video' | 'full'>('full')
   const [showInsufficientCoins, setShowInsufficientCoins] = useState(false)
 
+  const canonicalUrlKey = (url: string) => {
+    try {
+      const u = new URL(url)
+      const parts = u.pathname.split('/')
+      return (parts[parts.length - 1] || '').toLowerCase()
+    } catch (_) {
+      const base = url.split('?')[0]
+      return (base.substring(base.lastIndexOf('/') + 1) || '').toLowerCase()
+    }
+  }
+
+  const dedupeByCanonical = (urls: string[]) => {
+    const out: string[] = []
+    const seen = new Set<string>()
+    for (const u of urls || []) {
+      if (!u || !u.trim()) continue
+      const normalized = u.replace(/https?:\/\/(0\.0\.0\.0|localhost):\d+/g, 'https://admin.yaari.me')
+      const key = canonicalUrlKey(normalized)
+      if (!key || seen.has(key)) continue
+      seen.add(key)
+      out.push(normalized)
+    }
+    return out
+  }
+
+  const syncGalleryFromLocalIfSameUser = (data: any) => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('user') : null
+      if (!raw) return data
+      const local = JSON.parse(raw)
+      const same = String(local?.id || local?._id || '') === String(data?.id || data?._id || '')
+      if (same && Array.isArray(local?.gallery)) {
+        data.gallery = dedupeByCanonical(local.gallery)
+      }
+    } catch (_) {}
+    return data
+  }
+
   useEffect(() => {
     fetchUser()
     fetchBalance()
@@ -66,7 +104,7 @@ export default function UserDetailScreen({ onBack, userId, onStartCall, onCoinCl
   const fetchCallRates = async () => {
     try {
       const res = await fetch('https://admin.yaari.me/api/settings')
-      const data = await res.json()
+      let data = await res.json()
       if (data.audioCallRate) setAudioCallRate(data.audioCallRate)
       if (data.videoCallRate) setVideoCallRate(data.videoCallRate)
     } catch (error) {
@@ -143,7 +181,7 @@ export default function UserDetailScreen({ onBack, userId, onStartCall, onCoinCl
   const fetchUser = async () => {
     try {
       const res = await fetch(`https://admin.yaari.me/api/users/${userId}`)
-      const data = await res.json()
+      let data = await res.json()
       
       // Fix localhost and 0.0.0.0 URLs
       if (data.profilePic) {
@@ -153,12 +191,15 @@ export default function UserDetailScreen({ onBack, userId, onStartCall, onCoinCl
       }
       
       if (data.gallery && Array.isArray(data.gallery)) {
-        data.gallery = data.gallery.map((url: string) => 
-          url
-            .replace(/https?:\/\/localhost:\d+/, 'https://admin.yaari.me')
-            .replace(/https?:\/\/0\.0\.0\.0:\d+/, 'https://admin.yaari.me')
+        data.gallery = dedupeByCanonical(
+          data.gallery.map((url: string) => 
+            url
+              .replace(/https?:\/\/localhost:\d+/, 'https://admin.yaari.me')
+              .replace(/https?:\/\/0\.0\.0\.0:\d+/, 'https://admin.yaari.me')
+          )
         )
       }
+      data = syncGalleryFromLocalIfSameUser(data)
       
       setUser(data)
       setCallAccess(data.callAccess || 'full')
@@ -311,8 +352,20 @@ export default function UserDetailScreen({ onBack, userId, onStartCall, onCoinCl
           <div className="mb-6">
             <h3 className="text-primary font-semibold text-lg mb-3">{t.photoGallery}</h3>
             <div className="grid grid-cols-3 gap-2">
-              {user.gallery.map((img: string, i: number) => (
-                <img key={i} src={img} alt={`Gallery ${i}`} className="aspect-square object-cover rounded-lg" />
+              {user.gallery.map((img: string) => (
+                <img
+                  key={canonicalUrlKey(img)}
+                  src={img}
+                  alt="Gallery"
+                  className="aspect-square object-cover rounded-lg"
+                  onError={() => {
+                    const key = canonicalUrlKey(img)
+                    setUser((prev: any) => ({
+                      ...prev,
+                      gallery: dedupeByCanonical((prev?.gallery || []).filter((u: string) => canonicalUrlKey(u) !== key))
+                    }))
+                  }}
+                />
               ))}
             </div>
           </div>
