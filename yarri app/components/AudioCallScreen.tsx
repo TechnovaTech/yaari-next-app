@@ -11,6 +11,34 @@ import { deductCoins } from '@/utils/coinDeduction'
 import { Capacitor } from '@capacitor/core'
 import AudioRouting from '@/utils/audioRouting'
 
+// Add error handling wrapper for AudioRouting
+const safeAudioRouting = {
+  enterCommunicationMode: async () => {
+    try {
+      return await AudioRouting.enterCommunicationMode()
+    } catch (error) {
+      console.warn('AudioRouting.enterCommunicationMode failed:', error)
+      return null
+    }
+  },
+  setSpeakerphoneOn: async (options: { on: boolean }) => {
+    try {
+      return await AudioRouting.setSpeakerphoneOn(options)
+    } catch (error) {
+      console.warn('AudioRouting.setSpeakerphoneOn failed:', error)
+      return null
+    }
+  },
+  resetAudio: async () => {
+    try {
+      return await AudioRouting.resetAudio()
+    } catch (error) {
+      console.warn('AudioRouting.resetAudio failed:', error)
+      return null
+    }
+  }
+}
+
 interface AudioCallScreenProps {
   userName: string
   userAvatar: string
@@ -29,6 +57,34 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
   const [client] = useState(() => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }))
   const [coinDeductionStarted, setCoinDeductionStarted] = useState(false)
   const [remainingBalance, setRemainingBalance] = useState<number | null>(null)
+
+  // Helper to ensure earpiece routing sticks, with retries
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+  const ensureEarpieceRoute = async () => {
+    try {
+      console.log('[AudioRouting] Ensuring earpiece route (enter comms + speaker OFF)')
+      await safeAudioRouting.enterCommunicationMode()
+      await safeAudioRouting.setSpeakerphoneOn({ on: false })
+      // Retry a couple times to enforce routing after WebView/Agora attaches audio
+      await delay(250)
+      await safeAudioRouting.setSpeakerphoneOn({ on: false })
+      await delay(750)
+      await safeAudioRouting.setSpeakerphoneOn({ on: false })
+      console.log('[AudioRouting] Earpiece route attempts completed')
+    } catch (e) {
+      console.warn('[AudioRouting] ensureEarpieceRoute failed:', e)
+    }
+  }
+
+  // Extra reinforcement for first few seconds of call
+  const startEarpieceStabilizer = () => {
+    const slots = [0, 500, 1500, 3000, 5000]
+    slots.forEach(ms => setTimeout(() => {
+      if (Capacitor.isNativePlatform()) {
+        ensureEarpieceRoute()
+      }
+    }, ms))
+  }
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -137,6 +193,11 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
         })
         const { token } = await tokenRes.json()
         console.log('Got Agora token')
+
+        // BEFORE joining/creating tracks, enforce earpiece routing on native
+        if (Capacitor.isNativePlatform()) {
+          await ensureEarpieceRoute()
+        }
         
         await client.join(agoraConfig.appId, channelName, token, null)
         
@@ -148,20 +209,10 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
         
         await client.publish([audioTrack])
 
-        // Ensure proper audio routing on native (earpiece by default)
+        // After publish, reinforce earpiece routing again on native
         if (Capacitor.isNativePlatform()) {
-          try {
-            await AudioRouting.enterCommunicationMode()
-            await AudioRouting.setSpeakerphoneOn({ on: false })
-            // Reinforce after delay
-            setTimeout(async () => {
-              try {
-                await AudioRouting.setSpeakerphoneOn({ on: false })
-              } catch {}
-            }, 500)
-          } catch (e) {
-            console.warn('AudioRouting init failed:', e)
-          }
+          await ensureEarpieceRoute()
+          startEarpieceStabilizer()
         }
 
         // Log call start
@@ -214,6 +265,10 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
         user.audioTrack?.play()
         // Enable loudspeaker by default
         user.audioTrack?.setVolume(100)
+        // Reinforce earpiece routing once remote audio starts playing
+        if (Capacitor.isNativePlatform()) {
+          await ensureEarpieceRoute()
+        }
       }
     })
 
@@ -226,7 +281,7 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
       localAudioTrack?.close()
       client.leave()
       if (Capacitor.isNativePlatform()) {
-        try { AudioRouting.resetAudio() } catch {}
+        try { safeAudioRouting.resetAudio() } catch {}
       }
     }
   }, [])
@@ -244,7 +299,9 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     
     if (Capacitor.isNativePlatform()) {
       try {
-        await AudioRouting.setSpeakerphoneOn({ on: next })
+        // Keep communication mode active when toggling routes
+        await safeAudioRouting.enterCommunicationMode()
+        await safeAudioRouting.setSpeakerphoneOn({ on: next })
         console.log(`Speaker ${next ? 'ON' : 'OFF'}`)
       } catch (e) {
         console.warn('Failed to toggle speakerphone:', e)
@@ -342,7 +399,7 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
 
     // Reset audio routing on native
     if (Capacitor.isNativePlatform()) {
-      try { await AudioRouting.resetAudio() } catch {}
+      try { await safeAudioRouting.resetAudio() } catch {}
     }
     
     console.log('Navigating back to users page')
