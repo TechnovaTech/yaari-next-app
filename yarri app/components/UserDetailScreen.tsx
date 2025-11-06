@@ -320,7 +320,7 @@ export default function UserDetailScreen({ onBack, userId, onStartCall, onCoinCl
         </button>
       </div>
 
-      <div className="px-6 pb-40">
+      <div className="px-6 pb-32">
         <div className="flex flex-col items-center mb-6">
           <div className="relative mb-3">
             <div className="w-32 h-32 bg-gray-300 rounded-full overflow-hidden flex items-center justify-center">
