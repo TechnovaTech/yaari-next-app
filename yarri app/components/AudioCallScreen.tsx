@@ -9,7 +9,10 @@ import { trackEvent, trackScreenView } from '@/utils/clevertap'
 import { trackCallEvent, syncUserToCleverTap } from '@/utils/userTracking'
 import { deductCoins } from '@/utils/coinDeduction'
 import { Capacitor } from '@capacitor/core'
-import AudioRouting from '@/utils/audioRouting'
+import AudioRoute from '@/utils/audioRoute'
+import AvatarCircle from './call-ui/AvatarCircle'
+import CallStats from './call-ui/CallStats'
+import ControlsBar from './call-ui/ControlsBar'
 
 interface AudioCallScreenProps {
   userName: string
@@ -127,8 +130,8 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
   useEffect(() => {
     const init = async () => {
       if (Capacitor.isNativePlatform()) {
-        await AudioRouting.enterCommunicationMode()
-        await AudioRouting.setSpeakerphoneOn({ on: false }) // Default to earpiece
+        // Default to earpiece using AudioRoute API
+        await AudioRoute.setRoute({ route: 'earpiece' })
       }
 
       try {
@@ -217,7 +220,8 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
       localAudioTrack?.close()
       client.leave()
       if (Capacitor.isNativePlatform()) {
-        AudioRouting.resetAudio()
+        // Reset to earpiece when leaving (non-async cleanup)
+        AudioRoute.setRoute({ route: 'earpiece' }).catch(() => {})
       }
     }
   }, [])
@@ -234,10 +238,10 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     setIsSpeakerOn(next)
     if (Capacitor.isNativePlatform()) {
       try {
-        await AudioRouting.setSpeakerphoneOn({ on: next })
+        await AudioRoute.setRoute({ route: next ? 'speaker' : 'earpiece' })
         console.log(`Speaker ${next ? 'ON' : 'OFF'}`)
       } catch (e) {
-        console.warn('Failed to toggle speakerphone:', e)
+        console.warn('Failed to toggle audio route:', e)
       }
     }
   }
@@ -339,7 +343,7 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     sessionStorage.removeItem('channelName')
 
     // Reset audio routing
-    try { await safeAudioRouting.resetAudio() } catch {}
+    try { await AudioRoute.setRoute({ route: 'earpiece' }) } catch {}
     
     console.log('Navigating back to users page')
     // Navigate back

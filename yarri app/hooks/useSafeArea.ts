@@ -11,8 +11,9 @@ export function useSafeArea() {
     const getSafeArea = async () => {
       if (Capacitor.isNativePlatform()) {
         try {
-          const info = await StatusBar.getInfo()
-          setInsets(info.safeArea)
+          const info: any = await StatusBar.getInfo()
+          const safe = info?.safeArea || { top: 0, bottom: 0, left: 0, right: 0 }
+          setInsets(safe)
         } catch (e) {
           console.error('Error getting safe area insets', e)
           // Fallback for older Capacitor versions or browser

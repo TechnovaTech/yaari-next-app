@@ -111,11 +111,13 @@ input:focus {
 }
 
 .safe-top {
-  padding-top: env(safe-area-inset-top);
+  /* Ensure at least some headroom if env() returns 0 */
+  padding-top: max(env(safe-area-inset-top), 12px);
 }
 
 .safe-bottom {
-  padding-bottom: 16px;
+  /* Use device safe area inset when available, fallback to larger 64px for gesture nav */
+  padding-bottom: max(env(safe-area-inset-bottom), 64px);
 }
 
 .safe-left {

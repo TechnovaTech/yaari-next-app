@@ -9,7 +9,7 @@ import { useBackButton } from '../hooks/useBackButton'
 import { trackEvent, trackScreenView } from '@/utils/clevertap'
 import { deductCoins } from '@/utils/coinDeduction'
 import { Capacitor } from '@capacitor/core'
-import AudioRouting from '@/utils/audioRouting'
+import AudioRoute from '@/utils/audioRoute'
 
 interface VideoCallScreenProps {
   userName: string
@@ -164,10 +164,9 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
         // Ensure proper audio routing on native (speaker by default)
         if (Capacitor.isNativePlatform()) {
           try {
-            await AudioRouting.enterCommunicationMode()
-            await AudioRouting.setSpeakerphoneOn({ on: true })
+            await AudioRoute.setRoute({ route: 'speaker' })
           } catch (e) {
-            console.warn('AudioRouting init failed (video):', e)
+            console.warn('AudioRoute init failed (video):', e)
           }
         }
 
@@ -242,7 +241,7 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
       localAudioTrack?.close()
       client.leave()
       if (Capacitor.isNativePlatform()) {
-        try { AudioRouting.resetAudio() } catch {}
+        AudioRoute.setRoute({ route: 'earpiece' }).catch(() => {})
       }
     }
   }, [])
@@ -386,7 +385,7 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
     console.log('Navigating back to users page')
     // Navigate back
     if (Capacitor.isNativePlatform()) {
-      try { await AudioRouting.resetAudio() } catch {}
+      try { await AudioRoute.setRoute({ route: 'earpiece' }) } catch {}
     }
     window.location.href = '/users'
   }
