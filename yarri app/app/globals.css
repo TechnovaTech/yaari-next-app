@@ -110,11 +110,6 @@ input:focus {
   padding-top: env(safe-area-inset-top);
 }
 
-.safe-top {
-  /* Ensure at least 1rem padding, add status bar height when present */
-  padding-top: max(1rem, env(safe-area-inset-top));
-}
-
 .safe-bottom {
   /* Use device safe area inset when available, fallback to larger 64px for gesture nav */
   padding-bottom: max(env(safe-area-inset-bottom), 64px);
