@@ -1,19 +1,38 @@
-import { useEffect, useState } from 'react'
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Capacitor } from '@capacitor/core'
+import { StatusBar } from '@capacitor/status-bar'
 
 export function useSafeArea() {
-  const [safeArea, setSafeArea] = useState({ top: 0, bottom: 0 })
+  const [insets, setInsets] = useState({ top: 0, bottom: 0, left: 0, right: 0 })
 
   useEffect(() => {
-    const updateSafeArea = () => {
-      const top = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top') || '0')
-      const bottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom') || '0')
-      setSafeArea({ top, bottom })
+    const getSafeArea = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const info = await StatusBar.getInfo()
+          setInsets(info.safeArea)
+        } catch (e) {
+          console.error('Error getting safe area insets', e)
+          // Fallback for older Capacitor versions or browser
+          setInsets({ top: 20, bottom: 20, left: 0, right: 0 })
+        }
+      } else {
+        // Provide default values for web
+        setInsets({ top: 0, bottom: 0, left: 0, right: 0 })
+      }
     }
 
-    updateSafeArea()
-    window.addEventListener('resize', updateSafeArea)
-    return () => window.removeEventListener('resize', updateSafeArea)
+    getSafeArea()
+
+    const resizeListener = () => getSafeArea()
+    window.addEventListener('resize', resizeListener)
+
+    return () => {
+      window.removeEventListener('resize', resizeListener)
+    }
   }, [])
 
-  return safeArea
+  return insets
 }

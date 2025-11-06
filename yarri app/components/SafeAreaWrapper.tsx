@@ -1,29 +1,29 @@
 'use client'
 
 import { ReactNode } from 'react'
+import { useSafeArea } from '../hooks/useSafeArea'
 
 interface SafeAreaWrapperProps {
   children: ReactNode
   className?: string
-  applyTop?: boolean
-  applyBottom?: boolean
 }
 
 export default function SafeAreaWrapper({ 
   children, 
-  className = '',
-  applyTop = false,
-  applyBottom = true 
+  className = ''
 }: SafeAreaWrapperProps) {
-  const safeClasses = [
-    // Match the utility class names defined in globals.css
-    applyTop && 'safe-top',
-    applyBottom && 'safe-bottom',
-    className
-  ].filter(Boolean).join(' ')
+  const insets = useSafeArea()
 
   return (
-    <div className={safeClasses}>
+    <div 
+      className={className}
+      style={{
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }}
+    >
       {children}
     </div>
   )

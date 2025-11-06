@@ -10,37 +10,6 @@ import { trackCallEvent, syncUserToCleverTap } from '@/utils/userTracking'
 import { deductCoins } from '@/utils/coinDeduction'
 import { Capacitor } from '@capacitor/core'
 import AudioRouting from '@/utils/audioRouting'
-import AvatarCircle from './call-ui/AvatarCircle'
-import CallStats from './call-ui/CallStats'
-import ControlsBar from './call-ui/ControlsBar'
-
-// Add error handling wrapper for AudioRouting
-const safeAudioRouting = {
-  enterCommunicationMode: async () => {
-    try {
-      return await AudioRouting.enterCommunicationMode()
-    } catch (error) {
-      console.warn('AudioRouting.enterCommunicationMode failed:', error)
-      return null
-    }
-  },
-  setSpeakerphoneOn: async (options: { on: boolean }) => {
-    try {
-      return await AudioRouting.setSpeakerphoneOn(options)
-    } catch (error) {
-      console.warn('AudioRouting.setSpeakerphoneOn failed:', error)
-      return null
-    }
-  },
-  resetAudio: async () => {
-    try {
-      return await AudioRouting.resetAudio()
-    } catch (error) {
-      console.warn('AudioRouting.resetAudio failed:', error)
-      return null
-    }
-  }
-}
 
 interface AudioCallScreenProps {
   userName: string
@@ -60,42 +29,6 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
   const [client] = useState(() => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }))
   const [coinDeductionStarted, setCoinDeductionStarted] = useState(false)
   const [remainingBalance, setRemainingBalance] = useState<number | null>(null)
-  const stabilizerTimer = useRef<NodeJS.Timeout | null>(null)
-
-  // Helper to ensure earpiece routing sticks, with retries
-  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-  const ensureEarpieceRoute = async () => {
-    try {
-      console.log('[AudioRouting] Ensuring earpiece route (enter comms + speaker OFF)')
-      await safeAudioRouting.enterCommunicationMode()
-      await safeAudioRouting.setSpeakerphoneOn({ on: false })
-      // Retry a couple times to enforce routing after WebView/Agora attaches audio
-      await delay(250)
-      await safeAudioRouting.setSpeakerphoneOn({ on: false })
-      await delay(750)
-      await safeAudioRouting.setSpeakerphoneOn({ on: false })
-      console.log('[AudioRouting] Earpiece route attempts completed')
-    } catch (e) {
-      console.warn('[AudioRouting] ensureEarpieceRoute failed:', e)
-    }
-  }
-
-  // Extra reinforcement for first few seconds of call and after toggles
-  const startEarpieceStabilizer = () => {
-    if (stabilizerTimer.current) clearInterval(stabilizerTimer.current as unknown as number)
-    let attempts = 0
-    stabilizerTimer.current = setInterval(async () => {
-      attempts += 1
-      if (attempts > 6) {
-        if (stabilizerTimer.current) clearInterval(stabilizerTimer.current as unknown as number)
-        stabilizerTimer.current = null
-        return
-      }
-      if (!isSpeakerOn && Capacitor.isNativePlatform()) {
-        await ensureEarpieceRoute()
-      }
-    }, 500) as unknown as NodeJS.Timeout
-  }
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -193,6 +126,11 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
 
   useEffect(() => {
     const init = async () => {
+      if (Capacitor.isNativePlatform()) {
+        await AudioRouting.enterCommunicationMode()
+        await AudioRouting.setSpeakerphoneOn({ on: false }) // Default to earpiece
+      }
+
       try {
         const channelName = sessionStorage.getItem('channelName') || `audio_${Date.now()}`
         
@@ -204,23 +142,13 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
         })
         const { token } = await tokenRes.json()
         console.log('Got Agora token')
-
-        // BEFORE joining/creating tracks, enforce earpiece routing
-        await ensureEarpieceRoute()
         
         await client.join(agoraConfig.appId, channelName, token, null)
         
         const audioTrack = await AgoraRTC.createMicrophoneAudioTrack()
         setLocalAudioTrack(audioTrack)
         
-        // Enable loudspeaker by default
-        audioTrack.setVolume(100)
-        
         await client.publish([audioTrack])
-
-        // After publish, reinforce earpiece routing again
-        await ensureEarpieceRoute()
-        startEarpieceStabilizer()
 
         // Log call start
         const callData = sessionStorage.getItem('callData')
@@ -270,10 +198,6 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
       await client.subscribe(user, mediaType)
       if (mediaType === 'audio') {
         user.audioTrack?.play()
-        // Enable loudspeaker by default
-        user.audioTrack?.setVolume(100)
-        // Reinforce earpiece routing once remote audio starts playing
-        await ensureEarpieceRoute()
       }
     })
 
@@ -292,7 +216,9 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     return () => {
       localAudioTrack?.close()
       client.leave()
-      try { safeAudioRouting.resetAudio() } catch {}
+      if (Capacitor.isNativePlatform()) {
+        AudioRouting.resetAudio()
+      }
     }
   }, [])
 
@@ -306,19 +232,13 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
   const toggleSpeaker = async () => {
     const next = !isSpeakerOn
     setIsSpeakerOn(next)
-    
-    try {
-      // Keep communication mode active when toggling routes
-      await safeAudioRouting.enterCommunicationMode()
-      await safeAudioRouting.setSpeakerphoneOn({ on: next })
-      if (!next) {
-        // Stabilize earpiece routing immediately after toggle
-        await ensureEarpieceRoute()
-        startEarpieceStabilizer()
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await AudioRouting.setSpeakerphoneOn({ on: next })
+        console.log(`Speaker ${next ? 'ON' : 'OFF'}`)
+      } catch (e) {
+        console.warn('Failed to toggle speakerphone:', e)
       }
-      console.log(`Speaker ${next ? 'ON' : 'OFF'}`)
-    } catch (e) {
-      console.warn('Failed to toggle speakerphone:', e)
     }
   }
 
