@@ -184,7 +184,7 @@ export default function CallHistoryScreen({ onBack }: CallHistoryScreenProps) {
                   </span>
                 </div>
                 <h3 className="font-semibold text-black text-lg">{call.otherUserName}</h3>
-                <p className="text-sm text-gray-500">{call.otherUserAbout}</p>
+                <p className="text-sm text-gray-500 line-clamp-1">{call.otherUserAbout}</p>
               </div>
               
               <div className="text-right">
