@@ -61,12 +61,20 @@ export default function OTPScreen({ onNext }: OTPScreenProps) {
         setIsVerified(true)
         trackEvent('OtpVerified', { phone })
         localStorage.setItem('user', JSON.stringify(data.user))
-        // Set CleverTap identity to verified phone (OTP login)
-        await trackUserLogin(phone, {
+        
+        const identity = data.user?.id || data.user?._id || phone
+        await trackUserLogin(identity, {
           'Login Method': 'OTP',
           Phone: phone,
           Name: data.user?.name,
           Email: data.user?.email,
+          Gender: data.user?.gender,
+          Age: data.user?.age,
+          City: data.user?.city,
+          'Profile Picture': data.user?.profilePic,
+          'Coins Balance': data.user?.coins || 0,
+          'User Type': data.user?.isPremium ? 'Premium' : 'Free',
+          'Account Created': data.user?.createdAt
         })
         
         if (!data.user.name || !data.user.gender) {

@@ -313,7 +313,8 @@ export default function UserDetailScreen({ onBack, userId, onStartCall, onCoinCl
   const userAvatar = user.profilePic || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
   return (
     <div className="min-h-screen bg-white">
-      <div className="p-4">
+      {/* Add safe-area top padding so the back button sits below the status bar */}
+      <div className="p-4 safe-top">
         <button onClick={onBack}>
           <ArrowLeft size={24} className="text-gray-800" />
         </button>
@@ -386,7 +387,8 @@ export default function UserDetailScreen({ onBack, userId, onStartCall, onCoinCl
       </div>
 
       {callAccess !== 'none' && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg">
+        // Add safe-area bottom padding to avoid overlapping Android navigation
+        <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg safe-bottom">
           <div className="flex space-x-3">
             {(callAccess === 'video' || callAccess === 'full') && (
               <button 

@@ -14,10 +14,26 @@ declare global {
   }
 }
 
-// Initialize CleverTap Web SDK when not running natively
+// Detect if native CleverTap plugin is actually available
+const isNativeCleverTapReady = (): boolean => {
+  try {
+    // In Capacitor native builds, plugin methods should exist
+    return (
+      Capacitor.isNativePlatform() &&
+      typeof (CleverTap as any)?.notifyDeviceReady === 'function' &&
+      typeof (CleverTap as any)?.recordEventWithName === 'function'
+    )
+  } catch {
+    return false
+  }
+}
+
+// Initialize CleverTap Web SDK when not running natively OR when native plugin is missing
 const ensureCleverTapWeb = () => {
   if (typeof window === 'undefined') return
-  if (Capacitor.isNativePlatform()) return
+  // If native plugin isn’t ready, fall back to Web SDK even inside WebView
+  const shouldUseWebSDK = !isNativeCleverTapReady()
+  if (!shouldUseWebSDK) return
   const w = window as any
   if (w.clevertap) return
   w.clevertap = {
@@ -45,9 +61,9 @@ ensureCleverTapWeb()
 // Initialize Mixpanel too (web/Capacitor webview)
 initMixpanel()
 
-// Check if CleverTap is available on native builds
+// Check if CleverTap native plugin is available
 const isCleverTapAvailable = () => {
-  return Capacitor.isNativePlatform()
+  return isNativeCleverTapReady()
 }
 
 // Normalize phone to E.164 format expected by CleverTap (+[country][number])
@@ -74,12 +90,18 @@ export const updateUserProfile = async (userProfile: {
   Gender?: string
   Age?: number
   City?: string
+  Identity?: string
   [key: string]: any
 }) => {
   const profileForPush = { ...userProfile }
   const normalizedPhone = formatPhoneE164(userProfile.Phone)
   if (normalizedPhone) profileForPush.Phone = normalizedPhone
   else delete profileForPush.Phone
+
+  // Add MSG-push and MSG-email flags for CleverTap
+  profileForPush['MSG-push'] = true
+  profileForPush['MSG-email'] = true
+  profileForPush['MSG-sms'] = true
 
   // Also push to Mixpanel people
   try {
@@ -89,12 +111,14 @@ export const updateUserProfile = async (userProfile: {
   if (isCleverTapAvailable()) {
     try {
       await CleverTap.profileSet(profileForPush)
+      console.log('✅ CleverTap profile updated:', profileForPush)
     } catch (e) {
       console.log('CleverTap profileSet error:', e)
     }
   } else {
     try {
       window.clevertap?.profile?.push({ Site: profileForPush })
+      console.log('✅ Web CleverTap profile updated:', profileForPush)
     } catch (e) {
       console.log('Web CleverTap profile push error:', e)
     }
@@ -107,10 +131,10 @@ export const trackUserLogin = async (userIdentity: string, userProfile?: any) =>
   if (normalizedPhone) profile.Phone = normalizedPhone
   else delete profile.Phone
 
-  // Update user profile (non-blocking)
-  updateUserProfile(userProfile || {}).catch(err => 
-    console.log('Profile update error:', err)
-  )
+  // Add MSG-push and MSG-email flags
+  profile['MSG-push'] = true
+  profile['MSG-email'] = true
+  profile['MSG-sms'] = true
 
   // Forward to Mixpanel: identify and people (non-blocking)
   try {
@@ -125,11 +149,14 @@ export const trackUserLogin = async (userIdentity: string, userProfile?: any) =>
       
       // Set a timeout to prevent hanging
       const timeoutPromise = new Promise<void>((_, reject) => {
-        setTimeout(() => reject(new Error('CleverTap login timeout')), 3000)
+        setTimeout(() => reject(new Error('CleverTap login timeout')), 5000)
       })
       
       await Promise.race([loginPromise, timeoutPromise])
-      console.log('User login tracked successfully')
+      console.log('✅ CleverTap user login tracked:', userIdentity)
+      
+      // Update user profile after login
+      await updateUserProfile(userProfile || {})
     } catch (e) {
       console.log('CleverTap onUserLogin error:', e)
       // Don't throw error to prevent blocking UI
@@ -137,7 +164,10 @@ export const trackUserLogin = async (userIdentity: string, userProfile?: any) =>
   } else {
     try {
       window.clevertap?.onUserLogin?.push({ Site: profile })
-      console.log('User login tracked successfully')
+      console.log('✅ Web CleverTap user login tracked:', userIdentity)
+      
+      // Update user profile after login
+      await updateUserProfile(userProfile || {})
     } catch (e) {
       console.log('Web CleverTap onUserLogin error:', e)
     }
@@ -146,18 +176,25 @@ export const trackUserLogin = async (userIdentity: string, userProfile?: any) =>
 
 export const trackEvent = async (eventName: string, eventData: any = {}) => {
   try {
+    // Add timestamp to all events
+    const enrichedData = {
+      ...eventData,
+      timestamp: new Date().toISOString(),
+      platform: Capacitor.isNativePlatform() ? 'mobile' : 'web'
+    }
+
     // Track with timeout protection
     const trackingPromise = new Promise<void>((resolve, reject) => {
       try {
         if (isCleverTapAvailable()) {
-          if (eventData && Object.keys(eventData).length > 0) {
-            CleverTap.recordEventWithNameAndProps(eventName, eventData)
+          if (enrichedData && Object.keys(enrichedData).length > 0) {
+            CleverTap.recordEventWithNameAndProps(eventName, enrichedData)
           } else {
             CleverTap.recordEventWithName(eventName)
           }
         } else {
-          if (eventData && Object.keys(eventData).length > 0) {
-            window.clevertap?.event?.push(eventName, eventData)
+          if (enrichedData && Object.keys(enrichedData).length > 0) {
+            window.clevertap?.event?.push(eventName, enrichedData)
           } else {
             window.clevertap?.event?.push(eventName)
           }
@@ -170,15 +207,15 @@ export const trackEvent = async (eventName: string, eventData: any = {}) => {
     
     // Set a timeout to prevent hanging
     const timeoutPromise = new Promise<void>((_, reject) => {
-      setTimeout(() => reject(new Error('CleverTap event timeout')), 2000)
+      setTimeout(() => reject(new Error('CleverTap event timeout')), 3000)
     })
     
     await Promise.race([trackingPromise, timeoutPromise])
     
     // Also track with Mixpanel (non-blocking)
-    mixpanelTrack(eventName, eventData)
+    mixpanelTrack(eventName, enrichedData)
     
-    console.log(`Event tracked: ${eventName}`, eventData)
+    console.log(`✅ Event tracked: ${eventName}`, enrichedData)
   } catch (error) {
     console.error('Error tracking event:', error)
     // Don't throw error to prevent blocking UI

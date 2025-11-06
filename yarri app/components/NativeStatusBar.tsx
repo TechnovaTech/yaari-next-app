@@ -1,16 +1,12 @@
 "use client"
 
 import { useEffect } from 'react'
-import { Capacitor } from '@capacitor/core'
-import { StatusBar, Style } from '@capacitor/status-bar'
+import { initStatusBar } from '@/utils/statusBar'
 
 export default function NativeStatusBar() {
   useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
-      StatusBar.setStyle({ style: Style.Light }).catch(() => {})
-      StatusBar.setBackgroundColor({ color: '#FF6B00' }).catch(() => {})
-      StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {})
-    }
+    // Delegate to unified status bar initializer to avoid conflicts
+    initStatusBar()
   }, [])
   return null
 }

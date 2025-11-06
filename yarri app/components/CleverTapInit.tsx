@@ -11,49 +11,94 @@ export default function CleverTapInit() {
     const initializeCleverTap = async () => {
       if (Capacitor.isNativePlatform()) {
         try {
+          console.log('🚀 Initializing CleverTap Native SDK...')
           await CleverTap.setDebugLevel(3)
           await CleverTap.notifyDeviceReady()
-          // Track initial app open session
+          console.log('✅ CleverTap Native SDK ready')
+          
           await trackAppOpen()
-          // If we already have a known user, set identity; otherwise skip
+          
           try {
-            const stored = localStorage.getItem('user') || localStorage.getItem('phone')
-            if (stored) {
-              const parsed = (() => { try { return JSON.parse(stored as string) } catch { return {} } })()
-              const identity = parsed?.id || parsed?.phone || stored
-              await trackUserLogin(identity as string, {
-                Name: parsed?.name,
-                Email: parsed?.email,
-                Phone: parsed?.phone,
+            const storedUser = localStorage.getItem('user')
+            const storedPhone = localStorage.getItem('phone')
+            
+            if (storedUser) {
+              const user = JSON.parse(storedUser)
+              const identity = user?.id || user?.phone || user?._id
+              
+              if (identity) {
+                console.log('👤 Found existing user, tracking login:', identity)
+                await trackUserLogin(identity, {
+                  Name: user?.name,
+                  Email: user?.email,
+                  Phone: user?.phone,
+                  Gender: user?.gender,
+                  Age: user?.age,
+                  City: user?.city,
+                  'Profile Picture': user?.profilePic,
+                  'Coins Balance': user?.coins || 0,
+                  'User Type': user?.isPremium ? 'Premium' : 'Free'
+                })
+              }
+            } else if (storedPhone) {
+              console.log('📱 Found phone number, tracking login:', storedPhone)
+              await trackUserLogin(storedPhone, {
+                Phone: storedPhone
               })
             }
-          } catch {}
-          console.log('CleverTap initialized')
-          console.log('CleverTap initialized')
+          } catch (e) {
+            console.log('Error loading user data:', e)
+          }
+          
+          console.log('✅ CleverTap initialized successfully')
         } catch (error) {
-          console.error('CleverTap initialization failed:', error)
+          console.error('❌ CleverTap initialization failed:', error)
         }
       } else {
-        // Initialize web CleverTap and track session
+        console.log('🌐 Initializing CleverTap Web SDK...')
         await trackAppOpen()
         initMixpanel()
+        
         try {
           const storedUser = localStorage.getItem('user')
           const storedPhone = localStorage.getItem('phone')
-          if (storedUser || storedPhone) {
-            const parsed = storedUser ? (() => { try { return JSON.parse(storedUser) } catch { return {} } })() : {}
-            const identity = parsed?.id || parsed?.phone || storedPhone
-            await trackUserLogin(identity as string, {
-              Name: parsed?.name,
-              Email: parsed?.email,
-              Phone: parsed?.phone,
-            })
-            // Also identify in Mixpanel
+          
+          if (storedUser) {
+            const user = JSON.parse(storedUser)
+            const identity = user?.id || user?.phone || user?._id
+            
             if (identity) {
+              console.log('👤 Found existing user, tracking login:', identity)
+              await trackUserLogin(identity, {
+                Name: user?.name,
+                Email: user?.email,
+                Phone: user?.phone,
+                Gender: user?.gender,
+                Age: user?.age,
+                City: user?.city,
+                'Profile Picture': user?.profilePic,
+                'Coins Balance': user?.coins || 0,
+                'User Type': user?.isPremium ? 'Premium' : 'Free'
+              })
+              
               mixpanelIdentify(String(identity))
-              mixpanelPeopleSet({ Name: parsed?.name, Email: parsed?.email, Phone: parsed?.phone })
+              mixpanelPeopleSet({
+                Name: user?.name,
+                Email: user?.email,
+                Phone: user?.phone,
+                Gender: user?.gender,
+                Age: user?.age,
+                City: user?.city
+              })
             }
+          } else if (storedPhone) {
+            console.log('📱 Found phone number, tracking login:', storedPhone)
+            await trackUserLogin(storedPhone, {
+              Phone: storedPhone
+            })
           }
+          
+          console.log('✅ Web CleverTap initialized successfully')
         } catch (e) {
           console.log('Web CleverTap onUserLogin error:', e)
         }
@@ -63,5 +108,5 @@ export default function CleverTapInit() {
     initializeCleverTap();
   }, []);
 
-  return null; // This component doesn't render anything
+  return null;
 }

@@ -74,7 +74,7 @@ body {
   background: #f5f5f5;
   position: relative;
   padding-top: 0;
-  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+  padding-bottom: max(env(safe-area-inset-bottom), 48px);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
@@ -115,7 +115,7 @@ input:focus {
 }
 
 .safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: max(env(safe-area-inset-bottom), 48px);
 }
 
 .safe-left {
@@ -133,12 +133,7 @@ input:focus {
   padding-right: env(safe-area-inset-right);
 }
 
-/* Android Navigation Handling */
-@media (display-mode: standalone) {
-  .mobile-container {
-    padding-bottom: max(env(safe-area-inset-bottom), 20px);
-  }
-}
+
 
 /* SIMPLE FIX: Icon alignment for Android WebView */
 svg {

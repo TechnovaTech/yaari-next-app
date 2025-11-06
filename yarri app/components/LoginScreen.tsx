@@ -41,22 +41,27 @@ export default function LoginScreen({ onNext }: LoginScreenProps) {
         const data = await res.json()
         localStorage.setItem('user', JSON.stringify(data.user))
         
-        // Navigate immediately to prevent freeze, track in background
         const targetRoute = (data.user.name && data.user.gender) ? '/users' : '/language'
         router.push(targetRoute)
         
-        // Track user login with CleverTap (non-blocking)
-        trackUserLogin(googleId, {
+        const identity = data.user?.id || data.user?._id || googleId
+        trackUserLogin(identity, {
           Name: name,
           Email: email,
           'Login Method': 'Google',
-          'Profile Picture': profilePic
+          'Profile Picture': profilePic,
+          Phone: data.user?.phone,
+          Gender: data.user?.gender,
+          Age: data.user?.age,
+          City: data.user?.city,
+          'Coins Balance': data.user?.coins || 0,
+          'User Type': data.user?.isPremium ? 'Premium' : 'Free',
+          'Account Created': data.user?.createdAt
         }).catch(err => console.log('Tracking error:', err))
         
-        // Track login event (non-blocking)
         trackEvent('User Login', {
           'Login Method': 'Google',
-          'User ID': googleId,
+          'User ID': identity,
           'Email': email
         }).catch(err => console.log('Tracking error:', err))
         

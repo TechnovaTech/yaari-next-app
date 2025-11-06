@@ -16,8 +16,9 @@ export default function SafeAreaWrapper({
   applyBottom = true 
 }: SafeAreaWrapperProps) {
   const safeClasses = [
-    applyTop && 'pt-safe-top',
-    applyBottom && 'pb-safe-bottom',
+    // Match the utility class names defined in globals.css
+    applyTop && 'safe-top',
+    applyBottom && 'safe-bottom',
     className
   ].filter(Boolean).join(' ')
 

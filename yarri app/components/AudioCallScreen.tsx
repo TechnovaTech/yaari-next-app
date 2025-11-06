@@ -1,15 +1,18 @@
 'use client'
-import { Phone, Mic, Volume2 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import AgoraRTC, { IMicrophoneAudioTrack } from 'agora-rtc-sdk-ng'
 import { agoraConfig } from '../config/agora'
 import { useSocket } from '../contexts/SocketContext'
 import { useRouter } from 'next/navigation'
 import { useBackButton } from '../hooks/useBackButton'
 import { trackEvent, trackScreenView } from '@/utils/clevertap'
+import { trackCallEvent, syncUserToCleverTap } from '@/utils/userTracking'
 import { deductCoins } from '@/utils/coinDeduction'
 import { Capacitor } from '@capacitor/core'
 import AudioRouting from '@/utils/audioRouting'
+import AvatarCircle from './call-ui/AvatarCircle'
+import CallStats from './call-ui/CallStats'
+import ControlsBar from './call-ui/ControlsBar'
 
 // Add error handling wrapper for AudioRouting
 const safeAudioRouting = {
@@ -57,6 +60,7 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
   const [client] = useState(() => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }))
   const [coinDeductionStarted, setCoinDeductionStarted] = useState(false)
   const [remainingBalance, setRemainingBalance] = useState<number | null>(null)
+  const stabilizerTimer = useRef<NodeJS.Timeout | null>(null)
 
   // Helper to ensure earpiece routing sticks, with retries
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -76,14 +80,21 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     }
   }
 
-  // Extra reinforcement for first few seconds of call
+  // Extra reinforcement for first few seconds of call and after toggles
   const startEarpieceStabilizer = () => {
-    const slots = [0, 500, 1500, 3000, 5000]
-    slots.forEach(ms => setTimeout(() => {
-      if (Capacitor.isNativePlatform()) {
-        ensureEarpieceRoute()
+    if (stabilizerTimer.current) clearInterval(stabilizerTimer.current as unknown as number)
+    let attempts = 0
+    stabilizerTimer.current = setInterval(async () => {
+      attempts += 1
+      if (attempts > 6) {
+        if (stabilizerTimer.current) clearInterval(stabilizerTimer.current as unknown as number)
+        stabilizerTimer.current = null
+        return
       }
-    }, ms))
+      if (!isSpeakerOn && Capacitor.isNativePlatform()) {
+        await ensureEarpieceRoute()
+      }
+    }, 500) as unknown as NodeJS.Timeout
   }
 
   useEffect(() => {
@@ -194,10 +205,8 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
         const { token } = await tokenRes.json()
         console.log('Got Agora token')
 
-        // BEFORE joining/creating tracks, enforce earpiece routing on native
-        if (Capacitor.isNativePlatform()) {
-          await ensureEarpieceRoute()
-        }
+        // BEFORE joining/creating tracks, enforce earpiece routing
+        await ensureEarpieceRoute()
         
         await client.join(agoraConfig.appId, channelName, token, null)
         
@@ -209,11 +218,9 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
         
         await client.publish([audioTrack])
 
-        // After publish, reinforce earpiece routing again on native
-        if (Capacitor.isNativePlatform()) {
-          await ensureEarpieceRoute()
-          startEarpieceStabilizer()
-        }
+        // After publish, reinforce earpiece routing again
+        await ensureEarpieceRoute()
+        startEarpieceStabilizer()
 
         // Log call start
         const callData = sessionStorage.getItem('callData')
@@ -266,23 +273,26 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
         // Enable loudspeaker by default
         user.audioTrack?.setVolume(100)
         // Reinforce earpiece routing once remote audio starts playing
-        if (Capacitor.isNativePlatform()) {
-          await ensureEarpieceRoute()
-        }
+        await ensureEarpieceRoute()
       }
     })
 
     init()
     
-    // Track screen view
+    // Track screen view and call start
     trackScreenView('Audio Call')
+    
+    // Track call accepted event
+    const callData = sessionStorage.getItem('callData')
+    if (callData) {
+      const data = JSON.parse(callData)
+      trackCallEvent('audio', 'accepted', data.otherUserId).catch(err => console.log('Tracking error:', err))
+    }
 
     return () => {
       localAudioTrack?.close()
       client.leave()
-      if (Capacitor.isNativePlatform()) {
-        try { safeAudioRouting.resetAudio() } catch {}
-      }
+      try { safeAudioRouting.resetAudio() } catch {}
     }
   }, [])
 
@@ -297,15 +307,18 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     const next = !isSpeakerOn
     setIsSpeakerOn(next)
     
-    if (Capacitor.isNativePlatform()) {
-      try {
-        // Keep communication mode active when toggling routes
-        await safeAudioRouting.enterCommunicationMode()
-        await safeAudioRouting.setSpeakerphoneOn({ on: next })
-        console.log(`Speaker ${next ? 'ON' : 'OFF'}`)
-      } catch (e) {
-        console.warn('Failed to toggle speakerphone:', e)
+    try {
+      // Keep communication mode active when toggling routes
+      await safeAudioRouting.enterCommunicationMode()
+      await safeAudioRouting.setSpeakerphoneOn({ on: next })
+      if (!next) {
+        // Stabilize earpiece routing immediately after toggle
+        await ensureEarpieceRoute()
+        startEarpieceStabilizer()
       }
+      console.log(`Speaker ${next ? 'ON' : 'OFF'}`)
+    } catch (e) {
+      console.warn('Failed to toggle speakerphone:', e)
     }
   }
 
@@ -316,13 +329,21 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     
     // Track call end event
     const cost = Math.ceil(duration / 60) * rate
+    const callDataParsed = callData ? JSON.parse(callData) : {}
+    
+    trackCallEvent('audio', 'ended', callDataParsed.otherUserId, duration).catch(err => console.log('Tracking error:', err))
+    
     trackEvent('Call Ended', {
       'Call Type': 'audio',
       'Duration': duration,
       'Cost': cost,
       'Ended By': 'User',
-      'Receiver': userName
-    })
+      'Receiver': userName,
+      'Receiver ID': callDataParsed.otherUserId
+    }).catch(err => console.log('Tracking error:', err))
+    
+    // Sync updated coin balance to CleverTap
+    syncUserToCleverTap().catch(err => console.log('Sync error:', err))
 
     // Log call end to database
     if (callData) {
@@ -397,20 +418,12 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     sessionStorage.removeItem('callData')
     sessionStorage.removeItem('channelName')
 
-    // Reset audio routing on native
-    if (Capacitor.isNativePlatform()) {
-      try { await safeAudioRouting.resetAudio() } catch {}
-    }
+    // Reset audio routing
+    try { await safeAudioRouting.resetAudio() } catch {}
     
     console.log('Navigating back to users page')
     // Navigate back
     window.location.href = '/users'
-  }
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
   const cost = Math.ceil(duration / 60) * rate
@@ -418,43 +431,16 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
   return (
     <div className="full-screen-page bg-gradient-to-b from-primary to-orange-600 flex flex-col items-center justify-center p-8">
       <div className="flex-1 flex flex-col items-center justify-center">
-        <div className="w-40 h-40 rounded-full overflow-hidden bg-white/20 mb-8">
-          <img src={userAvatar} alt={userName} className="w-full h-full object-cover" />
-        </div>
-        
-        <h2 className="text-3xl font-bold text-white mb-4">{userName}</h2>
-        <p className="text-2xl text-white mb-2">{formatTime(duration)}</p>
-        <p className="text-lg text-white/80">₹{cost}</p>
-        {remainingBalance !== null && remainingBalance <= rate && (
-          <div className="mt-4 bg-red-500/90 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2 animate-pulse">
-            <img src="/images/coinicon.png" alt="coin" className="w-4 h-4 object-contain" />
-            <span className="text-white font-semibold mt-2.5">{remainingBalance} coins left</span>
-          </div>
-        )}
+        <AvatarCircle src={userAvatar} alt={userName} />
+        <CallStats userName={userName} duration={duration} cost={cost} remainingBalance={remainingBalance} rate={rate} />
       </div>
-
-      <div className="flex justify-center items-center space-x-6 mb-8">
-        <button
-          onClick={toggleSpeaker}
-          className={`w-14 h-14 rounded-full flex items-center justify-center ${isSpeakerOn ? 'bg-white' : 'bg-white/30'}`}
-        >
-          <Volume2 className={isSpeakerOn ? 'text-primary' : 'text-white'} size={24} />
-        </button>
-
-        <button
-          onClick={handleEndCall}
-          className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center shadow-lg"
-        >
-          <Phone className="text-white rotate-[135deg]" size={28} />
-        </button>
-        
-        <button
-          onClick={toggleMute}
-          className={`w-14 h-14 rounded-full flex items-center justify-center ${isMuted ? 'bg-red-500' : 'bg-white/30'}`}
-        >
-          <Mic className="text-white" size={24} />
-        </button>
-      </div>
+      <ControlsBar
+        isSpeakerOn={isSpeakerOn}
+        isMuted={isMuted}
+        onToggleSpeaker={toggleSpeaker}
+        onToggleMute={toggleMute}
+        onEndCall={handleEndCall}
+      />
     </div>
   )
 }

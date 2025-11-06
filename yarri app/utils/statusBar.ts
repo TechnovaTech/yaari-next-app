@@ -6,7 +6,8 @@ export const initStatusBar = async () => {
 
   try {
     await StatusBar.setOverlaysWebView({ overlay: false })
-    await StatusBar.setStyle({ style: Style.Dark })
+    // Use light content (white icons) on brand orange background
+    await StatusBar.setStyle({ style: Style.Light })
     await StatusBar.setBackgroundColor({ color: '#FF6B00' })
   } catch (e) {
     console.warn('StatusBar init failed:', e)
