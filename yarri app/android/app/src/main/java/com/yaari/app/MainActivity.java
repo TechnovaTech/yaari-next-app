@@ -25,9 +25,8 @@ public class MainActivity extends BridgeActivity {
             
             // Configure window settings safely
             try {
-                WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | 
-                                   WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+                WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
+                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             } catch (Exception e) {
                 Log.e(TAG, "Error configuring window settings", e);
             }

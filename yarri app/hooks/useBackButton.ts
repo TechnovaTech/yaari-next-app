@@ -6,18 +6,16 @@ export function useBackButton(onBack?: () => void) {
   const router = useRouter()
 
   useEffect(() => {
-    const handlerPromise = Promise.resolve(
-      App.addListener('backButton', ({ canGoBack }) => {
-        if (onBack) {
-          onBack()
-        } else if (canGoBack) {
-          router.back()
-        }
-      })
-    )
+    const listener = App.addListener('backButton', () => {
+      if (onBack) {
+        onBack()
+      } else {
+        router.back()
+      }
+    })
 
     return () => {
-      handlerPromise.then((handler) => handler.remove()).catch(() => {})
+      listener.then(h => h.remove())
     }
   }, [onBack, router])
 }

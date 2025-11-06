@@ -87,7 +87,14 @@ export default function ProfileMenuScreen({ onBack, onCallHistory, onTransaction
   return (
     <div className="min-h-screen bg-white">
       <div className="p-4">
-        <button onClick={onBack} className="mb-6">
+        <button 
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onBack()
+          }} 
+          className="mb-6 p-2 -ml-2 active:opacity-50"
+        >
           <ChevronLeft size={24} className="text-gray-800" />
         </button>
 

@@ -91,7 +91,15 @@ public class AudioRoutingPlugin extends Plugin {
                 
                 // Set communication mode
                 audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+                lastSpeakerOn = on;
                 applyRoute(on);
+                
+                // Force apply with delay for stubborn devices
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                    try {
+                        applyRoute(on);
+                    } catch (Exception ignored) {}
+                }, 200);
             }
             call.resolve(new JSObject().put("status", "ok").put("speakerOn", on));
         } catch (Exception e) {
@@ -123,9 +131,11 @@ public class AudioRoutingPlugin extends Plugin {
 
     private void applyRoute(boolean speakerOn) {
         if (audioManager == null) return;
-        lastSpeakerOn = speakerOn;
         try {
-            // If Android 12+, select explicit builtin device, clearing stale BT
+            // Ensure communication mode is active
+            audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+            
+            // If Android 12+, select explicit builtin device
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 try { audioManager.setCommunicationDevice(null); } catch (Throwable ignored) {}
                 AudioDeviceInfo target = null;
@@ -136,27 +146,32 @@ public class AudioRoutingPlugin extends Plugin {
                     if (speakerOn && type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) { target = dev; break; }
                 }
                 if (target != null) {
-                    audioManager.setCommunicationDevice(target);
+                    boolean success = audioManager.setCommunicationDevice(target);
+                    android.util.Log.d("AudioRouting", "setCommunicationDevice " + (speakerOn ? "SPEAKER" : "EARPIECE") + ": " + success);
                 } else {
                     audioManager.setSpeakerphoneOn(speakerOn);
+                    android.util.Log.d("AudioRouting", "setSpeakerphoneOn: " + speakerOn);
                 }
             } else {
-                // Legacy routing
+                // Legacy routing - immediate + delayed enforcement
                 audioManager.setSpeakerphoneOn(speakerOn);
-                if (!speakerOn) {
-                    android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
-                    int[] delays = new int[] { 100, 300, 600 };
-                    for (int d : delays) {
-                        h.postDelayed(() -> {
-                            try {
-                                audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-                                audioManager.setSpeakerphoneOn(false);
-                            } catch (Exception ignored) {}
-                        }, d);
-                    }
+                android.util.Log.d("AudioRouting", "Legacy setSpeakerphoneOn: " + speakerOn);
+                
+                // Multiple retries for Samsung devices
+                android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
+                int[] delays = new int[] { 50, 150, 300, 500 };
+                for (int d : delays) {
+                    h.postDelayed(() -> {
+                        try {
+                            audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+                            audioManager.setSpeakerphoneOn(speakerOn);
+                        } catch (Exception ignored) {}
+                    }, d);
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable e) {
+            android.util.Log.e("AudioRouting", "applyRoute failed", e);
+        }
     }
 
     private void requestAudioFocus() {
