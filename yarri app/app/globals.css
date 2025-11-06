@@ -20,15 +20,20 @@
 }
 
 :root {
+  /* Native CSS env() - may return 0 on some devices */
   --sat: env(safe-area-inset-top);
   --sar: env(safe-area-inset-right);
   --sab: env(safe-area-inset-bottom);
   --sal: env(safe-area-inset-left);
-  /* Map standard variable names so hooks can read them */
-  --safe-area-inset-top: env(safe-area-inset-top);
-  --safe-area-inset-right: env(safe-area-inset-right);
-  --safe-area-inset-bottom: env(safe-area-inset-bottom);
-  --safe-area-inset-left: env(safe-area-inset-left);
+  
+  /* JS-injected fallbacks (set by SafeAreaManager) */
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --statusbar-height: 0px;
+  --navbar-height: 0px;
+  --safe-bottom-extra: 0px;
 }
 
 html,
@@ -74,7 +79,7 @@ body {
   background: #f5f5f5;
   position: relative;
   padding-top: 0;
-  padding-bottom: 16px;
+  padding-bottom: max(var(--safe-area-bottom), 16px);
   padding-left: 0;
   padding-right: 0;
 }
@@ -111,8 +116,11 @@ input:focus {
 }
 
 .safe-bottom {
-  /* Use device safe area inset when available, fallback to larger 64px for gesture nav */
-  padding-bottom: max(env(safe-area-inset-bottom), 64px);
+  padding-bottom: max(var(--safe-area-bottom), var(--navbar-height), 48px);
+}
+
+.safe-bottom-extra {
+  padding-bottom: var(--safe-bottom-extra);
 }
 
 .safe-left {

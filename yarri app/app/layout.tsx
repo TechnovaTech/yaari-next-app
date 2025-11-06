@@ -8,6 +8,7 @@ import CleverTapInit from '../components/CleverTapInit'
 import RouteAnalytics from '../components/RouteAnalytics'
 import ErrorBoundary from '../components/ErrorBoundary'
 import StatusBarInit from '../components/StatusBarInit'
+import SafeAreaInit from '../components/SafeAreaInit'
 
 const balooTammudu = Baloo_Tammudu_2({ 
   subsets: ['latin'],
@@ -39,6 +40,7 @@ export default function RootLayout({
     <html lang="en" className={balooTammudu.variable}>
       <body className={balooTammudu.className}>
         <ErrorBoundary>
+          <SafeAreaInit />
           <StatusBarInit />
           <NativeStatusBar />
           <CleverTapInit />

@@ -1,39 +1,55 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Capacitor } from '@capacitor/core'
-import { StatusBar } from '@capacitor/status-bar'
+import { safeAreaManager, SafeAreaInsets, SystemBarInfo } from '@/utils/safeAreaManager'
 
 export function useSafeArea() {
-  const [insets, setInsets] = useState({ top: 0, bottom: 0, left: 0, right: 0 })
+  const [insets, setInsets] = useState<SafeAreaInsets>({ top: 0, bottom: 0, left: 0, right: 0 })
+  const [systemBarInfo, setSystemBarInfo] = useState<SystemBarInfo>({
+    statusBarHeight: 0,
+    navigationBarHeight: 0,
+    isStatusBarTransparent: false,
+    isNavigationBarTransparent: false,
+    hasGestureNavigation: false,
+  })
 
   useEffect(() => {
-    const getSafeArea = async () => {
-      if (Capacitor.isNativePlatform()) {
-        try {
-          const info: any = await StatusBar.getInfo()
-          const safe = info?.safeArea || { top: 0, bottom: 0, left: 0, right: 0 }
-          setInsets(safe)
-        } catch (e) {
-          console.error('Error getting safe area insets', e)
-          // Fallback for older Capacitor versions or browser
-          setInsets({ top: 20, bottom: 20, left: 0, right: 0 })
-        }
-      } else {
-        // Provide default values for web
-        setInsets({ top: 0, bottom: 0, left: 0, right: 0 })
-      }
+    const updateInsets = () => {
+      setInsets(safeAreaManager.getInsets())
+      setSystemBarInfo(safeAreaManager.getSystemBarInfo())
     }
 
-    getSafeArea()
+    updateInsets()
+    const unsubscribe = safeAreaManager.subscribe(updateInsets)
 
-    const resizeListener = () => getSafeArea()
-    window.addEventListener('resize', resizeListener)
-
-    return () => {
-      window.removeEventListener('resize', resizeListener)
-    }
+    return unsubscribe
   }, [])
 
-  return insets
+  return { insets, systemBarInfo }
+}
+
+// Legacy hook for backward compatibility
+export function useSafeAreaLegacy() {
+  const [insets, setInsets] = useState<SafeAreaInsets>({ top: 0, bottom: 0, left: 0, right: 0 })
+  const [systemBarInfo, setSystemBarInfo] = useState<SystemBarInfo>({
+    statusBarHeight: 0,
+    navigationBarHeight: 0,
+    isStatusBarTransparent: false,
+    isNavigationBarTransparent: false,
+    hasGestureNavigation: false,
+  })
+
+  useEffect(() => {
+    const updateInsets = () => {
+      setInsets(safeAreaManager.getInsets())
+      setSystemBarInfo(safeAreaManager.getSystemBarInfo())
+    }
+
+    updateInsets()
+    const unsubscribe = safeAreaManager.subscribe(updateInsets)
+
+    return unsubscribe
+  }, [])
+
+  return { insets, systemBarInfo }
 }

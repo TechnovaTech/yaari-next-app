@@ -41,6 +41,13 @@ const nextConfig = {
     config.resolve = config.resolve || {}
     config.resolve.alias = config.resolve.alias || {}
     config.resolve.alias['@'] = __dirname
+    
+    // Ignore markdown and other non-JS files in node_modules
+    config.module.rules.push({
+      test: /node_modules\/@capacitor-community\/safe-area\/.*\.(md|txt)$/,
+      loader: 'ignore-loader',
+    })
+    
     return config
   }
 }
