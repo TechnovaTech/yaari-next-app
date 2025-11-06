@@ -9,7 +9,11 @@ import { trackEvent, trackScreenView } from '@/utils/clevertap'
 import { trackCallEvent, syncUserToCleverTap } from '@/utils/userTracking'
 import { deductCoins } from '@/utils/coinDeduction'
 import { Capacitor } from '@capacitor/core'
+<<<<<<< HEAD
 import AudioRoute from '@/utils/audioRoute'
+=======
+import AudioRouting from '@/utils/audioRouting'
+>>>>>>> 4177c187fee3d15cb0e8556859f038071e624de4
 import AvatarCircle from './call-ui/AvatarCircle'
 import CallStats from './call-ui/CallStats'
 import ControlsBar from './call-ui/ControlsBar'
@@ -27,7 +31,7 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
   useBackButton(() => handleEndCall())
   const [duration, setDuration] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
-  const [isSpeakerOn, setIsSpeakerOn] = useState(false)
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true)
   const [localAudioTrack, setLocalAudioTrack] = useState<IMicrophoneAudioTrack | null>(null)
   const [client] = useState(() => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }))
   const [coinDeductionStarted, setCoinDeductionStarted] = useState(false)
@@ -130,8 +134,16 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
   useEffect(() => {
     const init = async () => {
       if (Capacitor.isNativePlatform()) {
+<<<<<<< HEAD
         // Default to earpiece using AudioRoute API
         await AudioRoute.setRoute({ route: 'earpiece' })
+=======
+        await AudioRouting.enterCommunicationMode()
+        // Agora starts with speaker ON by default, so we need to turn it OFF
+        await AudioRouting.setSpeakerphoneOn({ on: false })
+        setIsSpeakerOn(false)
+        console.log('Audio routing set to earpiece')
+>>>>>>> 4177c187fee3d15cb0e8556859f038071e624de4
       }
 
       try {
@@ -235,14 +247,23 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
 
   const toggleSpeaker = async () => {
     const next = !isSpeakerOn
-    setIsSpeakerOn(next)
     if (Capacitor.isNativePlatform()) {
       try {
+<<<<<<< HEAD
         await AudioRoute.setRoute({ route: next ? 'speaker' : 'earpiece' })
         console.log(`Speaker ${next ? 'ON' : 'OFF'}`)
       } catch (e) {
         console.warn('Failed to toggle audio route:', e)
+=======
+        const result = await AudioRouting.setSpeakerphoneOn({ on: next })
+        console.log(`Speaker toggled to: ${next}`, result)
+        setIsSpeakerOn(next)
+      } catch (e) {
+        console.error('Failed to toggle speakerphone:', e)
+>>>>>>> 4177c187fee3d15cb0e8556859f038071e624de4
       }
+    } else {
+      setIsSpeakerOn(next)
     }
   }
 
@@ -343,7 +364,13 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     sessionStorage.removeItem('channelName')
 
     // Reset audio routing
+<<<<<<< HEAD
     try { await AudioRoute.setRoute({ route: 'earpiece' }) } catch {}
+=======
+    if (Capacitor.isNativePlatform()) {
+      try { await AudioRouting.resetAudio() } catch (e) { console.error('Reset audio error:', e) }
+    }
+>>>>>>> 4177c187fee3d15cb0e8556859f038071e624de4
     
     console.log('Navigating back to users page')
     // Navigate back
