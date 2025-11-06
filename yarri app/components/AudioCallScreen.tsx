@@ -10,6 +10,9 @@ import { trackCallEvent, syncUserToCleverTap } from '@/utils/userTracking'
 import { deductCoins } from '@/utils/coinDeduction'
 import { Capacitor } from '@capacitor/core'
 import AudioRouting from '@/utils/audioRouting'
+import AvatarCircle from './call-ui/AvatarCircle'
+import CallStats from './call-ui/CallStats'
+import ControlsBar from './call-ui/ControlsBar'
 
 interface AudioCallScreenProps {
   userName: string
@@ -24,7 +27,7 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
   useBackButton(() => handleEndCall())
   const [duration, setDuration] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
-  const [isSpeakerOn, setIsSpeakerOn] = useState(false)
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true)
   const [localAudioTrack, setLocalAudioTrack] = useState<IMicrophoneAudioTrack | null>(null)
   const [client] = useState(() => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }))
   const [coinDeductionStarted, setCoinDeductionStarted] = useState(false)
@@ -128,7 +131,10 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     const init = async () => {
       if (Capacitor.isNativePlatform()) {
         await AudioRouting.enterCommunicationMode()
-        await AudioRouting.setSpeakerphoneOn({ on: false }) // Default to earpiece
+        // Agora starts with speaker ON by default, so we need to turn it OFF
+        await AudioRouting.setSpeakerphoneOn({ on: false })
+        setIsSpeakerOn(false)
+        console.log('Audio routing set to earpiece')
       }
 
       try {
@@ -231,14 +237,16 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
 
   const toggleSpeaker = async () => {
     const next = !isSpeakerOn
-    setIsSpeakerOn(next)
     if (Capacitor.isNativePlatform()) {
       try {
-        await AudioRouting.setSpeakerphoneOn({ on: next })
-        console.log(`Speaker ${next ? 'ON' : 'OFF'}`)
+        const result = await AudioRouting.setSpeakerphoneOn({ on: next })
+        console.log(`Speaker toggled to: ${next}`, result)
+        setIsSpeakerOn(next)
       } catch (e) {
-        console.warn('Failed to toggle speakerphone:', e)
+        console.error('Failed to toggle speakerphone:', e)
       }
+    } else {
+      setIsSpeakerOn(next)
     }
   }
 
@@ -339,7 +347,9 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
     sessionStorage.removeItem('channelName')
 
     // Reset audio routing
-    try { await safeAudioRouting.resetAudio() } catch {}
+    if (Capacitor.isNativePlatform()) {
+      try { await AudioRouting.resetAudio() } catch (e) { console.error('Reset audio error:', e) }
+    }
     
     console.log('Navigating back to users page')
     // Navigate back
