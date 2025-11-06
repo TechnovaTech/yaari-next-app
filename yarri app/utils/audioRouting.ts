@@ -1,4 +1,4 @@
-import { registerPlugin } from '@capacitor/core'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 
 export interface AudioRoutingPlugin {
   enterCommunicationMode(): Promise<{ status: string }>
@@ -6,7 +6,15 @@ export interface AudioRoutingPlugin {
   resetAudio(): Promise<{ status: string }>
 }
 
-// Always register the plugin; on web, calls will reject and are caught by callers
-const AudioRouting = registerPlugin<AudioRoutingPlugin>('AudioRouting')
+// Provide a safe Noop on web to avoid "plugin not implemented" errors
+const Noop: AudioRoutingPlugin = {
+  async enterCommunicationMode() { return { status: 'noop' } },
+  async setSpeakerphoneOn() { return { status: 'noop', speakerOn: false } },
+  async resetAudio() { return { status: 'noop' } },
+}
+
+const AudioRouting = Capacitor.isNativePlatform()
+  ? registerPlugin<AudioRoutingPlugin>('AudioRouting')
+  : Noop
 
 export default AudioRouting
