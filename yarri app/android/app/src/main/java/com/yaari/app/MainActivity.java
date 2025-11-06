@@ -12,16 +12,13 @@ public class MainActivity extends BridgeActivity {
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Register custom plugins BEFORE super.onCreate()
+        registerPlugin(AudioRoutingPlugin.class);
+        
         try {
             // Switch from splash theme to main app theme with system bar settings
             try { setTheme(R.style.AppTheme_NoActionBar); } catch (Throwable ignored) {}
             super.onCreate(savedInstanceState);
-            try {
-                // Register custom plugins
-                registerPlugin(AudioRoutingPlugin.class);
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to register AudioRoutingPlugin", e);
-            }
             
             // Configure window settings safely
             try {

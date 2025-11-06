@@ -9,7 +9,7 @@ import { trackEvent, trackScreenView } from '@/utils/clevertap'
 import { trackCallEvent, syncUserToCleverTap } from '@/utils/userTracking'
 import { deductCoins } from '@/utils/coinDeduction'
 import { Capacitor } from '@capacitor/core'
-import AudioRoute from '@/utils/audioRoute'
+import AudioRouting from '@/utils/audioRouting'
 import AvatarCircle from './call-ui/AvatarCircle'
 import CallStats from './call-ui/CallStats'
 import ControlsBar from './call-ui/ControlsBar'
@@ -27,11 +27,41 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
   useBackButton(() => handleEndCall())
   const [duration, setDuration] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
-  const [isSpeakerOn, setIsSpeakerOn] = useState(true)
+  const [isSpeakerOn, setIsSpeakerOn] = useState(false)
   const [localAudioTrack, setLocalAudioTrack] = useState<IMicrophoneAudioTrack | null>(null)
   const [client] = useState(() => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }))
   const [coinDeductionStarted, setCoinDeductionStarted] = useState(false)
   const [remainingBalance, setRemainingBalance] = useState<number | null>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const oscRef = useRef<OscillatorNode | null>(null)
+  const gainRef = useRef<GainNode | null>(null)
+
+  const ensureWebAudioAlive = async () => {
+    try {
+      const Ctx: any = (window as any).AudioContext || (window as any).webkitAudioContext
+      if (!Ctx) return
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new Ctx()
+        const ctx = audioCtxRef.current!
+        // Create a silent oscillator to keep the context alive
+        gainRef.current = ctx.createGain()
+        gainRef.current.gain.value = 0
+        oscRef.current = ctx.createOscillator()
+        oscRef.current.type = 'sine'
+        oscRef.current.frequency.value = 240
+        oscRef.current.connect(gainRef.current)
+        gainRef.current.connect(ctx.destination)
+        try { oscRef.current.start() } catch {}
+      }
+      const ctx2 = audioCtxRef.current
+      if (ctx2 && ctx2.state === 'suspended') {
+        await ctx2.resume()
+        console.log('WebAudio AudioContext resumed after route change')
+      }
+    } catch (err) {
+      console.warn('ensureWebAudioAlive failed:', err)
+    }
+  }
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -129,14 +159,36 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
 
   useEffect(() => {
     const init = async () => {
-      if (Capacitor.isNativePlatform()) {
-        // Default to earpiece using AudioRoute API
-        await AudioRoute.setRoute({ route: 'earpiece' })
-        setIsSpeakerOn(false)
-        console.log('Audio routing set to earpiece')
-      }
-
       try {
+        // Detect if current user is caller or receiver (incoming call)
+        const callDataRaw = sessionStorage.getItem('callData')
+        // Force initial speaker ON for all calls (caller and receiver)
+        const initialSpeakerOn = true
+
+        // Set audio routing for mobile (earpiece by default)
+        if (Capacitor.isNativePlatform()) {
+          try {
+            await AudioRouting.enterCommunicationMode()
+            await AudioRouting.setSpeakerphoneOn({ on: initialSpeakerOn })
+            setIsSpeakerOn(initialSpeakerOn)
+            console.log(`Audio routing set to ${initialSpeakerOn ? 'speaker' : 'earpiece'} (initial)`) 
+            await ensureWebAudioAlive()
+          } catch (e) {
+            console.warn('Failed to set initial earpiece routing:', e)
+          }
+        }
+
+        // Configure Agora Web SDK audio for speech/meeting and default to earpiece
+        try {
+          ;(AgoraRTC as any)?.setAudioProfile?.('speech_low_quality')
+          ;(AgoraRTC as any)?.setAudioScenario?.('meeting')
+          ;(AgoraRTC as any)?.setEnableSpeakerphone?.(initialSpeakerOn)
+          console.log(`Agora audio profile/scenario set; speakerphone ${initialSpeakerOn ? 'ON' : 'OFF'} via Agora`)
+          await ensureWebAudioAlive()
+        } catch (err) {
+          console.warn('Agora audio profile/scenario setup failed or unavailable:', err)
+        }
+
         const channelName = sessionStorage.getItem('channelName') || `audio_${Date.now()}`
         
         // Get Agora token from backend
@@ -203,6 +255,17 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
       await client.subscribe(user, mediaType)
       if (mediaType === 'audio') {
         user.audioTrack?.play()
+        await ensureWebAudioAlive()
+        // Attempt to enumerate audio output devices for debugging/selection
+        try {
+          const devices = await (AgoraRTC as any)?.getDevices?.()
+          const audioOutputs = Array.isArray(devices) ? devices.filter((d: any) => d.kind === 'audiooutput') : []
+          console.log('Agora audio output devices:', audioOutputs)
+          // If sink selection is supported, we could choose a device here.
+          // Example (commented): user.audioTrack?.setPlaybackDevice?.(desiredDeviceId)
+        } catch (err) {
+          console.warn('Enumerating audio output devices failed or unavailable:', err)
+        }
       }
     })
 
@@ -222,9 +285,15 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
       localAudioTrack?.close()
       client.leave()
       if (Capacitor.isNativePlatform()) {
-        // Reset to earpiece when leaving (non-async cleanup)
-        AudioRoute.setRoute({ route: 'earpiece' }).catch(() => {})
+        AudioRouting.resetAudio().catch(() => {})
       }
+      try {
+        oscRef.current?.stop()
+        oscRef.current = null
+        gainRef.current = null
+        audioCtxRef.current?.close()
+        audioCtxRef.current = null
+      } catch {}
     }
   }, [])
 
@@ -237,17 +306,21 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
 
   const toggleSpeaker = async () => {
     const next = !isSpeakerOn
-    if (Capacitor.isNativePlatform()) {
+    setIsSpeakerOn(next)
+    // Prefer native routing on Android; use Agora toggle on web
+    if (!Capacitor.isNativePlatform()) {
       try {
-        await AudioRoute.setRoute({ route: next ? 'speaker' : 'earpiece' })
-        console.log(`Speaker ${next ? 'ON' : 'OFF'}`)
-        setIsSpeakerOn(next)
-      } catch (e) {
-        console.warn('Failed to toggle audio route:', e)
+        ;(AgoraRTC as any)?.setEnableSpeakerphone?.(next)
+        console.log(`AgoraRTC.setEnableSpeakerphone(${next}) called`)
+      } catch (err) {
+        console.warn('AgoraRTC.setEnableSpeakerphone failed or unavailable:', err)
       }
-    } else {
-      setIsSpeakerOn(next)
     }
+    if (Capacitor.isNativePlatform()) {
+      await AudioRouting.setSpeakerphoneOn({ on: next })
+      console.log(`Speaker ${next ? 'ON' : 'OFF'}`)
+    }
+    await ensureWebAudioAlive()
   }
 
   const handleEndCall = async () => {
@@ -343,13 +416,13 @@ export default function AudioCallScreen({ userName, userAvatar, rate, onEndCall 
       localAudioTrack.close()
     }
     client.leave()
+    if (Capacitor.isNativePlatform()) {
+      try { await AudioRouting.resetAudio() } catch {}
+    }
     sessionStorage.removeItem('callData')
     sessionStorage.removeItem('channelName')
 
-    // Reset audio routing
-    if (Capacitor.isNativePlatform()) {
-      try { await AudioRoute.setRoute({ route: 'earpiece' }) } catch {}
-    }
+
     
     console.log('Navigating back to users page')
     // Navigate back
