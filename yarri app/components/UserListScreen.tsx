@@ -422,10 +422,13 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
 
   return (
     <div className="min-h-screen bg-gray-50" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
-      <div className="sticky z-50 w-full bg-white p-4 flex items-center justify-between shadow-sm" style={{ top: 'var(--safe-area-top)' }}>
+      <div
+        className="sticky top-0 z-50 w-full bg-[#FF7A00] flex items-center justify-between p-4 shadow-sm"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
         <div className="flex items-center gap-2" style={{ alignItems: 'center' }}>
           <Heart className="text-primary" size={24} fill="#FF6B35" style={{ marginTop: '4px' }} />
-          <h1 className="text-2xl font-bold text-primary mt-5" style={{ lineHeight: '24px' }}>Yaari</h1>
+          <h1 className="text-2xl font-bold text-white mt-5" style={{ lineHeight: '24px' }}>Yaari</h1>
         </div>
         <div className="flex items-center space-x-3">
           <button 

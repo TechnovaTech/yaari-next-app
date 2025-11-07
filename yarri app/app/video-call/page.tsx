@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 
 const VideoCallScreen = dynamic(() => import('@/components/VideoCallScreen'), { ssr: false })
+import PageLayout from '@/components/PageLayout'
 
 export default function VideoCallPage() {
   const router = useRouter()
@@ -22,14 +23,16 @@ export default function VideoCallPage() {
   if (!callData) return null
 
   return (
-    <VideoCallScreen
-      userName={callData.userName}
-      userAvatar={callData.userAvatar}
-      rate={callData.rate}
-      onEndCall={() => {
-        sessionStorage.removeItem('callData')
-        router.push('/users')
-      }}
-    />
+    <PageLayout hasHeader>
+      <VideoCallScreen
+        userName={callData.userName}
+        userAvatar={callData.userAvatar}
+        rate={callData.rate}
+        onEndCall={() => {
+          sessionStorage.removeItem('callData')
+          router.push('/users')
+        }}
+      />
+    </PageLayout>
   )
 }

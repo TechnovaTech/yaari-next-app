@@ -520,7 +520,10 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
       </div>
 
       {/* Save Button */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg safe-bottom">
+      <div
+        className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg safe-bottom"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         <button 
           onClick={async () => {
             if (!userName.trim()) {

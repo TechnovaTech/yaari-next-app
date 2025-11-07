@@ -12,7 +12,6 @@ const SafeAreaLayout: React.FC<SafeAreaLayoutProps> = ({ children, className }) 
     <div
       className={`h-full w-full ${className || ''}`}
       style={{
-        paddingTop: 'var(--safe-area-top)',
         paddingBottom: 'var(--safe-area-bottom)',
         // We might need to add paddingLeft and paddingRight if horizontal safe areas become an issue
         // paddingLeft: 'var(--safe-area-left)',

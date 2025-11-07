@@ -1,11 +1,13 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import TransactionHistoryScreen from '@/components/TransactionHistoryScreen'
+import PageLayout from '@/components/PageLayout'
 
 export default function TransactionHistoryPage() {
   const router = useRouter()
-  
   return (
-    <TransactionHistoryScreen onBack={() => router.back()} />
+    <PageLayout>
+      <TransactionHistoryScreen onBack={() => router.back()} />
+    </PageLayout>
   )
 }

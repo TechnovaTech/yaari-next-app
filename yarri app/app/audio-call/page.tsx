@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 
 const AudioCallScreen = dynamic(() => import('@/components/AudioCallScreen'), { ssr: false })
+import PageLayout from '@/components/PageLayout'
 
 export default function AudioCallPage() {
   const router = useRouter()
@@ -21,14 +22,16 @@ export default function AudioCallPage() {
   if (!callData) return null
 
   return (
-    <AudioCallScreen
-      userName={callData.userName}
-      userAvatar={callData.userAvatar}
-      rate={callData.rate}
-      onEndCall={() => {
-        sessionStorage.removeItem('callData')
-        router.push('/users')
-      }}
-    />
+    <PageLayout hasHeader>
+      <AudioCallScreen
+        userName={callData.userName}
+        userAvatar={callData.userAvatar}
+        rate={callData.rate}
+        onEndCall={() => {
+          sessionStorage.removeItem('callData')
+          router.push('/users')
+        }}
+      />
+    </PageLayout>
   )
 }

@@ -26,10 +26,9 @@ const config: CapacitorConfig = {
       style: 'dark'
     },
     StatusBar: {
-      style: 'light',
-      backgroundColor: '#FF6B00',
-      overlaysWebView: false,
-      shouldUseStatusBarPadding: true
+      overlaysWebView: true,
+      backgroundColor: '#FF7A00',
+      style: 'light'
     },
     GoogleAuth: {
       scopes: ['profile', 'email'],
@@ -46,7 +45,7 @@ const config: CapacitorConfig = {
     allowMixedContent: true,
     captureInput: true,
     webContentsDebuggingEnabled: true,
-    backgroundColor: '#FF6B00',
+    backgroundColor: '#FF7A00',
     overrideUserAgent: undefined,
     appendUserAgent: undefined
   },
