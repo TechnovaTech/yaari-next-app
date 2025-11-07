@@ -15,10 +15,10 @@ if not exist out (
 )
 
 echo [2/5] Refreshing Capacitor www assets with latest Next export...
-if exist www (
-  rmdir /S /Q www
+REM Ensure www exists; avoid deletion issues on OneDrive by mirroring instead
+if not exist www (
+  mkdir www
 )
-mkdir www
 REM Use robocopy if available for reliability; fallback to xcopy
 where robocopy >nul 2>nul
 if %errorlevel%==0 (

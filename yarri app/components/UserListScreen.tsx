@@ -423,17 +423,17 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
   return (
     <div className="min-h-screen bg-gray-50" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
       <div
-        className="sticky top-0 z-50 w-full bg-[#FF7A00] flex items-center justify-between p-4 shadow-sm"
+        className="sticky top-0 z-50 w-full bg-[#FFF7F3] flex items-center justify-between p-4 shadow-sm"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="flex items-center gap-2" style={{ alignItems: 'center' }}>
-          <Heart className="text-primary" size={24} fill="#FF6B35" style={{ marginTop: '4px' }} />
-          <h1 className="text-2xl font-bold text-white mt-5" style={{ lineHeight: '24px' }}>Yaari</h1>
+          <Heart className="text-[#E53935]" size={24} fill="#E53935" style={{ marginTop: '4px' }} />
+          <h1 className="text-2xl font-bold text-[#FF7A3E] mt-5" style={{ lineHeight: '24px' }}>Yaari</h1>
         </div>
         <div className="flex items-center space-x-3">
           <button 
             onClick={onCoinClick}
-            className="flex items-center gap-2 border-2 border-orange-500 px-3 py-0 rounded-lg mt-2.5"
+            className="flex items-center gap-2 bg-[#FDE5D8] px-3 py-0 rounded-lg mt-2.5"
             style={{ alignItems: 'center' }}
           >
             {useFallbackIcon ? (
@@ -451,11 +451,11 @@ export default function UserListScreen({ onNext, onProfileClick, onCoinClick, on
                 onError={() => setUseFallbackIcon(true)}
               />
             )}
-            <span className="text-gray-800 font-bold text-base mt-3" style={{ lineHeight: '20px' }}>{balance}</span>
+            <span className="text-[#E46A3A] font-bold text-base mt-3" style={{ lineHeight: '20px' }}>{balance}</span>
           </button>
           <button 
             onClick={onProfileClick}
-            className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center mt-2.5 overflow-hidden"
+            className="w-10 h-10 bg-white border-2 border-[#6C8AA1] rounded-full flex items-center justify-center mt-2.5 overflow-hidden"
           >
             {currentUserProfilePic ? (
               <img src={currentUserProfilePic} alt="Profile" className="w-full h-full object-cover" />
