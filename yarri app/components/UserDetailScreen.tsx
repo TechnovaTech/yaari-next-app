@@ -314,7 +314,7 @@ export default function UserDetailScreen({ onBack, userId, onStartCall, onCoinCl
   return (
     <div className="min-h-screen bg-white">
       {/* Add safe-area top padding so the back button sits below the status bar */}
-      <div className="p-4 safe-top">
+      <div className="p-4">
         <button onClick={onBack}>
           <ArrowLeft size={24} className="text-gray-800" />
         </button>
@@ -387,8 +387,8 @@ export default function UserDetailScreen({ onBack, userId, onStartCall, onCoinCl
       </div>
 
       {callAccess !== 'none' && (
-        // Add safe-area bottom padding to avoid overlapping Android navigation
-        <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg safe-bottom">
+        // Add safe-area bottom offset to avoid overlapping Android navigation and iOS home indicator
+        <div className="fixed left-0 right-0 bg-white p-4 shadow-lg" style={{ bottom: 'var(--safe-area-bottom)' }}>
           <div className="flex space-x-3">
             {(callAccess === 'video' || callAccess === 'full') && (
               <button 

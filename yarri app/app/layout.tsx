@@ -9,6 +9,7 @@ import RouteAnalytics from '../components/RouteAnalytics'
 import ErrorBoundary from '../components/ErrorBoundary'
 import StatusBarInit from '../components/StatusBarInit'
 import SafeAreaInit from '../components/SafeAreaInit'
+import SafeAreaLayout from '../components/SafeAreaLayout'
 
 const balooTammudu = Baloo_Tammudu_2({ 
   subsets: ['latin'],
@@ -47,9 +48,11 @@ export default function RootLayout({
           <SocketProvider>
             <LanguageProvider>
               <div className="mobile-container">
-                <GlobalCallUI />
-                <RouteAnalytics />
-                {children}
+                <SafeAreaLayout>
+                  <GlobalCallUI />
+                  <RouteAnalytics />
+                  {children}
+                </SafeAreaLayout>
               </div>
             </LanguageProvider>
           </SocketProvider>

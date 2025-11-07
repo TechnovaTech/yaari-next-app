@@ -30,7 +30,7 @@ export default function DashboardScreen() {
     <div className="min-h-screen bg-gray-50">
       {renderContent()}
       
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
+      <div className="fixed left-0 right-0 bg-white border-t border-gray-200" style={{ bottom: 'var(--safe-area-bottom)' }}>
         <div className="flex justify-around py-2">
           <button
             onClick={() => { trackEvent('BottomTabClick', { tab: 'home' }); setActiveTab('home') }}

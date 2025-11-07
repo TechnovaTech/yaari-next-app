@@ -1,0 +1,58 @@
+import { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'com.yaari.app',
+  appName: 'Yaari',
+  webDir: 'www',
+  bundledWebRuntime: false,
+  server: {
+    androidScheme: 'https',
+    hostname: 'localhost',
+    allowNavigation: [
+      'admin.yaari.me',
+      'www.googleapis.com',
+      'accounts.google.com',
+      'checkout.razorpay.com'
+    ]
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 2000,
+      backgroundColor: '#FF6B00',
+      showSpinner: false
+    },
+    Keyboard: {
+      resize: 'native',
+      style: 'dark'
+    },
+    StatusBar: {
+      style: 'light',
+      backgroundColor: '#FF6B00',
+      overlaysWebView: false,
+      shouldUseStatusBarPadding: true
+    },
+    GoogleAuth: {
+      scopes: ['profile', 'email'],
+      clientId: '38963010109-kms7n3hb3dno6m5ol27km954mnmbf0vc.apps.googleusercontent.com',
+      androidClientId: '38963010109-kms7n3hb3dno6m5ol27km954mnmbf0vc.apps.googleusercontent.com',
+      serverClientId: '38963010109-kms7n3hb3dno6m5ol27km954mnmbf0vc.apps.googleusercontent.com',
+      forceCodeForRefreshToken: false
+    },
+    App: {
+      androidBackButton: 'enabled'
+    }
+  },
+  android: {
+    allowMixedContent: true,
+    captureInput: true,
+    webContentsDebuggingEnabled: true,
+    backgroundColor: '#FF6B00',
+    overrideUserAgent: undefined,
+    appendUserAgent: undefined
+  },
+  ios: {
+    contentInset: 'automatic'
+  }
+};
+
+export default config;

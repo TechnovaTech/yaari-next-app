@@ -407,7 +407,7 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
           )}
         </div>
         
-        <div className="absolute top-8 left-0 right-0 text-center text-white z-10">
+        <div className="absolute left-0 right-0 text-center text-white z-10" style={{ top: 'calc(var(--safe-area-top) + 8px)' }}>
           <h2 className="text-2xl font-bold mb-2">{userName}</h2>
           <p className="text-lg">{formatTime(duration)}</p>
           <p className="text-sm text-gray-400 mt-1">₹{cost}</p>
@@ -419,7 +419,7 @@ export default function VideoCallScreen({ userName, userAvatar, rate, onEndCall 
           )}
         </div>
 
-        <div className="absolute bottom-32 left-4 z-10">
+        <div className="absolute left-4 z-10" style={{ bottom: 'calc(var(--safe-area-bottom) + 32px)' }}>
           <div id="local-video" className="w-24 h-32 bg-gray-800 rounded-lg overflow-hidden" />
           <button
             onClick={flipCamera}

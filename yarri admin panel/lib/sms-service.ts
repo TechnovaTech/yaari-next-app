@@ -24,7 +24,7 @@ class SMSService {
       password: process.env.GUPSHUP_PASSWORD || '*v$4g3My',
       baseUrl: process.env.GUPSHUP_BASE_URL || 'https://enterprise.smsgupshup.com',
       mask: process.env.GUPSHUP_MASK || 'YAARI',
-      dltTemplateId: process.env.DLT_TEMPLATE_ID || '1707176111063116056',
+      dltTemplateId: process.env.DLT_TEMPLATE_ID || '1707176166167642496',
       dltEntityId: process.env.DLT_ENTITY_ID || undefined,
     };
   }
@@ -36,10 +36,7 @@ class SMSService {
         ? phoneNumber 
         : `91${phoneNumber.replace(/^\+?91/, '')}`;
 
-      // DLT template exact text from CSV (with newline):
-      // "Dear Yaari User,\nYour OTP is @__123__@. Do not share it with anyone. Valid for 10 minutes."
-      // Replace placeholder with actual OTP. Keep punctuation/spacing identical.
-      const message = `Dear Yaari User,\nYour OTP is ${otp}. Do not share it with anyone. Valid for 10 minutes.`;
+      const message = `Dear Yaari User,\n The OTP for login is ${otp}. Bitesize Learning Private Limited.`;
 
       const params = new URLSearchParams({
         userid: this.config.userid,

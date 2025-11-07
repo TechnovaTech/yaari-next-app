@@ -41,47 +41,67 @@ class SafeAreaManager {
 
   private async detectSafeArea() {
     try {
-      // Use CSS env() values first
+      // Read CSS env() values
       const root = document.documentElement
       const computedStyle = getComputedStyle(root)
-      
       const envTop = parseInt(computedStyle.getPropertyValue('--sat').replace('px', '')) || 0
       const envBottom = parseInt(computedStyle.getPropertyValue('--sab').replace('px', '')) || 0
       const envLeft = parseInt(computedStyle.getPropertyValue('--sal').replace('px', '')) || 0
       const envRight = parseInt(computedStyle.getPropertyValue('--sar').replace('px', '')) || 0
-      
-      // If env() values are available, use them
-      if (envTop > 0 || envBottom > 0) {
-        this.insets = {
-          top: envTop,
-          bottom: envBottom,
-          left: envLeft,
-          right: envRight,
-        }
-        return
-      }
-      
-      // Fallback to StatusBar API
-      const info: any = await StatusBar.getInfo()
-      if (info?.height) {
-        this.insets.top = info.height
-      }
-      
-      // Detect bottom inset based on platform
+
       const platform = Capacitor.getPlatform()
+      const statusInfo: any = await StatusBar.getInfo().catch(() => ({}))
+      const overlays = statusInfo?.overlays === true
+      const statusBarHeight = statusInfo?.height || 0
+
+      // OEM heuristics
+      const ua = (typeof navigator !== 'undefined' ? navigator.userAgent : '') || ''
+      const isSamsung = /Samsung|SM-|SAMSUNG/i.test(ua)
+      const isXiaomi = /Xiaomi|MiuiBrowser|MIUI/i.test(ua)
+
+      // Compute top inset per platform
       if (platform === 'android') {
-        // Android: detect gesture nav (usually 20-24px) vs button nav (48px)
-        const screenHeight = window.innerHeight
-        const visualHeight = window.visualViewport?.height || screenHeight
-        const bottomInset = screenHeight - visualHeight
-        this.insets.bottom = bottomInset > 0 ? bottomInset : 0
+        if (!overlays) {
+          // When WebView does NOT overlay the status bar, do not add extra top padding.
+          // Fixes Xiaomi/MIUI double-padding when envTop returns a non-zero value.
+          this.insets.top = 0
+        } else {
+          // Overlaying status bar: use measured height (fallback to envTop or default)
+          this.insets.top = statusBarHeight || envTop || 24
+        }
+
+        // Samsung-specific fallback: some OneUI devices report overlays=false but still draw under the status bar.
+        // If content appears overlapped (envTop==0 and overlays==false), use status bar height as top inset.
+        if (isSamsung && !overlays && this.insets.top === 0) {
+          this.insets.top = statusBarHeight || 24
+        }
+
+        // Bottom inset: prefer env() if available, otherwise compute from visual viewport
+        if (envBottom > 0) {
+          this.insets.bottom = envBottom
+        } else {
+          const screenHeight = window.innerHeight
+          const visualHeight = window.visualViewport?.height || screenHeight
+          const bottomInset = screenHeight - visualHeight
+          this.insets.bottom = bottomInset > 0 ? bottomInset : 0
+        }
+
+        // Sides
+        this.insets.left = envLeft
+        this.insets.right = envRight
       } else if (platform === 'ios') {
-        // iOS: use default for devices with home indicator
-        this.insets.bottom = 34
+        // iOS: env() values are reliable; fallback to notch defaults
+        this.insets.top = envTop > 0 ? envTop : 44
+        this.insets.bottom = envBottom > 0 ? envBottom : 34
+        this.insets.left = envLeft
+        this.insets.right = envRight
+      } else {
+        // Web/Desktop
+        this.insets = { top: 0, bottom: 0, left: 0, right: 0 }
       }
-      
-      // If still no insets, use defaults
-      if (this.insets.top === 0 && this.insets.bottom === 0) {
+
+      // If still no insets, use platform defaults
+      if (this.insets.top === 0 && this.insets.bottom === 0 && platform !== 'android') {
         this.setNativeDefaults()
       }
     } catch (e) {
