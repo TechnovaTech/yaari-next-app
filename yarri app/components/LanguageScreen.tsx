@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { trackScreenView, trackEvent } from '../utils/clevertap'
+import { Capacitor } from '@capacitor/core'
 
 interface LanguageScreenProps {
   onNext: () => void
@@ -8,14 +9,45 @@ interface LanguageScreenProps {
 
 export default function LanguageScreen({ onNext, onSelectLanguage }: LanguageScreenProps) {
   const [selectedLanguage, setSelectedLanguage] = useState('हिंदी')
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     trackScreenView('Language Select')
   }, [])
 
-  const handleNext = () => {
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://admin.yaari.me'
+  const buildApiUrl = (path: string) => {
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    const isNative = Capacitor.isNativePlatform()
+    return (!isLocal || isNative) ? `${API_BASE}/api${path}` : `/api${path}`
+  }
+
+  const handleNext = async () => {
     const lang = selectedLanguage === 'English' ? 'en' : 'hi'
     trackEvent('LanguageNextClicked', { language: lang })
+    
+    const user = localStorage.getItem('user')
+    if (user) {
+      const userData = JSON.parse(user)
+      userData.language = lang
+      localStorage.setItem('user', JSON.stringify(userData))
+      
+      if (userData.id) {
+        setLoading(true)
+        try {
+          await fetch(buildApiUrl(`/users/${userData.id}`), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ language: lang }),
+          })
+        } catch (error) {
+          console.error('Error saving language:', error)
+        } finally {
+          setLoading(false)
+        }
+      }
+    }
+    
     onSelectLanguage(lang)
     onNext()
   }
@@ -46,9 +78,10 @@ export default function LanguageScreen({ onNext, onSelectLanguage }: LanguageScr
         
         <button 
           onClick={handleNext}
-          className="w-full bg-primary text-white py-4 rounded-full font-semibold text-base mt-8 flex items-center justify-center"
+          disabled={loading}
+          className="w-full bg-primary text-white py-4 rounded-full font-semibold text-base mt-8 flex items-center justify-center disabled:opacity-50"
         >
-          Next
+          {loading ? 'Saving...' : 'Next'}
         </button>
       </div>
     </div>

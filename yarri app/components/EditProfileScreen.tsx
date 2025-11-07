@@ -10,7 +10,7 @@ interface EditProfileScreenProps {
 }
 
 export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
-  const { lang } = useLanguage()
+  const { lang, setLang } = useLanguage()
   const t = translations[lang]
   const [userName, setUserName] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
@@ -131,7 +131,9 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
       setAboutMe(userData.about || '')
       setHobbies(userData.hobbies || [])
       setGender(userData.gender || '')
-      setSelectedLanguage(userData.language || 'en')
+      const userLang = userData.language || 'en'
+      setSelectedLanguage(userLang)
+      setLang(userLang)
       
       // Load images from database and validate to avoid broken placeholders
       if (userData.id) {
@@ -260,7 +262,10 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
         </button>
         <div className="flex gap-2">
           <button
-            onClick={() => setSelectedLanguage('en')}
+            onClick={() => {
+              setSelectedLanguage('en')
+              setLang('en')
+            }}
             className={`px-4 py-2 rounded-full text-sm font-semibold ${
               selectedLanguage === 'en'
                 ? 'bg-primary text-white'
@@ -270,7 +275,10 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
             EN
           </button>
           <button
-            onClick={() => setSelectedLanguage('hi')}
+            onClick={() => {
+              setSelectedLanguage('hi')
+              setLang('hi')
+            }}
             className={`px-4 py-2 rounded-full text-sm font-semibold ${
               selectedLanguage === 'hi'
                 ? 'bg-primary text-white'
@@ -334,8 +342,8 @@ export default function EditProfileScreen({ onBack }: EditProfileScreenProps) {
       {/* Gender Display */}
       <div className="px-4 mb-6">
         <label className="block text-sm font-semibold text-gray-700 mb-2">Gender</label>
-        <div className="w-full p-4 border border-gray-300 rounded-full text-base bg-gray-100 text-gray-700 capitalize">
-          {gender || 'Not set'}
+        <div className="w-full p-4 border border-gray-300 rounded-full text-base bg-gray-100 text-gray-700">
+          {gender === 'male' ? t.male : gender === 'female' ? t.female : gender === 'other' ? t.other : 'Not set'}
         </div>
       </div>
 
