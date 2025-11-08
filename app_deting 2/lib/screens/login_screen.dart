@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_api.dart';
 
 class LoginPage extends StatefulWidget {
@@ -141,7 +142,12 @@ class _LoginPageState extends State<LoginPage> {
 
                     // 🔹 Terms & Conditions
                     GestureDetector(
-                      onTap: () => Navigator.pushNamed(context, '/privacy_policy'),
+                      onTap: () async {
+                        final Uri termsOfServiceUrl = Uri.parse('https://yaari.me/terms');
+                        if (!await launchUrl(termsOfServiceUrl, mode: LaunchMode.inAppWebView)) {
+                          throw Exception('Could not launch $termsOfServiceUrl');
+                        }
+                      },
                       child: const Text(
                         'Terms & Condition',
                         style: TextStyle(

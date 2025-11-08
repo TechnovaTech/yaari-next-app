@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
@@ -48,13 +49,23 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   _MenuTile(
                     icon: Icons.privacy_tip,
                     label: 'Privacy Policy',
-                    onTap: () => Navigator.pushNamed(context, '/privacy_policy_details'),
+                    onTap: () async {
+                      final Uri privacyPolicyUrl = Uri.parse('https://yaari.me/privacy');
+                      if (!await launchUrl(privacyPolicyUrl, mode: LaunchMode.inAppWebView)) {
+                        throw Exception('Could not launch $privacyPolicyUrl');
+                      }
+                    },
                   ),
                   const SizedBox(height: 14),
                   _MenuTile(
                     icon: Icons.lock_outline,
                     label: 'Terms of Service',
-                    onTap: () => Navigator.pushNamed(context, '/terms_of_service'),
+                    onTap: () async {
+                      final Uri termsOfServiceUrl = Uri.parse('https://yaari.me/terms');
+                      if (!await launchUrl(termsOfServiceUrl, mode: LaunchMode.inAppWebView)) {
+                        throw Exception('Could not launch $termsOfServiceUrl');
+                      }
+                    },
                   ),
                 ],
               ),
