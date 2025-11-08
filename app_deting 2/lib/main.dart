@@ -79,7 +79,16 @@ class _AppStartState extends State<AppStart> {
       final userJson = prefs.getString('user');
       if (!mounted) return;
       if (userJson != null && userJson.isNotEmpty) {
-        Navigator.pushReplacementNamed(context, '/home');
+        // First-time gating: require language and gender selection once
+        final language = prefs.getString('language');
+        final gender = prefs.getString('gender');
+        if (language == null || language.isEmpty) {
+          Navigator.pushReplacementNamed(context, '/language');
+        } else if (gender == null || gender.isEmpty) {
+          Navigator.pushReplacementNamed(context, '/gender');
+        } else {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
       } else {
         Navigator.pushReplacementNamed(context, '/login');
       }
