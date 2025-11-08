@@ -121,14 +121,17 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             const Text('❤️', style: TextStyle(fontSize: 20, color: Color(0xFFFF8547))),
             const SizedBox(width: 8),
-            Text(
-              'Yaari',
-              style: GoogleFonts.getFont(
-                'Baloo Tammudu 2',
-                textStyle: const TextStyle(
-                  color: Color(0xFFFF8547),
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                'Yaari',
+                style: GoogleFonts.getFont(
+                  'Baloo Tammudu 2',
+                  textStyle: const TextStyle(
+                    color: Color(0xFFFF8547),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
