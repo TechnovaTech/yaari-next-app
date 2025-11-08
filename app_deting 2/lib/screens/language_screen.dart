@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LanguageScreen extends StatefulWidget {
   static const String routeName = '/language';
@@ -13,6 +14,20 @@ class _LanguageScreenState extends State<LanguageScreen> {
 
   void _onSelect(String code) {
     setState(() => _selected = code);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedLanguage();
+  }
+
+  Future<void> _loadSavedLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('language');
+    if (saved != null && mounted) {
+      setState(() => _selected = saved);
+    }
   }
 
   @override
@@ -90,12 +105,11 @@ class _LanguageScreenState extends State<LanguageScreen> {
                   ),
                   onPressed: _selected == null
                       ? null
-                      : () {
-                          Navigator.pushNamed(
-                            context,
-                            '/gender',
-                            arguments: {'language': _selected},
-                          );
+                      : () async {
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setString('language', _selected!);
+                          if (!mounted) return;
+                          Navigator.pushNamed(context, '/gender');
                         },
                   child: const Text(
                     'Next',

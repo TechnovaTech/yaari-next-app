@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app_deting/models/profile_store.dart';
 
 class GenderScreen extends StatefulWidget {
   static const String routeName = '/gender';
@@ -13,6 +15,20 @@ class _GenderScreenState extends State<GenderScreen> {
 
   void _onSelect(String value) {
     setState(() => _selected = value);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedGender();
+  }
+
+  Future<void> _loadSavedGender() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('gender');
+    if (saved != null && mounted) {
+      setState(() => _selected = saved);
+    }
   }
 
   @override
@@ -94,12 +110,14 @@ class _GenderScreenState extends State<GenderScreen> {
                   ),
                   onPressed: _selected == null
                       ? null
-                      : () {
-                          Navigator.pushNamed(
-                            context,
-                            '/home',
-                            arguments: {'gender': _selected},
-                          );
+                      : () async {
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setString('gender', _selected!);
+                          // Update ProfileStore gender for in-app use
+                          final current = ProfileStore.instance.notifier.value;
+                          ProfileStore.instance.update(current.copyWith(gender: _selected!));
+                          if (!mounted) return;
+                          Navigator.pushNamed(context, '/home');
                         },
                   child: const Text(
                     'Next',
