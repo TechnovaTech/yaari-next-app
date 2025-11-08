@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_api.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -11,6 +13,7 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _phoneController = TextEditingController();
   final FocusNode _phoneFocusNode = FocusNode();
   static const Color accent = Color(0xFFFF8547);
+  bool _isSending = false;
 
   @override
   void initState() {
@@ -120,19 +123,17 @@ class _LoginPageState extends State<LoginPage> {
                             borderRadius: BorderRadius.circular(28),
                           ),
                         ),
-                        onPressed: () {
-                          final raw = _phoneController.text.trim();
-                          final fullNumber = '+91${raw.isNotEmpty ? ' ' : ''}$raw';
-                          Navigator.pushNamed(
-                            context,
-                            '/otp',
-                            arguments: fullNumber,
-                          );
-                        },
-                        child: const Text(
-                          'Get OTP',
-                          style: TextStyle(fontSize: 16, color: Colors.white),
-                        ),
+                        onPressed: _isSending ? null : _sendOtpFixed,
+                        child: _isSending
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                              )
+                            : const Text(
+                                'Get OTP',
+                                style: TextStyle(fontSize: 16, color: Colors.white),
+                              ),
                       ),
                     ),
 
@@ -159,5 +160,66 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleSendOtp() async {
+    final raw = _phoneController.text.trim();
+    final isValid = RegExp(r'^\d{10}$').hasMatch(raw);
+    if (!isValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid 10-digit phone number')),
+      );
+      return;
+    }
+
+    final phone = '+91$raw';
+
+    setState(() => _isSending = true);
+    try {
+      final result = await AuthApi.sendOtp(phone);
+      if (result['success'] == true) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('phone', phone);
+        if (!mounted) return;
+        Navigator.pushNamed(context, '/otp', arguments: phone);
+      } else {
+        final msg = (result['message'] ?? 'Failed to send OTP').toString();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+  Future<void> _sendOtpFixed() async {
+    final raw = _phoneController.text.trim();
+    final isValid = RegExp(r'^\d{10}$').hasMatch(raw);
+    if (!isValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid 10-digit phone number')),
+      );
+      return;
+    }
+
+    final phone = '+91$raw';
+
+    setState(() => _isSending = true);
+    try {
+      final result = await AuthApi.sendOtp(phone);
+      if (result['success'] == true) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('phone', phone);
+        if (!mounted) return;
+        Navigator.pushNamed(context, '/otp', arguments: phone);
+      } else {
+        final msg = (result['message'] ?? 'Failed to send OTP').toString();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
   }
 }

@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:pinput/pinput.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_api.dart';
 // removed: import 'verified_screen.dart';
 
 class OtpScreen extends StatefulWidget {
@@ -13,6 +16,8 @@ class _OtpScreenState extends State<OtpScreen> {
   final TextEditingController _otpController = TextEditingController();
   final FocusNode _otpFocusNode = FocusNode();
   bool _isChecked = false;
+  bool _isVerifying = false;
+  bool _isResending = false;
 
   @override
   void initState() {
@@ -31,7 +36,8 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final phone = ModalRoute.of(context)?.settings.arguments as String? ?? '+91 9999999999';
+    final phoneArg = ModalRoute.of(context)?.settings.arguments as String?;
+    final phone = phoneArg ?? '';
 
     final defaultPinTheme = PinTheme(
       width: 45,
@@ -108,15 +114,29 @@ class _OtpScreenState extends State<OtpScreen> {
                           borderRadius: BorderRadius.circular(25),
                         ),
                       ),
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/language');
-                      },
-                      child: const Text(
-                        'Verify & Continue',
-                        style: TextStyle(fontSize: 16, color: Colors.white),
-                      ),
+                      onPressed: _isVerifying ? null : () => _handleVerify(phone),
+                      child: _isVerifying
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                            )
+                          : const Text(
+                              'Verify & Continue',
+                              style: TextStyle(fontSize: 16, color: Colors.white),
+                            ),
                     ),
                     const SizedBox(height: 15),
+                    TextButton(
+                      onPressed: _isResending ? null : () => _handleResend(phone),
+                      child: _isResending
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2.5),
+                            )
+                          : const Text('Resend OTP'),
+                    ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -143,5 +163,80 @@ class _OtpScreenState extends State<OtpScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleVerify(String phoneArg) async {
+    final otp = _otpController.text.trim();
+    if (!_isChecked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please confirm you are 18+')),
+      );
+      return;
+    }
+    if (!RegExp(r'^\d{6}$').hasMatch(otp)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid 6-digit OTP')),
+      );
+      return;
+    }
+
+    // Prefer argument; fallback to stored phone
+    String phone = phoneArg;
+    if (phone.isEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      phone = prefs.getString('phone') ?? '';
+    }
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Phone number missing. Go back and request OTP again.')),
+      );
+      return;
+    }
+
+    setState(() => _isVerifying = true);
+    try {
+      final result = await AuthApi.verifyOtp(phone: phone, otp: otp);
+      if (result['success'] == true) {
+        final prefs = await SharedPreferences.getInstance();
+        // Store user profile JSON (if present)
+        final data = result['data'] ?? {};
+        await prefs.setString('user', jsonEncode(data));
+        if (!mounted) return;
+        Navigator.pushNamed(context, '/language');
+      } else {
+        final msg = (result['message'] ?? 'Invalid OTP').toString();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => _isVerifying = false);
+    }
+  }
+
+  Future<void> _handleResend(String phoneArg) async {
+    String phone = phoneArg;
+    if (phone.isEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      phone = prefs.getString('phone') ?? '';
+    }
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Phone number missing. Go back and request OTP again.')),
+      );
+      return;
+    }
+    setState(() => _isResending = true);
+    try {
+      final result = await AuthApi.sendOtp(phone);
+      final ok = result['success'] == true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ok ? 'OTP resent' : (result['message'] ?? 'Failed to resend OTP').toString())),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => _isResending = false);
+    }
   }
 }
