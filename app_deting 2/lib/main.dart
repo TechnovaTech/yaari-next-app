@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/login_screen.dart';
 import 'screens/otp_screen.dart';
 import 'screens/profile_screen.dart';
@@ -32,7 +33,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Yaari',
       theme: ThemeData(fontFamily: 'Poppins'),
-      home: const LoginPage(),
+      home: const AppStart(),
       routes: {
         '/login': (context) => const LoginPage(),
         '/otp': (context) => const OtpScreen(),
@@ -54,6 +55,44 @@ class MyApp extends StatelessWidget {
         '/video_call': (context) => const VideoCallScreen(),
         '/audio_call': (context) => const AudioCallScreen(),
       },
+    );
+  }
+}
+
+// Decides where to start based on persisted login state.
+class AppStart extends StatefulWidget {
+  const AppStart({super.key});
+  @override
+  State<AppStart> createState() => _AppStartState();
+}
+
+class _AppStartState extends State<AppStart> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _route());
+  }
+
+  Future<void> _route() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString('user');
+      if (!mounted) return;
+      if (userJson != null && userJson.isNotEmpty) {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/login');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -125,7 +126,16 @@ class ProfileScreen extends StatelessWidget {
             _ActionTile(
               icon: Icons.logout,
               label: 'Log Out',
-              onTap: () => Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false),
+              onTap: () async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('user');
+                await prefs.remove('phone');
+                // Optionally clear session-specific values
+                // await prefs.remove('gender');
+                if (context.mounted) {
+                  Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                }
+              },
             ),
           ],
         ),
