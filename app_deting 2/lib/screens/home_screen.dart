@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
 import '../widgets/call_dialogs.dart';
 import '../services/users_api.dart';
 
@@ -18,7 +20,10 @@ class _HomeScreenState extends State<HomeScreen> {
   int _coinBalance = 100;
   Settings _settings = const Settings();
   bool _loading = true;
-  AdItem? _ad;
+  AdItem? _ad; // legacy single-ad usage
+  List<AdItem> _ads = const [];
+  int _adIndex = 0;
+  Timer? _adTimer;
   String? _userGender; // male | female
 
   @override
@@ -67,13 +72,38 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _settings = settings;
         _users = filtered;
+        _ads = ads;
         _ad = ads.isNotEmpty ? ads.first : null;
         _loading = false;
       });
+      _configureAdAutoProgress();
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
     }
+  }
+
+  void _configureAdAutoProgress() {
+    _adTimer?.cancel();
+    if (_ads.length > 1) {
+      final current = _ads[_adIndex];
+      if ((current.mediaType ?? 'photo') == 'photo') {
+        _adTimer = Timer(const Duration(seconds: 5), () {
+          if (!mounted) return;
+          setState(() {
+            _adIndex = (_adIndex + 1) % _ads.length;
+          });
+          // Re-arm timer based on new ad type
+          _configureAdAutoProgress();
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _adTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -127,21 +157,14 @@ class _HomeScreenState extends State<HomeScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                _HeroCard(
-                  imageUrl: _ad?.imageUrl,
-                  onTap: () async {
-                    final url = _ad?.linkUrl;
-                    if (url != null && url.isNotEmpty) {
-                      final uri = Uri.parse(url);
-                      if (await canLaunchUrl(uri)) {
-                        await launchUrl(uri, mode: LaunchMode.externalApplication);
-                        return;
-                      }
-                    }
-                    // Fallback: keep existing navigation when ad is absent
-                    if (context.mounted) {
-                      Navigator.pushNamed(context, '/home');
-                    }
+                _AdBanner(
+                  ads: _ads,
+                  currentIndex: _adIndex,
+                  onIndexChange: (i) {
+                    setState(() {
+                      _adIndex = i % (_ads.isEmpty ? 1 : _ads.length);
+                    });
+                    _configureAdAutoProgress();
                   },
                 ),
                 const SizedBox(height: 16),
@@ -154,6 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       status: u.status,
                       name: u.name,
                       attributes: u.attributes,
+                      avatarUrl: u.avatarUrl,
                       videoRate: _settings.videoCallRate,
                       audioRate: _settings.audioCallRate,
                       balance: _coinBalance,
@@ -242,10 +266,256 @@ class _HeroCard extends StatelessWidget {
   }
 }
 
+class _AdBanner extends StatefulWidget {
+  final List<AdItem> ads;
+  final int currentIndex;
+  final ValueChanged<int>? onIndexChange;
+  const _AdBanner({required this.ads, this.currentIndex = 0, this.onIndexChange});
+  @override
+  State<_AdBanner> createState() => _AdBannerState();
+}
+
+class _AdBannerState extends State<_AdBanner> {
+  double? _dragStartX;
+  double? _dragEndX;
+  VideoPlayerController? _videoController;
+  VoidCallback? _videoListener;
+  bool _videoReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupMediaForCurrentAd();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AdBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentIndex != widget.currentIndex || oldWidget.ads != widget.ads) {
+      _setupMediaForCurrentAd();
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposeVideo();
+    super.dispose();
+  }
+
+  void _disposeVideo() {
+    if (_videoController != null) {
+      if (_videoListener != null) {
+        _videoController!.removeListener(_videoListener!);
+      }
+      _videoController!.dispose();
+    }
+    _videoController = null;
+    _videoListener = null;
+    _videoReady = false;
+  }
+
+  void _setupMediaForCurrentAd() async {
+    _disposeVideo();
+    if (widget.ads.isEmpty) return;
+    final ad = widget.ads[widget.currentIndex];
+    final mediaType = (ad.mediaType ?? 'photo').toLowerCase();
+    final videoUrl = ad.videoUrl ?? '';
+    if (mediaType == 'video' && videoUrl.isNotEmpty) {
+      try {
+        final uri = Uri.tryParse(videoUrl);
+        if (uri == null) return;
+        final ctl = VideoPlayerController.networkUrl(uri);
+        _videoController = ctl;
+        await ctl.initialize();
+        await ctl.setLooping(false);
+        await ctl.setVolume(0.0); // mute by default
+        _videoReady = true;
+        // Advance when the video finishes
+        _videoListener = () {
+          final value = ctl.value;
+          if (value.isInitialized && !value.isPlaying) {
+            // If we've reached (or exceeded) duration, consider it ended
+            final dur = value.duration;
+            final pos = value.position;
+            if (dur != Duration.zero && pos >= dur) {
+              if (widget.ads.length > 1) {
+                final next = (widget.currentIndex + 1) % widget.ads.length;
+                widget.onIndexChange?.call(next);
+              }
+            }
+          }
+        };
+        ctl.addListener(_videoListener!);
+        await ctl.play();
+        if (mounted) setState(() {});
+      } catch (_) {
+        // Fallback handled by gradient background
+      }
+    } else {
+      // photo case: nothing to set up here
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _handleSwipe() {
+    if (_dragStartX == null || _dragEndX == null) return;
+    final distance = _dragStartX! - _dragEndX!;
+    final isLeftSwipe = distance > 50;
+    final isRightSwipe = distance < -50;
+    if (widget.ads.length > 1) {
+      if (isLeftSwipe) {
+        widget.onIndexChange?.call((widget.currentIndex + 1) % widget.ads.length);
+      } else if (isRightSwipe) {
+        final prev = widget.currentIndex == 0 ? widget.ads.length - 1 : widget.currentIndex - 1;
+        widget.onIndexChange?.call(prev);
+      }
+    }
+  }
+
+  Future<void> _openLink(String? url) async {
+    if (url == null || url.isEmpty) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.ads.isEmpty) {
+      return Container(
+        height: 160,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFFE0CC), Color(0xFFFFF1E9)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: const Text(
+          'No ads available',
+          style: TextStyle(color: Color(0xFFCC5A2D), fontWeight: FontWeight.w600),
+        ),
+      );
+    }
+
+    final ad = widget.ads[widget.currentIndex];
+    final mediaType = (ad.mediaType ?? 'photo').toLowerCase();
+
+    return GestureDetector(
+      onHorizontalDragStart: (d) => _dragStartX = d.localPosition.dx,
+      onHorizontalDragUpdate: (d) => _dragEndX = d.localPosition.dx,
+      onHorizontalDragEnd: (_) => _handleSwipe(),
+      child: InkWell(
+        onTap: () => _openLink(ad.linkUrl),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          height: 160,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+          clipBehavior: Clip.hardEdge,
+          child: Stack(
+            children: [
+              // Media layer: photo or video
+              Positioned.fill(
+                child: () {
+                  if (mediaType == 'photo' && (ad.imageUrl ?? '').isNotEmpty) {
+                    return Image.network(ad.imageUrl!, fit: BoxFit.cover);
+                  }
+                  if (mediaType == 'video' && _videoController != null && _videoReady && _videoController!.value.isInitialized) {
+                    return FittedBox(
+                      fit: BoxFit.cover,
+                      clipBehavior: Clip.hardEdge,
+                      child: SizedBox(
+                        width: _videoController!.value.size.width,
+                        height: _videoController!.value.size.height,
+                        child: VideoPlayer(_videoController!),
+                      ),
+                    );
+                  }
+                  // Fallback gradient if media not available
+                  return Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFFFF9A62), Color(0xFFFF5E0E)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                  );
+                }(),
+              ),
+              // subtle overlay for readability
+              Positioned.fill(
+                child: Container(color: Colors.black.withOpacity(0.2)),
+              ),
+              // content
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if ((ad.title ?? '').isNotEmpty)
+                        Text(
+                          ad.title!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                          ),
+                        ),
+                      if ((ad.description ?? '').isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2.0),
+                          child: Text(
+                            ad.description!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              if ((ad.linkUrl ?? '').isNotEmpty)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Click to open',
+                      style: TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _UserCard extends StatelessWidget {
   final String status;
   final String name;
   final String attributes;
+  final String? avatarUrl;
   final int videoRate;
   final int audioRate;
   final int balance;
@@ -253,6 +523,7 @@ class _UserCard extends StatelessWidget {
     required this.status,
     this.name = 'User Name',
     this.attributes = 'Attributes',
+    this.avatarUrl,
     this.videoRate = 10,
     this.audioRate = 10,
     this.balance = 250,
@@ -297,10 +568,13 @@ class _UserCard extends StatelessWidget {
                       border: Border.all(color: Colors.white, width: 3),
                     ),
                     child: ClipOval(
-                      child: Image.asset(
-                        'assets/images/Avtar.png',
-                        fit: BoxFit.cover,
-                      ),
+                      child: () {
+                        final url = avatarUrl ?? '';
+                        if (url.isNotEmpty) {
+                          return Image.network(url, fit: BoxFit.cover);
+                        }
+                        return Image.asset('assets/images/Avtar.png', fit: BoxFit.cover);
+                      }(),
                     ),
                   ),
                 ),

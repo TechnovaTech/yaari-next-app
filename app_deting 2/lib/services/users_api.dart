@@ -37,8 +37,12 @@ class UsersApi {
     final res = await http.get(_url('/api/ads'));
     if (res.statusCode != 200) return [];
     final body = jsonDecode(res.body);
-    final List list = body is List ? body : (body['data'] ?? []);
-    return list.map((e) => AdItem.fromJson(e as Map<String, dynamic>)).toList();
+    // Next.js API returns { success, ads }; admin API may return { data: [...] }
+    final List list = body is List ? body : (body['ads'] ?? body['data'] ?? []);
+    return list
+        .map((e) => AdItem.fromJson(e as Map<String, dynamic>))
+        .where((a) => a.isActive != false) // if field missing, treat as active
+        .toList();
   }
 }
 
@@ -60,6 +64,16 @@ class UserListItem {
   });
 
   factory UserListItem.fromJson(Map<String, dynamic> j) {
+    String? _fixUrl(String? url) {
+      if (url == null || url.isEmpty) return url;
+      // Normalize admin uploads
+      if (url.startsWith('/uploads/')) {
+        return 'https://admin.yaari.me$url';
+      }
+      // Replace local hosts with admin base
+      return url.replaceAll(RegExp(r'https?://(localhost|0\.0\.0\.0):\d+'), 'https://admin.yaari.me');
+    }
+
     final String id = (j['_id'] ?? j['id'] ?? '').toString();
     final String name = (j['name'] ?? j['username'] ?? 'User Name').toString();
     final String lang = (j['language'] ?? '').toString();
@@ -71,7 +85,9 @@ class UserListItem {
       if (lang.isNotEmpty) lang,
     ].join(' • ');
     final String s = (j['status'] ?? j['presence'] ?? 'Online').toString();
-    final String? avatar = j['avatar'] as String? ?? j['image'] as String?;
+    final String? avatar = _fixUrl(
+      (j['profilePic'] as String?) ?? (j['avatar'] as String?) ?? (j['image'] as String?)
+    );
     final String? gender = (j['gender'] ?? j['sex'])?.toString();
     return UserListItem(
       id: id,
@@ -104,15 +120,37 @@ class Settings {
 
 class AdItem {
   final String? imageUrl;
+  final String? videoUrl;
   final String? linkUrl;
   final String? title;
-  const AdItem({this.imageUrl, this.linkUrl, this.title});
+  final String? description;
+  final String? mediaType; // 'photo' | 'video'
+  final bool? isActive;
+
+  const AdItem({
+    this.imageUrl,
+    this.videoUrl,
+    this.linkUrl,
+    this.title,
+    this.description,
+    this.mediaType,
+    this.isActive,
+  });
 
   factory AdItem.fromJson(Map<String, dynamic> j) {
+    String? _fixUpload(String? url) {
+      if (url == null || url.isEmpty) return url;
+      return url.startsWith('/uploads/') ? 'https://admin.yaari.me$url' : url;
+    }
+
     return AdItem(
-      imageUrl: (j['imageUrl'] ?? j['image'])?.toString(),
+      imageUrl: _fixUpload((j['imageUrl'] ?? j['image'])?.toString()),
+      videoUrl: _fixUpload((j['videoUrl'] ?? j['video'])?.toString()),
       linkUrl: (j['linkUrl'] ?? j['url'] ?? j['link'])?.toString(),
       title: (j['title'] ?? j['name'])?.toString(),
+      description: (j['description'] ?? j['desc'])?.toString(),
+      mediaType: (j['mediaType'] ?? j['type'])?.toString(),
+      isActive: j['isActive'] is bool ? j['isActive'] as bool : null,
     );
   }
 }
