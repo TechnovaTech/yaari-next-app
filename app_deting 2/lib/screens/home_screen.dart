@@ -140,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     }
                     // Fallback: keep existing navigation when ad is absent
                     if (context.mounted) {
-                      Navigator.pushNamed(context, '/user_detail');
+                      Navigator.pushNamed(context, '/home');
                     }
                   },
                 ),
@@ -343,7 +343,7 @@ class _UserCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _PriceButton(
-                        label: '10 min',
+                        label: '${videoRate} min',
                         icon: Icons.videocam,
                         onPressed: () async {
                           await showPermissionDialog(
@@ -365,7 +365,7 @@ class _UserCard extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _PriceButton(
-                        label: '5 min',
+                        label: '${audioRate} min',
                         icon: Icons.call,
                         onPressed: () async {
                           await showPermissionDialog(
