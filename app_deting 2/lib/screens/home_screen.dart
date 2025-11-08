@@ -278,6 +278,7 @@ class _StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -288,6 +289,8 @@ class _StatusChip extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(Icons.circle, size: 10, color: color),
           const SizedBox(width: 6),
@@ -309,19 +312,59 @@ class _PriceButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton.icon(
+    return ElevatedButton(
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFFFF8547),
         foregroundColor: Colors.white,
         elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        minimumSize: const Size(120, 40),
+        // Ensure height while letting width flex inside Expanded
+        minimumSize: const Size(0, 42),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
       onPressed: onPressed,
-      icon: Icon(icon, size: 16),
-      label: Text(label),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.center,
+        child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.white),
+          const SizedBox(width: 6),
+          ...() {
+            final tokens = label.split(' ');
+            final amount = tokens.isNotEmpty ? tokens.first : label;
+            final hasMin = label.toLowerCase().contains('min');
+            final rest = hasMin
+                ? '/min'
+                : (tokens.length > 1 ? ' ${tokens.sublist(1).join(' ')}' : '');
+            return [
+              Text(
+                amount,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.visible,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(width: 4),
+              Image.asset('assets/images/coin.png', width: 13, height: 13),
+              if (rest.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Text(
+                  rest,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.visible,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ];
+          }(),
+        ],
+        ),
+      ),
     );
   }
 }
