@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "/usr/local/share/flutter/packages/flutter_tools/gradle/src/main/scripts/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/priyanshkakkad/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Applications/datting project/dating-app.dev-main 4/app_deting 2/android/app/.cxx/release/l75g3c2f/x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/priyanshkakkad/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Applications/datting project/dating-app.dev-main 4/app_deting 2/android/app/.cxx/release/l75g3c2f/x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {}
+}
