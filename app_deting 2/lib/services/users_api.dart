@@ -103,12 +103,14 @@ class UserListItem {
 class Settings {
   final int audioCallRate;
   final int videoCallRate;
-  const Settings({this.audioCallRate = 10, this.videoCallRate = 10});
+  final int coinsPerRupee;
+  const Settings({this.audioCallRate = 10, this.videoCallRate = 10, this.coinsPerRupee = 1});
 
   factory Settings.fromJson(Map<String, dynamic> j) {
     final int audio = _asInt(j['audioCallRate']) ?? 10;
     final int video = _asInt(j['videoCallRate']) ?? 10;
-    return Settings(audioCallRate: audio, videoCallRate: video);
+    final int cpr = _asInt(j['coinsPerRupee']) ?? 1;
+    return Settings(audioCallRate: audio, videoCallRate: video, coinsPerRupee: cpr);
   }
 
   static int? _asInt(dynamic v) {

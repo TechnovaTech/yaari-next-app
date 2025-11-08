@@ -1,11 +1,150 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/users_api.dart';
+import '../services/payments_api.dart';
+import '../utils/razorpay_bridge.dart';
 
-class CoinsScreen extends StatelessWidget {
+class CoinsScreen extends StatefulWidget {
   const CoinsScreen({super.key});
 
   @override
+  State<CoinsScreen> createState() => _CoinsScreenState();
+}
+
+class _CoinsScreenState extends State<CoinsScreen> {
+  int _balance = 0;
+  int _coinsPerRupee = 1;
+  List<PlanItem> _plans = const [];
+  PlanItem? _selectedPlan;
+  final TextEditingController _coinsInput = TextEditingController();
+  bool _loading = true;
+  String? _userId;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  @override
+  void dispose() {
+    _coinsInput.dispose();
+    super.dispose();
+  }
+
+  Future<void> _init() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('user');
+      String? uid;
+      if (raw != null) {
+        try {
+          final m = jsonDecode(raw);
+          if (m is Map<String, dynamic>) {
+            uid = _extractUserId(m);
+          }
+        } catch (_) {}
+      }
+      _userId = uid;
+      final settings = await UsersApi.fetchSettings();
+      _coinsPerRupee = settings.coinsPerRupee;
+      if (uid != null && uid.isNotEmpty) {
+        final bal = await UsersApi.fetchBalance(uid);
+        _balance = bal ?? 0;
+      }
+      _plans = await PaymentsApi.fetchPlans();
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
+
+  String? _extractUserId(Map<String, dynamic> m) {
+    // Support multiple shapes: { _id }, { id }, { userId }, { user: { _id } }
+    for (final k in ['_id', 'id', 'userId']) {
+      final v = m[k];
+      if (v != null && v.toString().isNotEmpty) return v.toString();
+    }
+    final u = m['user'];
+    if (u is Map<String, dynamic>) {
+      return _extractUserId(u);
+    }
+    return null;
+  }
+
+  num _priceForCoins(int coins) {
+    // coinsPerRupee means 1 INR gives X coins; price = coins / X
+    return (coins / (_coinsPerRupee == 0 ? 1 : _coinsPerRupee)).toStringAsFixed(2) == '0.00'
+        ? 0
+        : double.parse((coins / (_coinsPerRupee == 0 ? 1 : _coinsPerRupee)).toStringAsFixed(2));
+  }
+
+  Future<void> _proceedToPayment() async {
+    if (_userId == null || _userId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User not logged in')));
+      return;
+    }
+    final int coinsRequested = int.tryParse(_coinsInput.text.trim()) ?? 0;
+    final bool isPlan = _selectedPlan != null;
+    if (!isPlan && coinsRequested <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter coins or select a plan')));
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      final num amountRupees = isPlan ? _selectedPlan!.price : _priceForCoins(coinsRequested);
+      final order = await PaymentsApi.createOrder(
+        userId: _userId!,
+        amountRupees: amountRupees,
+        type: isPlan ? 'plan' : 'topup',
+        planId: isPlan ? _selectedPlan!.id : null,
+        coins: isPlan ? null : coinsRequested,
+      );
+      if (order == null || order.orderId.isEmpty) {
+        throw 'Failed to create order';
+      }
+
+      // Open Razorpay checkout (web via bridge; stub on mobile)
+      final payment = await RazorpayBridge.openCheckout(
+        keyId: order.keyId,
+        amountPaise: order.amountPaise,
+        orderId: order.orderId,
+        currency: order.currency,
+        name: 'Yaari',
+        description: isPlan ? 'Plan purchase' : 'Coin recharge',
+      );
+
+      final verify = await PaymentsApi.verifyPayment(
+        orderId: order.orderId,
+        paymentId: payment['razorpay_payment_id'] ?? '',
+        signature: payment['razorpay_signature'] ?? '',
+      );
+      if (verify?.success == true) {
+        setState(() {
+          _balance = verify?.newBalance ?? _balance;
+          _coinsInput.clear();
+          _selectedPlan = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment successful')));
+      } else {
+        throw 'Payment verification failed';
+      }
+    } on UnsupportedError catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Payment not supported on this platform: ${e.message}')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payment error: $e')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallWidth = screenWidth < 360; // compact phones
     return Scaffold(
       backgroundColor: const Color(0xFFFEF8F4),
       appBar: AppBar(
@@ -46,7 +185,7 @@ class CoinsScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
+                        children: [
                           Text(
                             'Total Coin Balance',
                             style: TextStyle(
@@ -58,8 +197,8 @@ class CoinsScreen extends StatelessWidget {
                           ),
                           SizedBox(height: 6),
                           Text(
-                            '0',
-                            style: TextStyle(
+                            '$_balance',
+                            style: const TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
                               color: Colors.black,
@@ -86,10 +225,11 @@ class CoinsScreen extends StatelessWidget {
               const SizedBox(height: 12),
               TextField(
                 keyboardType: TextInputType.number,
+                controller: _coinsInput,
                 decoration: InputDecoration(
                   hintText: 'Enter no of coins',
                   prefixIcon: const Icon(Icons.monetization_on_outlined),
-                  suffixText: 'Inr 0.0',
+                  suffixText: 'Inr ${_priceForCoins(int.tryParse(_coinsInput.text.trim()) ?? 0)}',
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
@@ -101,19 +241,25 @@ class CoinsScreen extends StatelessWidget {
               const SizedBox(height: 16),
               // Make grid non-scrollable and let page scroll instead to avoid overflow
               GridView.count(
-                crossAxisCount: 3,
+                crossAxisCount: isSmallWidth ? 2 : 3,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 0.85,
+                // Slightly taller tiles on compact widths to avoid bottom overflow
+                childAspectRatio: isSmallWidth ? 0.75 : 0.85,
                 physics: const NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
-                children: const [
-                  _CoinPack(amount: 50),
-                  _CoinPack(amount: 50),
-                  _CoinPack(amount: 50),
-                  _CoinPack(amount: 50),
-                  _CoinPack(amount: 50),
-                  _CoinPack(amount: 50),
+                children: [
+                  for (final p in _plans.where((p) => p.isActive))
+                    GestureDetector(
+                      onTap: () => setState(() => _selectedPlan = p),
+                      child: _PlanPack(
+                        title: p.title.isEmpty ? '${p.coins}' : p.title,
+                        coins: p.coins,
+                        price: p.price,
+                        originalPrice: p.originalPrice,
+                        selected: _selectedPlan?.id == p.id,
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -125,7 +271,7 @@ class CoinsScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: () {},
+                  onPressed: _loading ? null : _proceedToPayment,
                   child: const Text(
                     'Proceed to Payment',
                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
@@ -140,22 +286,32 @@ class CoinsScreen extends StatelessWidget {
   }
 }
 
-class _CoinPack extends StatelessWidget {
-  final int amount;
-  const _CoinPack({required this.amount});
+class _PlanPack extends StatelessWidget {
+  final String title;
+  final int coins;
+  final num price;
+  final num originalPrice;
+  final bool selected;
+  const _PlanPack({
+    required this.title,
+    required this.coins,
+    required this.price,
+    required this.originalPrice,
+    this.selected = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final int mrp = amount * 2;
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFFFEFE6),
+        color: selected ? const Color(0xFFFFD8C4) : const Color(0xFFFFEFE6),
         borderRadius: BorderRadius.circular(18),
         boxShadow: const [
           BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
         ],
       ),
-      padding: const EdgeInsets.all(14),
+      clipBehavior: Clip.hardEdge,
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -163,33 +319,53 @@ class _CoinPack extends StatelessWidget {
             children: [
               const _YCoinIcon(size: 20),
               const SizedBox(width: 8),
-              Text(
-                '$amount',
-                style: GoogleFonts.getFont(
-                  'Baloo Tammudu 2',
-                  textStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.black),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: GoogleFonts.getFont(
+                    'Baloo Tammudu 2',
+                    textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.black),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
             children: [
-              Text(
-                '₹$mrp',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black54,
-                  decoration: TextDecoration.lineThrough,
-                  decorationThickness: 2,
+              Flexible(
+                child: Text(
+                  '₹$originalPrice',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.black54,
+                    decoration: TextDecoration.lineThrough,
+                    decorationThickness: 2,
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                '₹$amount',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.black),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  '₹$price',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.black),
+                ),
               ),
             ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '$coins coins',
+            style: const TextStyle(fontSize: 13, color: Colors.black54, fontWeight: FontWeight.w600),
           ),
         ],
       ),
