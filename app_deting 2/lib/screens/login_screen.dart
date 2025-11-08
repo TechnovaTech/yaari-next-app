@@ -82,16 +82,21 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 25),
 
-                    // 🔹 Phone input
+                    // 🔹 Phone input (prefilled +91 prefix)
                     TextField(
                       controller: _phoneController,
                       focusNode: _phoneFocusNode,
                       keyboardType: TextInputType.phone,
+                      maxLength: 10,
+                      buildCounter: (_, {required int currentLength, required bool isFocused, required int? maxLength}) => const SizedBox.shrink(),
+                      style: const TextStyle(fontSize: 16, color: Colors.black),
                       decoration: InputDecoration(
                         hintText: 'Enter your Phone Number',
                         filled: true,
                         fillColor: const Color(0xFFFDFDFD),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                        prefixText: '+91 ',
+                        prefixStyle: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: const BorderSide(color: Color(0xFFDEDEDE)),
@@ -116,10 +121,12 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         onPressed: () {
+                          final raw = _phoneController.text.trim();
+                          final fullNumber = '+91${raw.isNotEmpty ? ' ' : ''}$raw';
                           Navigator.pushNamed(
                             context,
                             '/otp',
-                            arguments: _phoneController.text.trim(),
+                            arguments: fullNumber,
                           );
                         },
                         child: const Text(
