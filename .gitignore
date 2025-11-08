@@ -6,3 +6,31 @@ yarri admin panel/zip.zip
 
 # Ignore local JDK bundle under mobile app (heavy, not source)
 yarri app/temp_jdk/
+# Flutter project build artifacts (added by Trae to prevent large binaries)
+app_deting 2/.dart_tool/
+app_deting 2/build/
+app_deting 2/.packages
+app_deting 2/.flutter-plugins
+app_deting 2/.flutter-plugins-dependencies
+app_deting 2/pubspec.lock
+
+# Android build outputs and Gradle caches
+app_deting 2/android/.gradle/
+app_deting 2/android/build/
+app_deting 2/android/app/build/
+
+# iOS build outputs
+app_deting 2/ios/Flutter/
+app_deting 2/ios/.generated/
+app_deting 2/ios/Pods/
+app_deting 2/macos/Flutter/ephemeral/
+app_deting 2/linux/flutter/ephemeral/
+
+# Common OS junk
+.DS_Store
+Thumbs.db
+
+# Large binaries
+*.apk
+*.aab
+*.ipa
