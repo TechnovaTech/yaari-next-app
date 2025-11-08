@@ -1,9 +1,80 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../widgets/call_dialogs.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../widgets/call_dialogs.dart';
+import '../services/users_api.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  List<UserListItem> _users = const [];
+  int _coinBalance = 100;
+  Settings _settings = const Settings();
+  bool _loading = true;
+  AdItem? _ad;
+  String? _userGender; // male | female
+
+  @override
+  void initState() {
+    super.initState();
+    _initData();
+  }
+
+  Future<void> _initData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _userGender = (prefs.getString('gender') ?? '').toLowerCase();
+      // Try to read user balance from stored profile
+      final raw = prefs.getString('user');
+      if (raw != null) {
+        try {
+          final m = UsersApiSettingsHelper.tryDecode(raw);
+          final bal = m['balance'] ?? m['coins'] ?? m['amount'];
+          if (bal is int) _coinBalance = bal; else if (bal is String) _coinBalance = int.tryParse(bal) ?? _coinBalance;
+          // If API is available, prefer live balance
+          final uid = _extractUserId(m);
+          if (uid != null && uid.isNotEmpty) {
+            final liveBal = await UsersApi.fetchBalance(uid);
+            if (liveBal != null) {
+              _coinBalance = liveBal;
+            }
+          }
+        } catch (_) {}
+      }
+
+      final settings = await UsersApi.fetchSettings();
+      final users = await UsersApi.fetchUsersList();
+      final ads = await UsersApi.fetchAds();
+      // Gender-based filtering: show opposite gender only
+      final filtered = () {
+        if (_userGender == 'male') {
+          return users.where((u) => (u.gender ?? '').toLowerCase() == 'female').toList();
+        }
+        if (_userGender == 'female') {
+          return users.where((u) => (u.gender ?? '').toLowerCase() == 'male').toList();
+        }
+        return users; // if not set, show all
+      }();
+
+      if (!mounted) return;
+      setState(() {
+        _settings = settings;
+        _users = filtered;
+        _ad = ads.isNotEmpty ? ads.first : null;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +107,7 @@ class HomeScreen extends StatelessWidget {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
-            child: _CoinChip(onTap: () => Navigator.pushNamed(context, '/coins'), balance: 100),
+            child: _CoinChip(onTap: () => Navigator.pushNamed(context, '/coins'), balance: _coinBalance),
           ),
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
@@ -51,29 +122,60 @@ class HomeScreen extends StatelessWidget {
           )
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: const [
-          _HeroCard(),
-          SizedBox(height: 16),
-          _UserCard(status: 'Online', name: 'User Name', attributes: 'Singer • 25 • Hindi'),
-          SizedBox(height: 12),
-          _UserCard(status: 'Online', name: 'Neha', attributes: 'Dancer • 22 • English'),
-          SizedBox(height: 12),
-          _UserCard(status: 'Busy', name: 'Aarav', attributes: 'Guitarist • 27 • Hindi'),
-          SizedBox(height: 12),
-          _UserCard(status: 'Offline', name: 'Riya', attributes: 'Chef • 24 • Marathi'),
-          SizedBox(height: 12),
-          _UserCard(status: 'Online', name: 'Kunal', attributes: 'Photographer • 26 • Hindi'),
-          SizedBox(height: 12),
-          _UserCard(status: 'Busy', name: 'Priya', attributes: 'Artist • 23 • English'),
-          SizedBox(height: 12),
-          _UserCard(status: 'Offline', name: 'Vihan', attributes: 'Singer • 25 • Gujarati'),
-          SizedBox(height: 12),
-          _UserCard(status: 'Online', name: 'Anya', attributes: 'Model • 21 • Hindi'),
-        ],
-      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _HeroCard(
+                  imageUrl: _ad?.imageUrl,
+                  onTap: () async {
+                    final url = _ad?.linkUrl;
+                    if (url != null && url.isNotEmpty) {
+                      final uri = Uri.parse(url);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        return;
+                      }
+                    }
+                    // Fallback: keep existing navigation when ad is absent
+                    if (context.mounted) {
+                      Navigator.pushNamed(context, '/user_detail');
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                if (_users.isEmpty) ...[
+                  // Fallback to static cards if network list is empty
+                  const _UserCard(status: 'Online', name: 'User Name', attributes: 'Singer • 25 • Hindi'),
+                ] else ...[
+                  for (final u in _users) ...[
+                    _UserCard(
+                      status: u.status,
+                      name: u.name,
+                      attributes: u.attributes,
+                      videoRate: _settings.videoCallRate,
+                      audioRate: _settings.audioCallRate,
+                      balance: _coinBalance,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ],
+              ],
+            ),
     );
+  }
+}
+
+// Helper to decode user JSON safely
+class UsersApiSettingsHelper {
+  static Map<String, dynamic> tryDecode(String raw) {
+    try {
+      final m = jsonDecode(raw);
+      return m is Map<String, dynamic> ? m : <String, dynamic>{};
+    } catch (_) {
+      return <String, dynamic>{};
+    }
   }
 }
 
@@ -109,21 +211,31 @@ class _CoinChip extends StatelessWidget {
 }
 
 class _HeroCard extends StatelessWidget {
-  const _HeroCard();
+  final String? imageUrl;
+  final VoidCallback? onTap;
+  const _HeroCard({this.imageUrl, this.onTap});
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => Navigator.pushNamed(context, '/user_detail'),
+      onTap: onTap ?? () => Navigator.pushNamed(context, '/user_detail'),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         height: 150,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFFE0CC), Color(0xFFFFF1E9)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          gradient: imageUrl == null
+              ? const LinearGradient(
+                  colors: [Color(0xFFFFE0CC), Color(0xFFFFF1E9)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          image: imageUrl != null
+              ? DecorationImage(
+                  image: NetworkImage(imageUrl!),
+                  fit: BoxFit.cover,
+                )
+              : null,
         ),
       ),
     );
@@ -134,7 +246,17 @@ class _UserCard extends StatelessWidget {
   final String status;
   final String name;
   final String attributes;
-  const _UserCard({required this.status, this.name = 'User Name', this.attributes = 'Attributes'});
+  final int videoRate;
+  final int audioRate;
+  final int balance;
+  const _UserCard({
+    required this.status,
+    this.name = 'User Name',
+    this.attributes = 'Attributes',
+    this.videoRate = 10,
+    this.audioRate = 10,
+    this.balance = 250,
+  });
 
   Color get _statusColor {
     switch (status) {
@@ -231,6 +353,8 @@ class _UserCard extends StatelessWidget {
                               await showCallConfirmDialog(
                                 context,
                                 type: CallType.video,
+                                rateLabel: '₹${videoRate}/min',
+                                balanceLabel: '₹${balance}',
                                 onStart: () => Navigator.pushNamed(context, '/video_call'),
                               );
                             },
@@ -251,6 +375,8 @@ class _UserCard extends StatelessWidget {
                               await showCallConfirmDialog(
                                 context,
                                 type: CallType.audio,
+                                rateLabel: '₹${audioRate}/min',
+                                balanceLabel: '₹${balance}',
                                 onStart: () => Navigator.pushNamed(context, '/audio_call'),
                               );
                             },
@@ -267,6 +393,16 @@ class _UserCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// Helpers
+String? _extractUserId(Map<String, dynamic> m) {
+  final keys = ['_id', 'id', 'userId'];
+  for (final k in keys) {
+    final v = m[k];
+    if (v != null && v.toString().isNotEmpty) return v.toString();
+  }
+  return null;
 }
 
 class _StatusChip extends StatelessWidget {

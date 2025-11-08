@@ -93,6 +93,8 @@ Future<void> showCallConfirmDialog(
   BuildContext context, {
   required CallType type,
   required VoidCallback onStart,
+  String rateLabel = '₹10/min',
+  String balanceLabel = '₹250',
 }) async {
   await showDialog(
     context: context,
@@ -139,11 +141,11 @@ Future<void> showCallConfirmDialog(
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
-                  children: const [
+                  children: [
                     Expanded(
-                      child: Text('Rate', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
+                      child: const Text('Rate', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
                     ),
-                    Text('₹10/min', style: TextStyle(color: _accent, fontWeight: FontWeight.w800)),
+                    Text(rateLabel, style: const TextStyle(color: _accent, fontWeight: FontWeight.w800)),
                   ],
                 ),
               ),
@@ -156,11 +158,11 @@ Future<void> showCallConfirmDialog(
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
-                  children: const [
-                    Expanded(
+                  children: [
+                    const Expanded(
                       child: Text('Your Balance', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
                     ),
-                    Text('₹250', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
+                    Text(balanceLabel, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
                   ],
                 ),
               ),
