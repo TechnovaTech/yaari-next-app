@@ -1,8 +1,88 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  static const String _apiBase = 'https://admin.yaari.me';
+
+  String _name = 'User Name';
+  String _phone = '';
+  String _avatarUrl = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  String _normalizeUrl(String? url) {
+    final u = (url ?? '').trim();
+    if (u.isEmpty) return '';
+    return u
+        .replaceAll(RegExp(r'https?://localhost:\d+'), _apiBase)
+        .replaceAll(RegExp(r'https?://0\.0\.0\.0:\d+'), _apiBase);
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('user');
+      Map<String, dynamic> root = <String, dynamic>{};
+      if (raw != null && raw.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is Map<String, dynamic>) {
+            root = decoded;
+          }
+        } catch (_) {}
+      }
+
+      // Some responses store the user object under `user`, others at root
+      final Map<String, dynamic> user = (root['user'] is Map<String, dynamic>)
+          ? (root['user'] as Map<String, dynamic>)
+          : root;
+
+      final String name = (user['name'] ?? 'User Name').toString();
+      String phone = (user['phone'] ?? prefs.getString('phone') ?? '').toString();
+      String avatar = (user['profilePic'] ?? user['avatar'] ?? user['image'] ?? '').toString();
+      avatar = _normalizeUrl(avatar);
+
+      setState(() {
+        _name = name.isEmpty ? 'User Name' : name;
+        _phone = phone;
+        _avatarUrl = avatar;
+      });
+
+      // Try to fetch latest profile image from server using user ID
+      final String id = (user['id'] ?? user['_id'] ?? '').toString();
+      if (id.isNotEmpty) {
+        try {
+          final uri = Uri.parse('$_apiBase/api/users/$id/images');
+          final res = await http.get(uri);
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            final Map<String, dynamic> body = jsonDecode(res.body) is Map<String, dynamic>
+                ? (jsonDecode(res.body) as Map<String, dynamic>)
+                : <String, dynamic>{};
+            final String serverPic = _normalizeUrl((body['profilePic'] ?? '').toString());
+            if (serverPic.isNotEmpty && serverPic != _avatarUrl) {
+              if (!mounted) return;
+              setState(() => _avatarUrl = serverPic);
+            }
+          }
+        } catch (_) {}
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,16 +121,27 @@ class ProfileScreen extends StatelessWidget {
                         border: Border.all(color: Colors.white, width: 3),
                       ),
                       child: ClipOval(
-                        child: Image.asset(
-                          'assets/images/Avtar.png',
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.black12,
-                              child: const Icon(Icons.person, size: 56, color: Colors.black45),
-                            );
-                          },
-                        ),
+                        child: _avatarUrl.isNotEmpty
+                            ? Image.network(
+                                _avatarUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: Colors.black12,
+                                    child: const Icon(Icons.person, size: 56, color: Colors.black45),
+                                  );
+                                },
+                              )
+                            : Image.asset(
+                                'assets/images/Avtar.png',
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: Colors.black12,
+                                    child: const Icon(Icons.person, size: 56, color: Colors.black45),
+                                  );
+                                },
+                              ),
                       ),
                     ),
                     Positioned(
@@ -81,18 +172,18 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 14),
 
             // Name (edit icon now moved to avatar corner)
-            const Center(
+            Center(
               child: Text(
-                'User Name',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.black),
+                _name,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.black),
               ),
             ),
 
             const SizedBox(height: 6),
-            const Center(
+            Center(
               child: Text(
-                '+91 9879879877',
-                style: TextStyle(fontSize: 13, color: Colors.black54),
+                _phone.isNotEmpty ? _phone : '+91 9879879877',
+                style: const TextStyle(fontSize: 13, color: Colors.black54),
               ),
             ),
 
