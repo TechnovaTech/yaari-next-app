@@ -32,11 +32,17 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _userGender; // male | female
   String? _currentUserId;
   DateTime? _lastBackPress;
+  // Keep a live cache of userId -> status from socket events
+  final Map<String, String> _statusById = <String, String>{};
 
   String _normalizeStatus(dynamic s) {
-    final t = (s?.toString() ?? '').toLowerCase();
-    if (t == 'online') return 'Online';
-    if (t == 'busy') return 'Busy';
+    final t = (s?.toString() ?? '').trim().toLowerCase();
+    // Common server variants
+    if (t == 'online' || t == 'active' || t == 'available') return 'Online';
+    if (t == 'busy' || t == 'oncall' || t == 'calling' || t == 'in_call') return 'Busy';
+    if (t == 'offline' || t == 'disconnected' || t == 'idle') return 'Offline';
+    // Fallback for boolean shapes like { online: true }
+    if (s is bool) return s ? 'Online' : 'Offline';
     return 'Offline';
   }
 
@@ -109,73 +115,109 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _listenToUserStatus() {
-    SocketService.instance.on('online-users', (data) {
-      if (data is List && mounted) {
-        debugPrint('📥 [HomeScreen] Received online-users: ${data.length} users');
-        final onlineUserIds = <String>{};
-        final busyUserIds = <String>{};
-        
-        for (final item in data) {
-          if (item is Map) {
-            final userId = item['userId']?.toString();
-            final status = _normalizeStatus(item['status']);
-            if (userId != null) {
-              if (status == 'Online') {
-                onlineUserIds.add(userId);
-              } else if (status == 'Busy') {
-                busyUserIds.add(userId);
-              }
-            }
+    void applyStatuses(Set<String> onlineIds, Set<String> busyIds, {bool authoritative = false}) {
+      // Update cache
+      for (final id in onlineIds) {
+        _statusById[id] = 'Online';
+      }
+      for (final id in busyIds) {
+        _statusById[id] = 'Busy';
+      }
+      // Only mark non-present users Offline if this payload is authoritative
+      if (authoritative) {
+        for (final u in _users) {
+          if (!onlineIds.contains(u.id) && !busyIds.contains(u.id)) {
+            _statusById[u.id] = 'Offline';
           }
         }
-        
-        setState(() {
-          _users = _users.map((user) {
-            String newStatus = 'Offline';
-            if (onlineUserIds.contains(user.id)) {
-              newStatus = 'Online';
-            } else if (busyUserIds.contains(user.id)) {
-              newStatus = 'Busy';
-            }
-            return UserListItem(
-              id: user.id,
-              name: user.name,
-              status: newStatus,
-              attributes: user.attributes,
-              avatarUrl: user.avatarUrl,
-              gender: user.gender,
-              callAccess: user.callAccess,
-            );
-          }).toList();
-          _sortUsersByStatus();
-        });
       }
-    });
+      setState(() {
+        _users = _users.map((user) {
+          final newStatus = _statusById[user.id] ?? user.status;
+          return UserListItem(
+            id: user.id,
+            name: user.name,
+            status: newStatus,
+            attributes: user.attributes,
+            avatarUrl: user.avatarUrl,
+            gender: user.gender,
+            callAccess: user.callAccess,
+          );
+        }).toList();
+        _sortUsersByStatus();
+      });
+    }
 
-    SocketService.instance.on('user-status-change', (data) {
-      if (mounted && data is Map) {
-        final userId = data['userId']?.toString();
-        final status = _normalizeStatus(data['status']);
-        debugPrint('📥 [HomeScreen] User status changed: $userId -> $status');
-        setState(() {
-          _users = _users.map((user) {
-            if (user.id == userId) {
-              return UserListItem(
-                id: user.id,
-                name: user.name,
-                status: status,
-                attributes: user.attributes,
-                avatarUrl: user.avatarUrl,
-                gender: user.gender,
-                callAccess: user.callAccess,
-              );
-            }
-            return user;
-          }).toList();
-          _sortUsersByStatus();
-        });
+    String? _idFrom(dynamic item) {
+      if (item == null) return null;
+      if (item is String || item is num) return item.toString();
+      if (item is Map) {
+        final m = item as Map;
+        final v = m['userId'] ?? m['id'] ?? m['_id'];
+        return v?.toString();
       }
-    });
+      return null;
+    }
+
+    void handleOnlineUsers(dynamic data) {
+      final onlineIds = <String>{};
+      final busyIds = <String>{};
+      bool authoritative = false;
+      if (data is List) {
+        // Either a list of userIds, or maps with { userId, status }
+        for (final item in data) {
+          final id = _idFrom(item);
+          if (id == null) continue;
+          String st = 'Online';
+          if (item is Map) {
+            st = _normalizeStatus(item['status']);
+            authoritative = true; // maps with explicit status considered authoritative
+          }
+          if (st == 'Online') onlineIds.add(id);
+          if (st == 'Busy') busyIds.add(id);
+        }
+      } else if (data is Map) {
+        // Shapes like { online: [...], busy: [...] }
+        authoritative = true;
+        final onlineList = data['online'];
+        final busyList = data['busy'] ?? data['oncall'];
+        if (onlineList is List) {
+          for (final item in onlineList) {
+            final id = _idFrom(item);
+            if (id != null) onlineIds.add(id);
+          }
+        }
+        if (busyList is List) {
+          for (final item in busyList) {
+            final id = _idFrom(item);
+            if (id != null) busyIds.add(id);
+          }
+        }
+      }
+      debugPrint('📥 [HomeScreen] Computed online=${onlineIds.length}, busy=${busyIds.length}');
+      applyStatuses(onlineIds, busyIds, authoritative: authoritative);
+    }
+
+    void handleStatusChange(dynamic data) {
+      if (data is Map) {
+        final userId = (data['userId'] ?? data['id'] ?? data['_id'])?.toString();
+        // Support shapes like { online: true } or { status: 'busy' }
+        final dynamic raw = data.containsKey('online') ? data['online'] : data['status'];
+        final status = _normalizeStatus(raw);
+        if (userId != null) {
+          debugPrint('📥 [HomeScreen] User status changed: $userId -> $status');
+          final online = status == 'Online' ? {userId} : <String>{};
+          final busy = status == 'Busy' ? {userId} : <String>{};
+          applyStatuses(online, busy, authoritative: false);
+        }
+      }
+    }
+
+    // Listen to multiple event name variants to maximize compatibility
+    SocketService.instance.on('online-users', handleOnlineUsers);
+    SocketService.instance.on('onlineUsers', handleOnlineUsers);
+    SocketService.instance.on('user-status-change', handleStatusChange);
+    SocketService.instance.on('userStatusChange', handleStatusChange);
   }
 
   Future<void> _initData() async {
@@ -238,7 +280,18 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() {
         _settings = settings;
-        _users = filtered;
+        // Apply any cached status from socket before showing
+        _users = filtered
+            .map((u) => UserListItem(
+                  id: u.id,
+                  name: u.name,
+                  status: _statusById[u.id] ?? u.status,
+                  attributes: u.attributes,
+                  avatarUrl: u.avatarUrl,
+                  gender: u.gender,
+                  callAccess: u.callAccess,
+                ))
+            .toList();
         _ads = ads;
         _ad = ads.isNotEmpty ? ads.first : null;
         _loading = false;
@@ -408,6 +461,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _refreshHome() async {
     // Reuse init flow to refetch users, balance, settings, and ads
     await _initData();
+    // Immediately re-request online users to sync statuses post-refresh
+    try {
+      SocketService.instance.emit('get-online-users', {});
+      // Fire a second request shortly after to ensure delivery
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          SocketService.instance.emit('get-online-users', {});
+        }
+      });
+    } catch (_) {}
   }
 }
 
