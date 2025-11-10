@@ -63,25 +63,6 @@ class OutgoingCallService {
       if (_isRinging) {
         _isRinging = false;
         Navigator.pop(context); // Close ringing dialog
-        final token = (data is Map && (data['token'] != null || data['rtcToken'] != null))
-            ? (data['token'] ?? data['rtcToken']).toString()
-            : '';
-        final ch = (data is Map && (data['channelName'] != null || data['channel'] != null))
-            ? (data['channelName'] ?? data['channel']).toString()
-            : channel;
-        final uidArg = (data is Map && (data['uid'] != null || data['agoraUid'] != null || data['rtcUid'] != null))
-            ? (data['uid'] ?? data['agoraUid'] ?? data['rtcUid']).toString()
-            : null;
-        debugPrint('🔑 [OutgoingCall] Accepted with channel=$ch, token=${token.isEmpty ? '(empty)' : '(provided)'}');
-        Navigator.pushNamed(context, isVideo ? '/video_call' : '/audio_call', arguments: {
-          'name': callerName,
-          'avatarUrl': callerAvatar,
-          'channel': ch,
-          'token': token,
-          'callerId': callerId,
-          'receiverId': receiverId,
-          if (uidArg != null) 'uid': uidArg,
-        });
       }
     });
 
@@ -114,6 +95,17 @@ class OutgoingCallService {
       'receiverId': receiverId,
       'callType': isVideo ? 'video' : 'audio',
       'channelName': channel,
+    });
+
+    // Join Agora channel immediately after emitting call
+    debugPrint('🔗 [OutgoingCall] Joining Agora channel: $channel');
+    Navigator.pushNamed(context, isVideo ? '/video_call' : '/audio_call', arguments: {
+      'name': callerName,
+      'avatarUrl': callerAvatar,
+      'channel': channel,
+      'token': '', // Will be fetched by call screen
+      'callerId': callerId,
+      'receiverId': receiverId,
     });
 
     // Show ringing UI

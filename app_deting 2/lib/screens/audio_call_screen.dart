@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/call_service.dart';
 import '../services/socket_service.dart';
+import '../services/tokens_api.dart';
 
 class AudioCallScreen extends StatefulWidget {
   const AudioCallScreen({super.key});
@@ -62,6 +63,19 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
   Future<void> _start() async {
     await Permission.microphone.request();
     debugPrint('🎤 [AudioCall] Joining channel: $_channel with token: ${_token.isEmpty ? "(empty)" : "(provided)"}');
+    // If token is empty, attempt to fetch via HTTP in parallel
+    if (_token.isEmpty) {
+      TokensApi.fetchRtcToken(_channel).then((tok) async {
+        if (!mounted) return;
+        if (tok != null && tok.isNotEmpty) {
+          debugPrint('🔑 [AudioCall] Fetched RTC token via HTTP; rejoining');
+          _token = tok;
+          await _service.leave();
+          await _service.join(channel: _channel, type: CallType.audio, token: _token, uid: _uid);
+          setState(() {});
+        }
+      });
+    }
     await _service.join(channel: _channel, type: CallType.audio, token: _token, uid: _uid);
     if (mounted) setState(() {});
     _maybeAddEndListener();

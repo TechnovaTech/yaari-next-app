@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/call_dialogs.dart' as dialogs;
 import 'socket_service.dart';
+import 'tokens_api.dart';
 
 class IncomingCallService {
   IncomingCallService._();
@@ -118,6 +119,24 @@ class IncomingCallService {
                 });
               } else {
                 _awaitingAcceptedNavigate = true;
+                // Try fetching RTC token via HTTP immediately
+                TokensApi.fetchRtcToken(channelName).then((tok) {
+                  final nav2 = _navKey?.currentState;
+                  if (!_awaitingAcceptedNavigate || nav2 == null || !nav2.mounted) return;
+                  if (tok != null && tok.isNotEmpty) {
+                    final route = callType == 'video' ? '/video_call' : '/audio_call';
+                    debugPrint('🔑 [IncomingCall] Fetched RTC token via HTTP; navigating');
+                    nav2.pushNamed(route, arguments: {
+                      'name': callerName,
+                      'avatarUrl': data['avatarUrl'],
+                      'channel': channelName,
+                      'token': tok,
+                      'callerId': callerId,
+                      if (uidFromInvite != null) 'uid': uidFromInvite,
+                    });
+                    _awaitingAcceptedNavigate = false;
+                  }
+                });
                 // Fallback: if server doesn't emit call-accepted promptly, navigate with empty token
                 Future.delayed(const Duration(seconds: 3), () {
                   final nav2 = _navKey?.currentState;

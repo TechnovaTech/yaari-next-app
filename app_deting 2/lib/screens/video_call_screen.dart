@@ -3,6 +3,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import '../services/call_service.dart';
 import '../services/socket_service.dart';
+import '../services/tokens_api.dart';
 
 class VideoCallScreen extends StatefulWidget {
   const VideoCallScreen({super.key});
@@ -63,6 +64,19 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   Future<void> _start() async {
     await [Permission.camera, Permission.microphone].request();
     debugPrint('🎥 [VideoCall] Joining channel: $_channel with token: ${_token.isEmpty ? "(empty)" : "(provided)"}');
+    // If token is empty, attempt to fetch via HTTP in parallel
+    if (_token.isEmpty) {
+      TokensApi.fetchRtcToken(_channel).then((tok) async {
+        if (!mounted) return;
+        if (tok != null && tok.isNotEmpty) {
+          debugPrint('🔑 [VideoCall] Fetched RTC token via HTTP; rejoining');
+          _token = tok;
+          await _service.leave();
+          await _service.join(channel: _channel, type: CallType.video, token: _token, uid: _uid);
+          setState(() {});
+        }
+      });
+    }
     await _service.join(channel: _channel, type: CallType.video, token: _token, uid: _uid);
     if (mounted) setState(() {});
     _maybeAddEndListener();
