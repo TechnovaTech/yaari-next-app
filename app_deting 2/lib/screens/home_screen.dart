@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,6 +9,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import '../widgets/call_dialogs.dart';
 import '../services/users_api.dart';
+import '../services/outgoing_call_service.dart';
+import '../services/socket_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -32,9 +35,85 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _initData();
+    _initSocket();
+  }
+
+  Future<void> _initSocket() async {
+    developer.log('🔌 Initializing Socket.IO', name: 'HomeScreen');
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('user');
+    if (raw != null) {
+      try {
+        final userData = jsonDecode(raw);
+        final uid = (userData['id'] ?? userData['_id'])?.toString();
+        developer.log('👤 User ID: $uid', name: 'HomeScreen');
+        if (uid != null) {
+          SocketService.instance.connect(uid);
+          _listenToUserStatus();
+          developer.log('✅ Socket connected and listening', name: 'HomeScreen');
+        }
+      } catch (e) {
+        developer.log('❌ Socket init error: $e', name: 'HomeScreen');
+      }
+    } else {
+      developer.log('⚠️ No user data found', name: 'HomeScreen');
+    }
+  }
+
+  void _listenToUserStatus() {
+    SocketService.instance.on('online-users', (data) {
+      developer.log('📥 Received online-users: ${data.length} users', name: 'HomeScreen');
+      if (data is List && mounted) {
+        setState(() {
+          _users = _users.map((user) {
+            final statusData = data.firstWhere(
+              (s) => s['userId'] == user.id,
+              orElse: () => null,
+            );
+            if (statusData != null) {
+              return UserListItem(
+                id: user.id,
+                name: user.name,
+                status: statusData['status'] ?? 'Offline',
+                attributes: user.attributes,
+                avatarUrl: user.avatarUrl,
+                gender: user.gender,
+                callAccess: user.callAccess,
+              );
+            }
+            return user;
+          }).toList();
+        });
+      }
+    });
+
+    SocketService.instance.on('user-status-change', (data) {
+      developer.log('📥 User status changed: ${data['userId']} -> ${data['status']}', name: 'HomeScreen');
+      if (mounted && data is Map) {
+        setState(() {
+          final userId = data['userId']?.toString();
+          final status = data['status']?.toString() ?? 'Offline';
+          _users = _users.map((user) {
+            if (user.id == userId) {
+              return UserListItem(
+                id: user.id,
+                name: user.name,
+                status: status,
+                attributes: user.attributes,
+                avatarUrl: user.avatarUrl,
+                gender: user.gender,
+                callAccess: user.callAccess,
+              );
+            }
+            return user;
+          }).toList();
+        });
+      }
+    });
   }
 
   Future<void> _initData() async {
+    developer.log('📊 Loading home data...', name: 'HomeScreen');
     try {
       final prefs = await SharedPreferences.getInstance();
       _userGender = (prefs.getString('gender') ?? '').toLowerCase();
@@ -78,8 +157,10 @@ class _HomeScreenState extends State<HomeScreen> {
         _ad = ads.isNotEmpty ? ads.first : null;
         _loading = false;
       });
+      developer.log('✅ Loaded ${_users.length} users, ${_ads.length} ads, balance: $_coinBalance', name: 'HomeScreen');
       _configureAdAutoProgress();
-    } catch (_) {
+    } catch (e) {
+      developer.log('❌ Error loading data: $e', name: 'HomeScreen');
       if (!mounted) return;
       setState(() => _loading = false);
     }
@@ -351,16 +432,20 @@ class _AdBannerState extends State<_AdBanner> {
 
   @override
   void dispose() {
-    _disposeVideo();
+    _videoController?.pause();
+    _videoController?.dispose();
     super.dispose();
   }
 
-  void _disposeVideo() {
+  Future<void> _disposeVideo() async {
     if (_videoController != null) {
       if (_videoListener != null) {
         _videoController!.removeListener(_videoListener!);
       }
-      _videoController!.dispose();
+      try {
+        await _videoController!.pause();
+        await _videoController!.dispose();
+      } catch (_) {}
     }
     _videoController = null;
     _videoListener = null;
@@ -368,7 +453,7 @@ class _AdBannerState extends State<_AdBanner> {
   }
 
   void _setupMediaForCurrentAd() async {
-    _disposeVideo();
+    await _disposeVideo();
     if (widget.ads.isEmpty) return;
     final ad = widget.ads[widget.currentIndex];
     final mediaType = (ad.mediaType ?? 'photo').toLowerCase();
@@ -702,12 +787,22 @@ class _UserCard extends StatelessWidget {
                                 context,
                                 type: CallType.video,
                                 onAllow: () async {
+                                  final channel = 'yarri_${DateTime.now().millisecondsSinceEpoch}';
                                   await showCallConfirmDialog(
                                     context,
                                     type: CallType.video,
                                     rateLabel: '₹${videoRate}/min',
                                     balanceLabel: '₹${balance}',
-                                    onStart: () => Navigator.pushNamed(context, '/video_call'),
+                                    displayName: name,
+                                    avatarUrl: avatarUrl,
+                                    onStart: () => OutgoingCallService.instance.startCall(
+                                      context: context,
+                                      receiverId: (id ?? '').toString(),
+                                      callerName: name,
+                                      callerAvatar: avatarUrl,
+                                      channel: channel,
+                                      isVideo: true,
+                                    ),
                                   );
                                 },
                               );
@@ -738,12 +833,22 @@ class _UserCard extends StatelessWidget {
                                 context,
                                 type: CallType.audio,
                                 onAllow: () async {
+                                  final channel = 'yarri_${DateTime.now().millisecondsSinceEpoch}';
                                   await showCallConfirmDialog(
                                     context,
                                     type: CallType.audio,
                                     rateLabel: '₹${audioRate}/min',
                                     balanceLabel: '₹${balance}',
-                                    onStart: () => Navigator.pushNamed(context, '/audio_call'),
+                                    displayName: name,
+                                    avatarUrl: avatarUrl,
+                                    onStart: () => OutgoingCallService.instance.startCall(
+                                      context: context,
+                                      receiverId: (id ?? '').toString(),
+                                      callerName: name,
+                                      callerAvatar: avatarUrl,
+                                      channel: channel,
+                                      isVideo: false,
+                                    ),
                                   );
                                 },
                               );

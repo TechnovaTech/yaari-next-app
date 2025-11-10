@@ -89,12 +89,128 @@ Future<void> showPermissionDialog(
   );
 }
 
+Future<void> showIncomingCallDialog(
+  BuildContext context, {
+  required CallType type,
+  required String displayName,
+  String? avatarUrl,
+  required VoidCallback onAccept,
+  required VoidCallback onDecline,
+}) async {
+  await showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) {
+      return Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Align(
+                alignment: Alignment.topRight,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.black38),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    onDecline();
+                  },
+                ),
+              ),
+              Builder(builder: (context) {
+                final String url = avatarUrl ?? '';
+                final ImageProvider<Object> avatarImage = url.isNotEmpty
+                    ? NetworkImage(url)
+                    : const AssetImage('assets/images/Avtar.png');
+                return CircleAvatar(
+                  radius: 38,
+                  backgroundColor: Colors.transparent,
+                  backgroundImage: avatarImage,
+                );
+              }),
+              const SizedBox(height: 12),
+              Text(
+                displayName,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(_iconFor(type), color: _accent),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${_labelFor(type)} Incoming',
+                    style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9F9F9),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE0DFDD)),
+                ),
+                child: const Text(
+                  'User is calling you. Accept to start the call.',
+                  style: TextStyle(color: Colors.black54),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                        side: const BorderSide(color: Color(0xFFE0DFDD)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        onDecline();
+                      },
+                      child: const Text('Decline'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _accent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        onAccept();
+                      },
+                      child: const Text('Accept'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
 Future<void> showCallConfirmDialog(
   BuildContext context, {
   required CallType type,
   required VoidCallback onStart,
   String rateLabel = '₹10/min',
   String balanceLabel = '₹250',
+  String displayName = 'User Name',
+  String? avatarUrl,
 }) async {
   await showDialog(
     context: context,
@@ -116,13 +232,19 @@ Future<void> showCallConfirmDialog(
                   onPressed: () => Navigator.of(ctx).pop(),
                 ),
               ),
-              const CircleAvatar(
-                radius: 38,
-                backgroundImage: AssetImage('assets/images/Avtar.png'),
-                backgroundColor: Colors.transparent,
-              ),
+              Builder(builder: (context) {
+                final String url = avatarUrl ?? '';
+                final ImageProvider<Object> avatarImage = url.isNotEmpty
+                    ? NetworkImage(url)
+                    : const AssetImage('assets/images/Avtar.png');
+                return CircleAvatar(
+                  radius: 38,
+                  backgroundColor: Colors.transparent,
+                  backgroundImage: avatarImage,
+                );
+              }),
               const SizedBox(height: 10),
-              const Text('Hardik', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+              Text(displayName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -167,9 +289,9 @@ Future<void> showCallConfirmDialog(
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
-                'You will be charged ₹10 per minute for this call',
-                style: TextStyle(color: Colors.black45),
+              Text(
+                'You will be charged $rateLabel for this call',
+                style: const TextStyle(color: Colors.black45),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),

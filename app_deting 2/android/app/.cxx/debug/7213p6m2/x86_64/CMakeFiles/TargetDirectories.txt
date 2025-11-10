@@ -1,0 +1,2 @@
+/Applications/datting project/dating-app.dev-main 4/app_deting 2/android/app/.cxx/debug/7213p6m2/x86_64/CMakeFiles/edit_cache.dir
+/Applications/datting project/dating-app.dev-main 4/app_deting 2/android/app/.cxx/debug/7213p6m2/x86_64/CMakeFiles/rebuild_cache.dir

@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/call_dialogs.dart';
 import '../services/users_api.dart';
+import '../services/outgoing_call_service.dart';
 
 class UserDetailScreen extends StatefulWidget {
   const UserDetailScreen({super.key});
@@ -275,12 +276,30 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                         context,
                         type: CallType.video,
                         onAllow: () async {
+                          final channel = 'yarri_${DateTime.now().millisecondsSinceEpoch}';
                           await showCallConfirmDialog(
                             context,
                             type: CallType.video,
                             rateLabel: '₹${_settings.videoCallRate}/min',
                             balanceLabel: '₹$_coinBalance',
-                            onStart: () => Navigator.pushNamed(context, '/video_call'),
+                            displayName: (ProfileStore.instance.notifier.value.name),
+                            onStart: () {
+                              final args = ModalRoute.of(context)?.settings.arguments;
+                              String receiverId = '';
+                              if (args is Map && args['id'] != null) {
+                                receiverId = args['id'].toString();
+                              } else if (args is String && args.isNotEmpty) {
+                                receiverId = args;
+                              }
+                              OutgoingCallService.instance.startCall(
+                                context: context,
+                                receiverId: receiverId,
+                                callerName: (ProfileStore.instance.notifier.value.name),
+                                callerAvatar: null,
+                                channel: channel,
+                                isVideo: true,
+                              );
+                            },
                           );
                         },
                       );
@@ -311,12 +330,30 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                         context,
                         type: CallType.audio,
                         onAllow: () async {
+                          final channel = 'yarri_${DateTime.now().millisecondsSinceEpoch}';
                           await showCallConfirmDialog(
                             context,
                             type: CallType.audio,
                             rateLabel: '₹${_settings.audioCallRate}/min',
                             balanceLabel: '₹$_coinBalance',
-                            onStart: () => Navigator.pushNamed(context, '/audio_call'),
+                            displayName: (ProfileStore.instance.notifier.value.name),
+                            onStart: () {
+                              final args = ModalRoute.of(context)?.settings.arguments;
+                              String receiverId = '';
+                              if (args is Map && args['id'] != null) {
+                                receiverId = args['id'].toString();
+                              } else if (args is String && args.isNotEmpty) {
+                                receiverId = args;
+                              }
+                              OutgoingCallService.instance.startCall(
+                                context: context,
+                                receiverId: receiverId,
+                                callerName: (ProfileStore.instance.notifier.value.name),
+                                callerAvatar: null,
+                                channel: channel,
+                                isVideo: false,
+                              );
+                            },
                           );
                         },
                       );

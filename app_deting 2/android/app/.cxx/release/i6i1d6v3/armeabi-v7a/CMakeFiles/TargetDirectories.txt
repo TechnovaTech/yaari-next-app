@@ -1,0 +1,2 @@
+/Applications/datting project/dating-app.dev-main 4/app_deting 2/android/app/.cxx/release/i6i1d6v3/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Applications/datting project/dating-app.dev-main 4/app_deting 2/android/app/.cxx/release/i6i1d6v3/armeabi-v7a/CMakeFiles/rebuild_cache.dir

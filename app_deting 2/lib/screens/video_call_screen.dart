@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import '../services/call_service.dart';
 
 class VideoCallScreen extends StatefulWidget {
   const VideoCallScreen({super.key});
@@ -10,10 +13,47 @@ class VideoCallScreen extends StatefulWidget {
 class _VideoCallScreenState extends State<VideoCallScreen> {
   
   static const Color accent = Color(0xFFFF8547);
+  final _service = CallService.instance;
+  String _channel = 'yarri_${DateTime.now().millisecondsSinceEpoch}';
+  String _displayName = 'User Name';
+  String? _avatarUrl;
+  bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map) {
+        final n = args['name']?.toString();
+        if (n != null && n.isNotEmpty) _displayName = n;
+        final ch = args['channel']?.toString();
+        if (ch != null && ch.isNotEmpty) _channel = ch;
+        final av = args['avatarUrl']?.toString();
+        if (av != null && av.isNotEmpty) _avatarUrl = av;
+      }
+      _initialized = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _start();
+      });
+    }
+  }
+
+  Future<void> _start() async {
+    await [Permission.camera, Permission.microphone].request();
+    await _service.join(channel: _channel, type: CallType.video, token: '');
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _service.leave();
+    super.dispose();
   }
 
   @override
@@ -37,13 +77,19 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 16),
-            const CircleAvatar(
-              radius: 42,
-              backgroundImage: AssetImage('assets/images/Avtar.png'),
-              backgroundColor: Colors.transparent,
-            ),
+            Builder(builder: (context) {
+              final String url = _avatarUrl ?? '';
+              final ImageProvider<Object> avatarImage = url.isNotEmpty
+                  ? NetworkImage(url)
+                  : const AssetImage('assets/images/Avtar.png');
+              return CircleAvatar(
+                radius: 42,
+                backgroundColor: Colors.transparent,
+                backgroundImage: avatarImage,
+              );
+            }),
             const SizedBox(height: 8),
-            const Text('Hardik', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+            Text(_displayName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -63,8 +109,51 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                   color: const Color(0xFF202020),
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child: const Center(
-                  child: Icon(Icons.videocam, size: 72, color: Colors.white24),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: _service.joined,
+                        builder: (_, joined, __) {
+                          if (!joined) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+                          return AgoraVideoView(
+                            controller: VideoViewController(
+                              rtcEngine: _service.engine,
+                              canvas: const VideoCanvas(uid: 0),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    Positioned(
+                      right: 12,
+                      bottom: 12,
+                      width: 120,
+                      height: 160,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Builder(builder: (context) {
+                          if (_service.remoteUid == null) {
+                            return const Center(
+                              child: Text('Waiting remote...', style: TextStyle(color: Colors.white70)),
+                            );
+                          }
+                          return AgoraVideoView(
+                            controller: VideoViewController.remote(
+                              rtcEngine: _service.engine,
+                              canvas: VideoCanvas(uid: _service.remoteUid!),
+                              connection: RtcConnection(channelId: _service.channelName ?? _channel),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -74,15 +163,20 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                        side: const BorderSide(color: Color(0xFFE0DFDD)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () {},
-                      icon: const Icon(Icons.volume_up, color: Colors.black87),
-                      label: const Text('Speaker', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: _service.speakerOn,
+                      builder: (context, on, _) {
+                        return OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                            side: const BorderSide(color: Color(0xFFE0DFDD)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: () => _service.toggleSpeaker(),
+                          icon: Icon(on ? Icons.volume_up : Icons.hearing, color: Colors.black87),
+                          label: Text(on ? 'Speaker' : 'Earpiece', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -93,7 +187,10 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () async {
+                        await _service.leave();
+                        if (mounted) Navigator.pop(context);
+                      },
                       icon: const Icon(Icons.call_end, color: Colors.white),
                       label: const Text('End Call'),
                     ),

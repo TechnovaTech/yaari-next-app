@@ -10,7 +10,8 @@ plugins {
 android {
     namespace = "com.example.app_deting"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // Align NDK with plugin expectation (agora_rtc_engine pins r27)
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -37,6 +38,13 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+
+    // Resolve duplicate native libs between agora_rtm and aosl transitive
+    packagingOptions {
+        jniLibs {
+            pickFirsts += setOf("**/libaosl.so")
         }
     }
 }

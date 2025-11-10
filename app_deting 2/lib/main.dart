@@ -17,6 +17,7 @@ import 'screens/video_call_screen.dart';
 import 'screens/audio_call_screen.dart';
 
 import 'screens/privacy_policy_details_screen.dart';
+import 'services/incoming_call_service.dart';
 
 
 
@@ -26,6 +27,7 @@ void main() {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+  static final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +35,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Yaari',
       theme: ThemeData(fontFamily: 'Poppins'),
+      navigatorKey: appNavigatorKey,
       home: const AppStart(),
       routes: {
         '/login': (context) => const LoginPage(),
@@ -79,6 +82,8 @@ class _AppStartState extends State<AppStart> {
       final userJson = prefs.getString('user');
       if (!mounted) return;
       if (userJson != null && userJson.isNotEmpty) {
+        // Start incoming call listener before going to Home
+        await IncomingCallService.instance.start(navigatorKey: MyApp.appNavigatorKey);
         // Requirement: do NOT force Language/Gender on app start for existing users
         Navigator.pushReplacementNamed(context, '/home');
       } else {
