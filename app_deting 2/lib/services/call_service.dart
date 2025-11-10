@@ -54,7 +54,7 @@ class CallService {
     // Set default audio routing based on call type
     await _engine.setDefaultAudioRouteToSpeakerphone(type == CallType.video);
     await _engine.setAudioScenario(
-      AudioScenarioType.audioScenarioCommunication,
+      AudioScenarioType.audioScenarioDefault,
     );
     if (type == CallType.video) {
       await _engine.enableVideo();
