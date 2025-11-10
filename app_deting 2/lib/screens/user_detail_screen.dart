@@ -123,6 +123,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       final phone = (userData['phone'] ?? localPhone ?? '+91 9879879877').toString();
       final about = (userData['about'] ?? localAbout ?? '').toString();
       final gender = (userData['gender'] ?? localGender)?.toString();
+      final hobbies = _extractHobbies(userData);
 
       ProfileStore.instance.update(
         ProfileData(
@@ -132,6 +133,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
           gender: gender,
           avatarBytes: avatarBytes,
           gallery: galleryBytes,
+          hobbies: hobbies,
         ),
       );
     } catch (_) {
@@ -171,6 +173,33 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       }
     } catch (_) {}
     return null;
+  }
+
+  List<String> _extractHobbies(Map<String, dynamic> m) {
+    List<String> out = [];
+    void addMany(dynamic v) {
+      if (v is List) {
+        out.addAll(v.map((e) => e?.toString() ?? '').where((s) => s.trim().isNotEmpty).map((s) => s.trim()));
+      } else if (v is String) {
+        final raw = v.trim();
+        if (raw.isEmpty) return;
+        final parts = raw.split(RegExp(r"[,•|]\s*"));
+        out.addAll(parts.map((s) => s.trim()).where((s) => s.isNotEmpty));
+      }
+    }
+
+    addMany(m['hobbies']);
+    addMany(m['hobby']);
+    addMany(m['interests']);
+    addMany(m['tags']);
+
+    // Dedupe case-insensitively, preserve first occurrence casing
+    final seen = <String, String>{};
+    for (final h in out) {
+      final key = h.toLowerCase();
+      seen.putIfAbsent(key, () => h);
+    }
+    return seen.values.toList();
   }
 
   @override
@@ -260,11 +289,6 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                               fontSize: 20,
                               fontWeight: FontWeight.w700,
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            profile.phone,
-                            style: const TextStyle(color: Colors.black54),
                           ),
                         ],
                       ),
