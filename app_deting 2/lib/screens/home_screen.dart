@@ -29,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _adIndex = 0;
   Timer? _adTimer;
   String? _userGender; // male | female
+  String? _currentUserId;
   DateTime? _lastBackPress;
 
   String _normalizeStatus(dynamic s) {
@@ -86,8 +87,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _listenToUserStatus() {
     SocketService.instance.on('online-users', (data) {
-      debugPrint('📥 [HomeScreen] Received online-users: ${data.length} users');
       if (data is List && mounted) {
+        debugPrint('📥 [HomeScreen] Received online-users: ${data.length} users');
         setState(() {
           _users = _users.map((user) {
             final statusData = data.firstWhere(
@@ -113,11 +114,11 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     SocketService.instance.on('user-status-change', (data) {
-      debugPrint('📥 [HomeScreen] User status changed: ${data['userId']} -> ${data['status']}');
       if (mounted && data is Map) {
+        final userId = data['userId']?.toString();
+        final status = _normalizeStatus(data['status']);
+        debugPrint('📥 [HomeScreen] User status changed: $userId -> $status');
         setState(() {
-          final userId = data['userId']?.toString();
-          final status = _normalizeStatus(data['status']);
           _users = _users.map((user) {
             if (user.id == userId) {
               return UserListItem(
@@ -150,10 +151,11 @@ class _HomeScreenState extends State<HomeScreen> {
           final m = UsersApiSettingsHelper.tryDecode(raw);
           final bal = m['balance'] ?? m['coins'] ?? m['amount'];
           if (bal is int) _coinBalance = bal; else if (bal is String) _coinBalance = int.tryParse(bal) ?? _coinBalance;
+          // Extract current user ID
+          _currentUserId = _extractUserId(m);
           // If API is available, prefer live balance
-          final uid = _extractUserId(m);
-          if (uid != null && uid.isNotEmpty) {
-            final liveBal = await UsersApi.fetchBalance(uid);
+          if (_currentUserId != null && _currentUserId!.isNotEmpty) {
+            final liveBal = await UsersApi.fetchBalance(_currentUserId!);
             if (liveBal != null) {
               _coinBalance = liveBal;
             }
@@ -164,16 +166,19 @@ class _HomeScreenState extends State<HomeScreen> {
       final settings = await UsersApi.fetchSettings();
       final users = await UsersApi.fetchUsersList();
       final ads = await UsersApi.fetchAds();
-      // Gender-based filtering: show opposite gender only
-      final filtered = () {
+      // Filter: exclude self + show opposite gender only
+      final filtered = users.where((u) {
+        // Exclude self
+        if (_currentUserId != null && u.id == _currentUserId) return false;
+        // Gender-based filtering
         if (_userGender == 'male') {
-          return users.where((u) => (u.gender ?? '').toLowerCase() == 'female').toList();
+          return (u.gender ?? '').toLowerCase() == 'female';
         }
         if (_userGender == 'female') {
-          return users.where((u) => (u.gender ?? '').toLowerCase() == 'male').toList();
+          return (u.gender ?? '').toLowerCase() == 'male';
         }
-        return users; // if not set, show all
-      }();
+        return true; // if gender not set, show all
+      }).toList();
 
       if (!mounted) return;
       setState(() {
