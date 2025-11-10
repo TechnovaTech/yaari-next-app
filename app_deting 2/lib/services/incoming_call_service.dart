@@ -118,6 +118,22 @@ class IncomingCallService {
                 });
               } else {
                 _awaitingAcceptedNavigate = true;
+                // Fallback: if server doesn't emit call-accepted promptly, navigate with empty token
+                Future.delayed(const Duration(seconds: 3), () {
+                  final nav2 = _navKey?.currentState;
+                  if (!_awaitingAcceptedNavigate || nav2 == null || !nav2.mounted) return;
+                  final route = callType == 'video' ? '/video_call' : '/audio_call';
+                  debugPrint('⏳ [IncomingCall] call-accepted not received, navigating with empty token');
+                  nav2.pushNamed(route, arguments: {
+                    'name': callerName,
+                    'avatarUrl': data['avatarUrl'],
+                    'channel': channelName,
+                    'token': '',
+                    'callerId': callerId,
+                    if (uidFromInvite != null) 'uid': uidFromInvite,
+                  });
+                  _awaitingAcceptedNavigate = false;
+                });
               }
             },
             onDecline: () {

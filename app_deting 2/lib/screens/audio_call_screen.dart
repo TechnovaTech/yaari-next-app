@@ -23,6 +23,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
   String? _callerId;
   String? _receiverId;
   bool _endListenerAdded = false;
+  bool _acceptedListenerAdded = false;
 
   @override
   void initState() {
@@ -64,6 +65,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
     await _service.join(channel: _channel, type: CallType.audio, token: _token, uid: _uid);
     if (mounted) setState(() {});
     _maybeAddEndListener();
+    _maybeAddAcceptedListener();
   }
 
   void _maybeAddEndListener() {
@@ -83,6 +85,28 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
           await _service.leave();
           if (mounted) Navigator.pop(context);
         }
+      } catch (_) {}
+    });
+  }
+
+  void _maybeAddAcceptedListener() {
+    if (_acceptedListenerAdded) return;
+    _acceptedListenerAdded = true;
+    SocketService.instance.on('call-accepted', (data) async {
+      try {
+        final Map m = (data is Map) ? data : {};
+        final tok = (m['token'] ?? m['rtcToken'])?.toString() ?? '';
+        final ch = (m['channelName'] ?? m['channel'])?.toString() ?? '';
+        final uidArg = (m['uid']?.toString() ?? m['agoraUid']?.toString() ?? m['rtcUid']?.toString());
+        final parsedUid = int.tryParse(uidArg ?? '');
+        if (ch.isEmpty || ch != _channel) return;
+        if (tok.isEmpty) return;
+        debugPrint('🔑 [AudioCall] Received late token; rejoining channel');
+        _token = tok;
+        if (parsedUid != null) _uid = parsedUid;
+        await _service.leave();
+        await _service.join(channel: _channel, type: CallType.audio, token: _token, uid: _uid);
+        if (mounted) setState(() {});
       } catch (_) {}
     });
   }
