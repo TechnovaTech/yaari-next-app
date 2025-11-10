@@ -33,7 +33,7 @@ class IncomingCallService {
 
     try {
       final Map<String, dynamic> userData = jsonDecode(raw);
-      final uid = (userData['id'] ?? userData['_id'] ?? userData['userId'])?.toString();
+      final uid = _extractUserId(userData);
       if (uid == null || uid.isEmpty) return;
       
       _currentUserId = uid;
@@ -81,6 +81,26 @@ class IncomingCallService {
     } catch (e) {
       developer.log('❌ Error connecting socket: $e', name: 'IncomingCall');
     }
+  }
+
+  String? _extractUserId(Map<String, dynamic> m) {
+    // Try top-level first
+    for (final k in const ['id', '_id', 'userId']) {
+      final v = m[k];
+      if (v != null && v.toString().isNotEmpty) return v.toString();
+    }
+    // Nested common containers
+    final nestedKeys = ['user', 'data'];
+    for (final nk in nestedKeys) {
+      final inner = m[nk];
+      if (inner is Map<String, dynamic>) {
+        for (final k in const ['id', '_id', 'userId']) {
+          final v = inner[k];
+          if (v != null && v.toString().isNotEmpty) return v.toString();
+        }
+      }
+    }
+    return null;
   }
 
   Future<void> dispose() async {

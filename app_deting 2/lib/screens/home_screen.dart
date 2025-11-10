@@ -45,7 +45,16 @@ class _HomeScreenState extends State<HomeScreen> {
     if (raw != null) {
       try {
         final userData = jsonDecode(raw);
-        final uid = (userData['id'] ?? userData['_id'])?.toString();
+        String? uid;
+        // Prefer nested user object if present
+        if (userData is Map<String, dynamic>) {
+          final inner = (userData['user'] is Map<String, dynamic>)
+              ? userData['user'] as Map<String, dynamic>
+              : (userData['data'] is Map<String, dynamic>)
+                  ? userData['data'] as Map<String, dynamic>
+                  : userData as Map<String, dynamic>;
+          uid = _extractUserId(inner) ?? _extractUserId(userData as Map<String, dynamic>);
+        }
         developer.log('👤 User ID: $uid', name: 'HomeScreen');
         if (uid != null) {
           SocketService.instance.connect(uid);
@@ -878,10 +887,20 @@ class _UserCard extends StatelessWidget {
 
 // Helpers
 String? _extractUserId(Map<String, dynamic> m) {
-  final keys = ['_id', 'id', 'userId'];
-  for (final k in keys) {
+  // Top-level ids
+  for (final k in const ['id', '_id', 'userId']) {
     final v = m[k];
     if (v != null && v.toString().isNotEmpty) return v.toString();
+  }
+  // Nested common containers
+  for (final nk in const ['user', 'data']) {
+    final inner = m[nk];
+    if (inner is Map<String, dynamic>) {
+      for (final k in const ['id', '_id', 'userId']) {
+        final v = inner[k];
+        if (v != null && v.toString().isNotEmpty) return v.toString();
+      }
+    }
   }
   return null;
 }

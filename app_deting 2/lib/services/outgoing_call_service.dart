@@ -28,9 +28,24 @@ class OutgoingCallService {
     }
 
     final userData = jsonDecode(userJson);
-    final callerId = userData['id'] ?? userData['_id'];
-    final callerDisplayName = userData['name'] ?? 'User';
-    developer.log('👤 Caller: $callerDisplayName ($callerId)', name: 'OutgoingCall');
+    String? callerId;
+    String callerDisplayName = 'User';
+    try {
+      if (userData is Map<String, dynamic>) {
+        final Map<String, dynamic> root = userData;
+        final Map<String, dynamic> inner = (root['user'] is Map<String, dynamic])
+            ? root['user'] as Map<String, dynamic>
+            : (root['data'] is Map<String, dynamic])
+                ? root['data'] as Map<String, dynamic>
+                : root;
+        for (final k in const ['id', '_id', 'userId']) {
+          final v = inner[k];
+          if (v != null && v.toString().isNotEmpty) { callerId = v.toString(); break; }
+        }
+        callerDisplayName = (inner['name'] ?? inner['userName'] ?? root['name'] ?? 'User').toString();
+      }
+    } catch (_) {}
+    developer.log('👤 Caller: $callerDisplayName (${callerId ?? 'unknown'})', name: 'OutgoingCall');
 
     _isRinging = true;
 
