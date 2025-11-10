@@ -177,6 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ] else ...[
                   for (final u in _users) ...[
                     _UserCard(
+                      id: u.id,
                       status: u.status,
                       name: u.name,
                       attributes: u.attributes,
@@ -515,6 +516,7 @@ class _AdBannerState extends State<_AdBanner> {
 }
 
 class _UserCard extends StatelessWidget {
+  final String? id;
   final String status;
   final String name;
   final String attributes;
@@ -523,6 +525,7 @@ class _UserCard extends StatelessWidget {
   final int audioRate;
   final int balance;
   const _UserCard({
+    this.id,
     required this.status,
     this.name = 'User Name',
     this.attributes = 'Attributes',
@@ -561,7 +564,11 @@ class _UserCard extends StatelessWidget {
             children: [
               // Ensures perfect round crop and full cover of avatar image
               InkWell(
-                onTap: () => Navigator.pushNamed(context, '/user_detail'),
+                onTap: () => Navigator.pushNamed(
+                  context,
+                  '/user_detail',
+                  arguments: id == null ? null : {'id': id},
+                ),
                 child: SizedBox(
                   width: 80,
                   height: 80,
@@ -595,7 +602,11 @@ class _UserCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 InkWell(
-                  onTap: () => Navigator.pushNamed(context, '/user_detail'),
+                  onTap: () => Navigator.pushNamed(
+                    context,
+                    '/user_detail',
+                    arguments: id == null ? null : {'id': id},
+                  ),
                   child: Text(
                     name,
                     maxLines: 1,

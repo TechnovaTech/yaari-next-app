@@ -1,17 +1,182 @@
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:app_deting/models/profile_store.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
-class UserDetailScreen extends StatelessWidget {
+class UserDetailScreen extends StatefulWidget {
   const UserDetailScreen({super.key});
 
   static const Color bg = Color(0xFFFEF8F4);
   static const Color accent = Color(0xFFFF8547);
 
   @override
+  State<UserDetailScreen> createState() => _UserDetailScreenState();
+}
+
+class _UserDetailScreenState extends State<UserDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _loadAndFetchUser();
+  }
+
+  Future<void> _loadAndFetchUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('user');
+      String? userId;
+      String? localName;
+      String? localPhone;
+      String? localAbout;
+      String? localGender;
+
+      if (raw != null && raw.isNotEmpty) {
+        try {
+          final m = jsonDecode(raw);
+          if (m is Map<String, dynamic>) {
+            userId = (m['_id'] ?? m['id'] ?? m['userId'])?.toString();
+            localName = (m['name'] ?? m['username'])?.toString();
+            localPhone = (m['phone'] ?? '')?.toString();
+            localAbout = (m['about'] ?? '')?.toString();
+            localGender = (m['gender'] ?? m['sex'])?.toString();
+          }
+        } catch (_) {}
+      }
+
+      // Allow overriding via route arguments: pass a map {'id': '...'}
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map && args['id'] != null) {
+        userId = args['id'].toString();
+      } else if (args is String && args.isNotEmpty) {
+        userId = args;
+      }
+
+      if (userId == null || userId.isEmpty) {
+        // Update with local-only data to avoid blank UI
+        ProfileStore.instance.update(
+          ProfileData(
+            name: localName ?? 'User Name',
+            phone: localPhone ?? '+91 9879879877',
+            about: (localAbout != null && localAbout.isNotEmpty) ? localAbout : null,
+            gender: localGender,
+          ),
+        );
+        return;
+      }
+
+      // Fetch user profile
+      final userRes = await http.get(Uri.parse('https://admin.yaari.me/api/users/$userId'));
+      Map<String, dynamic> userData = {};
+      if (userRes.statusCode == 200) {
+        try {
+          final m = jsonDecode(userRes.body);
+          userData = m is Map<String, dynamic> ? (m['data'] ?? m) as Map<String, dynamic> : {};
+        } catch (_) {}
+      }
+
+      // Profile picture and gallery
+      String? profilePic = _normalizeUrl((userData['profilePic'] ?? userData['avatar'] ?? userData['image'])?.toString());
+      List<String> galleryUrls = [];
+      final g = userData['gallery'];
+      if (g is List) {
+        galleryUrls = g
+            .map((e) => _normalizeUrl(e?.toString()))
+            .where((u) => (u ?? '').isNotEmpty)
+            .cast<String>()
+            .toList();
+      }
+
+      // Fallback to images endpoint if needed
+      if ((profilePic == null || profilePic.isEmpty) || galleryUrls.isEmpty) {
+        try {
+          final imgRes = await http.get(Uri.parse('https://admin.yaari.me/api/users/$userId/images'));
+          if (imgRes.statusCode == 200) {
+            final m = jsonDecode(imgRes.body);
+            final data = m is Map<String, dynamic> ? (m['data'] ?? m) as Map<String, dynamic> : <String, dynamic>{};
+            profilePic = _normalizeUrl((data['profilePic'] ?? '')?.toString()) ?? profilePic;
+            final gal = (data['gallery'] ?? []) as List<dynamic>;
+            if (gal.isNotEmpty) {
+              galleryUrls = gal
+                  .map((e) => _normalizeUrl(e?.toString()))
+                  .where((u) => (u ?? '').isNotEmpty)
+                  .cast<String>()
+                  .toList();
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Download images as bytes for the existing UI
+      Uint8List? avatarBytes;
+      if (profilePic != null && profilePic.isNotEmpty) {
+        avatarBytes = await _downloadBytes(profilePic);
+      }
+      final List<Uint8List> galleryBytes = [];
+      for (final url in _dedupeByCanonical(galleryUrls)) {
+        final b = await _downloadBytes(url);
+        if (b != null) galleryBytes.add(b);
+      }
+
+      final name = (userData['name'] ?? localName ?? 'User Name').toString();
+      final phone = (userData['phone'] ?? localPhone ?? '+91 9879879877').toString();
+      final about = (userData['about'] ?? localAbout ?? '').toString();
+      final gender = (userData['gender'] ?? localGender)?.toString();
+
+      ProfileStore.instance.update(
+        ProfileData(
+          name: name,
+          phone: phone,
+          about: about.isNotEmpty ? about : null,
+          gender: gender,
+          avatarBytes: avatarBytes,
+          gallery: galleryBytes,
+        ),
+      );
+    } catch (_) {
+      // Keep defaults if network fails
+    }
+  }
+
+  String? _normalizeUrl(String? url) {
+    if (url == null || url.isEmpty) return url;
+    if (url.startsWith('/uploads/')) return 'https://admin.yaari.me$url';
+    return url.replaceAll(RegExp(r'https?://(localhost|0\.0\.0\.0):\d+'), 'https://admin.yaari.me');
+  }
+
+  List<String> _dedupeByCanonical(List<String> urls) {
+    final out = <String>[];
+    final seen = <String>{};
+    String keyOf(String u) {
+      final base = u.split('?').first;
+      final idx = base.lastIndexOf('/');
+      return idx >= 0 ? base.substring(idx + 1).toLowerCase() : base.toLowerCase();
+    }
+    for (final url in urls) {
+      if (url.isEmpty) continue;
+      final k = keyOf(url);
+      if (seen.contains(k)) continue;
+      seen.add(k);
+      out.add(url);
+    }
+    return out;
+  }
+
+  Future<Uint8List?> _downloadBytes(String url) async {
+    try {
+      final res = await http.get(Uri.parse(url));
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        return res.bodyBytes;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: UserDetailScreen.bg,
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(16, 16, 16, 28),
         child: Row(
@@ -19,7 +184,7 @@ class UserDetailScreen extends StatelessWidget {
             Expanded(
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: accent,
+                  backgroundColor: UserDetailScreen.accent,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -35,7 +200,7 @@ class UserDetailScreen extends StatelessWidget {
             Expanded(
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: accent,
+                  backgroundColor: UserDetailScreen.accent,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
