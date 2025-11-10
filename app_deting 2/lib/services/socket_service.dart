@@ -21,10 +21,12 @@ class SocketService {
     _socket = IO.io('https://admin.yaari.me', <String, dynamic>{
       'transports': ['websocket', 'polling'],
       'timeout': 20000,
-      'forceNew': true,
+      'forceNew': false,
       'reconnection': true,
-      'reconnectionDelay': 1000,
-      'reconnectionAttempts': 5,
+      'reconnectionDelay': 500,
+      'reconnectionDelayMax': 2000,
+      'reconnectionAttempts': 10,
+      'autoConnect': true,
     });
 
     // Attach any previously registered event listeners immediately
@@ -50,6 +52,18 @@ class SocketService {
 
     _socket!.onReconnect((attempt) {
       debugPrint('🔄 [SocketService] Socket reconnected (attempt $attempt)');
+      isConnected.value = true;
+      // Re-register user after reconnection
+      _socket!.emit('register', userId);
+      _socket!.emit('user-online', {'userId': userId, 'status': 'online'});
+    });
+
+    _socket!.onReconnectAttempt((attempt) {
+      debugPrint('🔄 [SocketService] Reconnection attempt $attempt');
+    });
+
+    _socket!.onReconnectError((data) {
+      debugPrint('❌ [SocketService] Reconnection error: $data');
     });
   }
 

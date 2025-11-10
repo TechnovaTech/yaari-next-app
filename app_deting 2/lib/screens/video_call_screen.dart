@@ -149,6 +149,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
   }
 
   Future<void> _handlePeerEnded() async {
+    if (!mounted) return;
     debugPrint('🏁 [VideoCall] Detected peer end via Agora, closing');
     await _service.dispose();
     if (mounted) Navigator.pop(context);
@@ -198,6 +199,10 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
       _service.joined.removeListener(_joinedHandler!);
       _joinedHandler = null;
     }
+    // Reset listener flags so next call can register them again
+    _endListenerAdded = false;
+    _acceptedListenerAdded = false;
+    _peerEndSubscribed = false;
     // Don't auto-dispose here - only dispose when user explicitly ends call
     // _service.dispose() is called in button handlers
     super.dispose();

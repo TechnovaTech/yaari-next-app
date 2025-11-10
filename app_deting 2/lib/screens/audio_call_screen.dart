@@ -83,12 +83,29 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
       debugPrint('🔑 [AudioCall] Using fetched RTC token');
     }
     debugPrint('🎤 [AudioCall] Joining channel: $_channel with token: (provided)');
-    await _service.join(channel: _channel, type: CallType.audio, token: _token, uid: _uid);
-    if (mounted) setState(() {});
-    _maybeAddEndListener();
-    _maybeAddAcceptedListener();
-    _maybeSubscribePeerEnded();
-    _maybeSubscribeJoinedForLogging('audio');
+    
+    try {
+      await _service.join(channel: _channel, type: CallType.audio, token: _token, uid: _uid);
+      if (mounted) setState(() {});
+      _maybeAddEndListener();
+      _maybeAddAcceptedListener();
+      _maybeSubscribePeerEnded();
+      _maybeSubscribeJoinedForLogging('audio');
+    } catch (e) {
+      debugPrint('❌ [AudioCall] Join failed: $e, retrying...');
+      // Wait a bit and retry once
+      await Future.delayed(const Duration(milliseconds: 500));
+      try {
+        await _service.join(channel: _channel, type: CallType.audio, token: _token, uid: _uid);
+        if (mounted) setState(() {});
+        _maybeAddEndListener();
+        _maybeAddAcceptedListener();
+        _maybeSubscribePeerEnded();
+        _maybeSubscribeJoinedForLogging('audio');
+      } catch (e2) {
+        debugPrint('❌ [AudioCall] Retry failed: $e2');
+      }
+    }
   }
 
   void _maybeAddEndListener() {
@@ -148,6 +165,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
   }
 
   Future<void> _handlePeerEnded() async {
+    if (!mounted) return;
     debugPrint('🏁 [AudioCall] Detected peer end via Agora, closing');
     await _service.dispose();
     if (mounted) Navigator.pop(context);
@@ -196,6 +214,10 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
       _service.joined.removeListener(_joinedHandler!);
       _joinedHandler = null;
     }
+    // Reset listener flags so next call can register them again
+    _endListenerAdded = false;
+    _acceptedListenerAdded = false;
+    _peerEndSubscribed = false;
     // Don't auto-dispose here - only dispose when user explicitly ends call
     // _service.dispose() is called in button handlers
     super.dispose();
