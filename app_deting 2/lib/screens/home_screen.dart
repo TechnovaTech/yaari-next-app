@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
-import 'dart:developer' as developer;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -39,7 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _initSocket() async {
-    developer.log('🔌 Initializing Socket.IO', name: 'HomeScreen');
+    debugPrint('🔌 [HomeScreen] Initializing Socket.IO');
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString('user');
     if (raw != null) {
@@ -55,23 +55,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   : userData as Map<String, dynamic>;
           uid = _extractUserId(inner) ?? _extractUserId(userData as Map<String, dynamic>);
         }
-        developer.log('👤 User ID: $uid', name: 'HomeScreen');
+        debugPrint('👤 [HomeScreen] User ID: $uid');
         if (uid != null) {
           SocketService.instance.connect(uid);
           _listenToUserStatus();
-          developer.log('✅ Socket connected and listening', name: 'HomeScreen');
+          debugPrint('✅ [HomeScreen] Socket connected and listening');
         }
       } catch (e) {
-        developer.log('❌ Socket init error: $e', name: 'HomeScreen');
+        debugPrint('❌ [HomeScreen] Socket init error: $e');
       }
     } else {
-      developer.log('⚠️ No user data found', name: 'HomeScreen');
+      debugPrint('⚠️ [HomeScreen] No user data found');
     }
   }
 
   void _listenToUserStatus() {
     SocketService.instance.on('online-users', (data) {
-      developer.log('📥 Received online-users: ${data.length} users', name: 'HomeScreen');
+      debugPrint('📥 [HomeScreen] Received online-users: ${data.length} users');
       if (data is List && mounted) {
         setState(() {
           _users = _users.map((user) {
@@ -97,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     SocketService.instance.on('user-status-change', (data) {
-      developer.log('📥 User status changed: ${data['userId']} -> ${data['status']}', name: 'HomeScreen');
+      debugPrint('📥 [HomeScreen] User status changed: ${data['userId']} -> ${data['status']}');
       if (mounted && data is Map) {
         setState(() {
           final userId = data['userId']?.toString();
@@ -122,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _initData() async {
-    developer.log('📊 Loading home data...', name: 'HomeScreen');
+    debugPrint('📊 [HomeScreen] Loading home data...');
     try {
       final prefs = await SharedPreferences.getInstance();
       _userGender = (prefs.getString('gender') ?? '').toLowerCase();
@@ -166,10 +166,10 @@ class _HomeScreenState extends State<HomeScreen> {
         _ad = ads.isNotEmpty ? ads.first : null;
         _loading = false;
       });
-      developer.log('✅ Loaded ${_users.length} users, ${_ads.length} ads, balance: $_coinBalance', name: 'HomeScreen');
+      debugPrint('✅ [HomeScreen] Loaded ${_users.length} users, ${_ads.length} ads, balance: $_coinBalance');
       _configureAdAutoProgress();
     } catch (e) {
-      developer.log('❌ Error loading data: $e', name: 'HomeScreen');
+      debugPrint('❌ [HomeScreen] Error loading data: $e');
       if (!mounted) return;
       setState(() => _loading = false);
     }

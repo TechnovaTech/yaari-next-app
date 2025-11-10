@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
@@ -13,11 +12,11 @@ class SocketService {
 
   void connect(String userId) {
     if (_socket != null && _socket!.connected) {
-      developer.log('⚠️ Socket already connected', name: 'SocketService');
+      debugPrint('⚠️ [SocketService] Socket already connected');
       return;
     }
 
-    developer.log('🔌 Connecting to Socket.IO server...', name: 'SocketService');
+    debugPrint('🔌 [SocketService] Connecting to Socket.IO server...');
     _socket = IO.io('https://admin.yaari.me', <String, dynamic>{
       'transports': ['websocket', 'polling'],
       'timeout': 20000,
@@ -28,39 +27,41 @@ class SocketService {
     });
 
     _socket!.onConnect((_) {
-      developer.log('✅ Socket connected successfully', name: 'SocketService');
+      debugPrint('✅ [SocketService] Socket connected successfully');
       isConnected.value = true;
       _socket!.emit('register', userId);
       _socket!.emit('user-online', {'userId': userId, 'status': 'online'});
       _socket!.emit('get-online-users');
-      developer.log('📤 Emitted: register, user-online, get-online-users', name: 'SocketService');
+      debugPrint('📤 [SocketService] Emitted: register, user-online, get-online-users');
     });
 
     _socket!.onDisconnect((_) {
-      developer.log('🔌 Socket disconnected', name: 'SocketService');
+      debugPrint('🔌 [SocketService] Socket disconnected');
       isConnected.value = false;
     });
 
     _socket!.onConnectError((data) {
-      developer.log('❌ Socket connection error: $data', name: 'SocketService');
+      debugPrint('❌ [SocketService] Socket connection error: $data');
     });
 
     _socket!.onReconnect((attempt) {
-      developer.log('🔄 Socket reconnected (attempt $attempt)', name: 'SocketService');
+      debugPrint('🔄 [SocketService] Socket reconnected (attempt $attempt)');
     });
   }
 
   void on(String event, Function callback) {
-    developer.log('👂 Listening to event: $event', name: 'SocketService');
+    debugPrint('👂 [SocketService] Listening to event: $event');
     _listeners.putIfAbsent(event, () => []).add(callback);
     _socket?.on(event, (data) {
-      developer.log('📥 Received $event: $data', name: 'SocketService');
-      callback(data);
+      debugPrint('📥 [SocketService] Received $event: $data');
+      for (final listener in _listeners[event] ?? []) {
+        listener(data);
+      }
     });
   }
 
   void emit(String event, dynamic data) {
-    developer.log('📤 Emitting $event: $data', name: 'SocketService');
+    debugPrint('📤 [SocketService] Emitting $event: $data');
     _socket?.emit(event, data);
   }
 

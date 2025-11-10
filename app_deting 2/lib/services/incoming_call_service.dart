@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:developer' as developer;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,10 +17,10 @@ class IncomingCallService {
 
   Future<void> start({required GlobalKey<NavigatorState> navigatorKey}) async {
     if (_started) {
-      developer.log('⚠️ Already started', name: 'IncomingCall');
+      debugPrint('⚠️ [IncomingCall] Already started');
       return;
     }
-    developer.log('🔔 Starting incoming call service', name: 'IncomingCall');
+    debugPrint('🔔 [IncomingCall] Starting incoming call service');
     _navKey = navigatorKey;
     _started = true;
     await _connectSocket();
@@ -37,49 +37,80 @@ class IncomingCallService {
       if (uid == null || uid.isEmpty) return;
       
       _currentUserId = uid;
-      _socket.connect(uid);
+      debugPrint('👤 [IncomingCall] Setting up listener for user: $uid');
+
+      // Ensure socket is connected
+      if (!_socket.isConnected.value) {
+        debugPrint('⚠️ [IncomingCall] Socket not connected, connecting...');
+        _socket.connect(uid);
+        // Wait a bit for connection
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
 
       _socket.on('incoming-call', (data) {
-        developer.log('📞 Incoming call from ${data['callerName']}', name: 'IncomingCall');
+        debugPrint('🔔 [IncomingCall] Incoming call received!');
+        debugPrint('📞 [IncomingCall] Data: $data');
+        
+        if (data == null) {
+          debugPrint('❌ [IncomingCall] Null data received');
+          return;
+        }
+
         final callerId = data['callerId']?.toString() ?? '';
         final callerName = data['callerName']?.toString() ?? 'User';
         final callType = data['callType']?.toString() ?? 'audio';
         final channelName = data['channelName']?.toString() ?? '';
 
-        final nav = _navKey?.currentState;
-        if (nav == null) {
-          developer.log('❌ Navigator not available', name: 'IncomingCall');
+        if (callerId.isEmpty || channelName.isEmpty) {
+          debugPrint('❌ [IncomingCall] Missing required data');
           return;
         }
 
-        dialogs.showIncomingCallDialog(
-          nav.context,
-          type: callType == 'video' ? dialogs.CallType.video : dialogs.CallType.audio,
-          displayName: callerName,
-          avatarUrl: null,
-          onAccept: () {
-            developer.log('✅ Accepting call', name: 'IncomingCall');
-            _socket.emit('accept-call', {
-              'callerId': callerId,
-              'channelName': channelName,
-              'callType': callType,
-            });
-            
-            final route = callType == 'video' ? '/video_call' : '/audio_call';
-            nav.pushNamed(route, arguments: {
-              'name': callerName,
-              'avatarUrl': null,
-              'channel': channelName,
-            });
-          },
-          onDecline: () {
-            developer.log('❌ Declining call', name: 'IncomingCall');
-            _socket.emit('decline-call', {'callerId': callerId});
-          },
-        );
+        final nav = _navKey?.currentState;
+        if (nav == null || !nav.mounted) {
+          debugPrint('❌ [IncomingCall] Navigator not available');
+          return;
+        }
+
+        // Use post frame callback to ensure UI is ready
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!nav.mounted) return;
+          
+          dialogs.showIncomingCallDialog(
+            nav.context,
+            type: callType == 'video' ? dialogs.CallType.video : dialogs.CallType.audio,
+            displayName: callerName,
+            avatarUrl: null,
+            onAccept: () {
+              debugPrint('✅ [IncomingCall] Accepting call');
+              debugPrint('📞 [IncomingCall] Channel: $channelName, Type: $callType');
+              Navigator.of(nav.context).pop(); // Close dialog first
+              
+              _socket.emit('accept-call', {
+                'callerId': callerId,
+                'channelName': channelName,
+                'callType': callType,
+              });
+              
+              final route = callType == 'video' ? '/video_call' : '/audio_call';
+              nav.pushNamed(route, arguments: {
+                'name': callerName,
+                'avatarUrl': data['avatarUrl'],
+                'channel': channelName,
+                'token': data['token'] ?? '',
+              });
+            },
+            onDecline: () {
+              debugPrint('❌ [IncomingCall] Declining call');
+              Navigator.of(nav.context).pop(); // Close dialog first
+              _socket.emit('decline-call', {'callerId': callerId});
+            },
+          );
+        });
       });
+      debugPrint('✅ [IncomingCall] Incoming call listener registered successfully');
     } catch (e) {
-      developer.log('❌ Error connecting socket: $e', name: 'IncomingCall');
+      debugPrint('❌ [IncomingCall] Error setting up listener: $e');
     }
   }
 

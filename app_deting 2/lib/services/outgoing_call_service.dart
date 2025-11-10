@@ -1,4 +1,4 @@
-import 'dart:developer' as developer;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -19,11 +19,11 @@ class OutgoingCallService {
     required String channel,
     required bool isVideo,
   }) async {
-    developer.log('📞 Starting ${isVideo ? 'video' : 'audio'} call to $receiverId', name: 'OutgoingCall');
+    debugPrint('📞 [OutgoingCall] Starting ${isVideo ? 'video' : 'audio'} call to $receiverId');
     final prefs = await SharedPreferences.getInstance();
     final userJson = prefs.getString('user');
     if (userJson == null) {
-      developer.log('❌ No user data found', name: 'OutgoingCall');
+      debugPrint('❌ [OutgoingCall] No user data found');
       return;
     }
 
@@ -33,9 +33,9 @@ class OutgoingCallService {
     try {
       if (userData is Map<String, dynamic>) {
         final Map<String, dynamic> root = userData;
-        final Map<String, dynamic> inner = (root['user'] is Map<String, dynamic])
+        final Map<String, dynamic> inner = (root['user'] is Map<String, dynamic>)
             ? root['user'] as Map<String, dynamic>
-            : (root['data'] is Map<String, dynamic])
+            : (root['data'] is Map<String, dynamic>)
                 ? root['data'] as Map<String, dynamic>
                 : root;
         for (final k in const ['id', '_id', 'userId']) {
@@ -45,13 +45,13 @@ class OutgoingCallService {
         callerDisplayName = (inner['name'] ?? inner['userName'] ?? root['name'] ?? 'User').toString();
       }
     } catch (_) {}
-    developer.log('👤 Caller: $callerDisplayName (${callerId ?? 'unknown'})', name: 'OutgoingCall');
+    debugPrint('👤 [OutgoingCall] Caller: $callerDisplayName (${callerId ?? 'unknown'})');
 
     _isRinging = true;
 
     // Listen for call responses
     _socket.on('call-accepted', (data) {
-      developer.log('✅ Call accepted!', name: 'OutgoingCall');
+      debugPrint('✅ [OutgoingCall] Call accepted!');
       if (_isRinging) {
         _isRinging = false;
         Navigator.pop(context); // Close ringing dialog
@@ -64,7 +64,7 @@ class OutgoingCallService {
     });
 
     _socket.on('call-declined', (_) {
-      developer.log('❌ Call declined', name: 'OutgoingCall');
+      debugPrint('❌ [OutgoingCall] Call declined');
       if (_isRinging) {
         _isRinging = false;
         Navigator.pop(context); // Close ringing dialog
@@ -75,7 +75,7 @@ class OutgoingCallService {
     });
 
     _socket.on('call-busy', (data) {
-      developer.log('📵 User is busy', name: 'OutgoingCall');
+      debugPrint('📵 [OutgoingCall] User is busy');
       if (_isRinging) {
         _isRinging = false;
         Navigator.pop(context); // Close ringing dialog

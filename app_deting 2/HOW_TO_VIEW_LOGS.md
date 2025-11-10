@@ -25,12 +25,17 @@ flutter run
 ### View filtered logs (Android):
 ```bash
 # In a separate terminal while app is running
-adb logcat | grep flutter
+adb logcat -s flutter:V
 ```
 
 ### View specific tags:
 ```bash
-adb logcat | grep "HomeScreen\|SocketService\|OutgoingCall\|IncomingCall"
+adb logcat | grep -i "HomeScreen\|SocketService\|OutgoingCall\|IncomingCall\|flutter:"
+```
+
+### Clear old logs first:
+```bash
+adb logcat -c && adb logcat -s flutter:V
 ```
 
 ## Method 3: Using Flutter DevTools
