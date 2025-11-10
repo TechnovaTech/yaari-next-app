@@ -183,14 +183,17 @@ class _HomeScreenState extends State<HomeScreen> {
           )
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _refreshHome,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
+      body: Builder(
+        builder: (context) {
+          if (_loading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return RefreshIndicator(
+            onRefresh: _refreshHome,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
                 _AdBanner(
                   ads: _ads,
                   currentIndex: _adIndex,
@@ -202,10 +205,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                if (_users.isEmpty) ...[
-                  // Fallback to static cards if network list is empty
-                  const _UserCard(status: 'Online', name: 'User Name', attributes: 'Singer • 25 • Hindi'),
-                ] else ...[
+                // Show a single static card if list is empty
+                if (_users.isEmpty)
+                  const _UserCard(
+                    status: 'Online',
+                    name: 'User Name',
+                    attributes: 'Singer • 25 • Hindi',
+                  ),
+                // Otherwise, render the fetched users
+                if (_users.isNotEmpty) ...[
                   for (final u in _users) ...[
                     _UserCard(
                       id: u.id,
@@ -223,6 +231,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ],
             ),
+          );
+        },
+      ),
       ),
     );
   }
