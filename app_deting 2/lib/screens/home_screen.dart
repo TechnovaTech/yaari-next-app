@@ -31,6 +31,21 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _userGender; // male | female
   DateTime? _lastBackPress;
 
+  String _normalizeStatus(dynamic s) {
+    final t = (s?.toString() ?? '').toLowerCase();
+    if (t == 'online') return 'Online';
+    if (t == 'busy') return 'Busy';
+    return 'Offline';
+  }
+
+  void _sortUsersByStatus() {
+    _users = _users.toList()
+      ..sort((a, b) {
+        int w(String st) => st == 'Online' ? 0 : st == 'Busy' ? 1 : 2;
+        return w(a.status).compareTo(w(b.status));
+      });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -83,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
               return UserListItem(
                 id: user.id,
                 name: user.name,
-                status: statusData['status'] ?? 'Offline',
+                status: _normalizeStatus(statusData['status']),
                 attributes: user.attributes,
                 avatarUrl: user.avatarUrl,
                 gender: user.gender,
@@ -92,6 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
             }
             return user;
           }).toList();
+          _sortUsersByStatus();
         });
       }
     });
@@ -101,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted && data is Map) {
         setState(() {
           final userId = data['userId']?.toString();
-          final status = data['status']?.toString() ?? 'Offline';
+          final status = _normalizeStatus(data['status']);
           _users = _users.map((user) {
             if (user.id == userId) {
               return UserListItem(
@@ -116,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
             }
             return user;
           }).toList();
+          _sortUsersByStatus();
         });
       }
     });
