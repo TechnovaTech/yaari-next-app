@@ -32,7 +32,7 @@ class AnalyticsService {
       // CleverTap plugin initializes via native configuration; mark available on mobile
       if (!_cleverTapInitialized && (Platform.isAndroid || Platform.isIOS)) {
         _cleverTapInitialized = true;
-        try { CleverTapPlugin.setDebugLevel(1); } catch (_) {}
+        try { CleverTapPlugin.setDebugLevel(3); } catch (_) {}
         debugPrint('📈 [Analytics] CleverTap available');
       }
     } catch (e) {
@@ -69,18 +69,24 @@ class AnalyticsService {
   }
 
   void track(String event, [Map<String, dynamic>? props]) {
+    final platform = kIsWeb
+        ? 'web'
+        : (Platform.isAndroid || Platform.isIOS)
+            ? 'mobile'
+            : 'other';
+    final enriched = {
+      'timestamp': DateTime.now().toIso8601String(),
+      'platform': platform,
+      ...(props ?? {}),
+    };
     try {
-      if (props != null && props.isNotEmpty) {
-        _mixpanel?.track(event, properties: props);
-      } else {
-        _mixpanel?.track(event);
-      }
+      _mixpanel?.track(event, properties: enriched);
     } catch (e) {
       debugPrint('⚠️ [Analytics] Mixpanel track error: $e');
     }
     try {
       if (_cleverTapInitialized) {
-        CleverTapPlugin.recordEvent(event, props ?? {});
+        CleverTapPlugin.recordEvent(event, enriched);
       }
     } catch (e) {
       debugPrint('⚠️ [Analytics] CleverTap recordEvent error: $e');

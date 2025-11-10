@@ -31,6 +31,14 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // CleverTap manifest placeholders mapped from gradle.properties
+        val ctAccountId = (project.findProperty("CLEVERTAP_ACCOUNT_ID") ?: "") as String
+        val ctToken = (project.findProperty("CLEVERTAP_TOKEN") ?: "") as String
+        val ctRegion = (project.findProperty("CLEVERTAP_REGION") ?: "") as String
+        manifestPlaceholders["CLEVERTAP_ACCOUNT_ID"] = ctAccountId
+        manifestPlaceholders["CLEVERTAP_TOKEN"] = ctToken
+        manifestPlaceholders["CLEVERTAP_REGION"] = ctRegion
     }
 
     buildTypes {
