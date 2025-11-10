@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:app_deting/models/profile_store.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/call_dialogs.dart';
+import '../services/users_api.dart';
 
 class UserDetailScreen extends StatefulWidget {
   const UserDetailScreen({super.key});
@@ -16,10 +18,51 @@ class UserDetailScreen extends StatefulWidget {
 }
 
 class _UserDetailScreenState extends State<UserDetailScreen> {
+  int _coinBalance = 100;
+  Settings _settings = const Settings();
+  String _callAccess = 'full';
+
   @override
   void initState() {
     super.initState();
     _loadAndFetchUser();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('user');
+      String? userId;
+      if (raw != null) {
+        try {
+          final m = jsonDecode(raw);
+          final bal = m['balance'] ?? m['coins'] ?? m['amount'];
+          if (bal is int) _coinBalance = bal; else if (bal is String) _coinBalance = int.tryParse(bal) ?? _coinBalance;
+          userId = (m['_id'] ?? m['id'] ?? m['userId'])?.toString();
+          if (userId != null && userId.isNotEmpty) {
+            final liveBal = await UsersApi.fetchBalance(userId);
+            if (liveBal != null) _coinBalance = liveBal;
+          }
+        } catch (_) {}
+      }
+      
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map && args['id'] != null) {
+        userId = args['id'].toString();
+      } else if (args is String && args.isNotEmpty) {
+        userId = args;
+      }
+      
+      if (userId != null && userId.isNotEmpty) {
+        final users = await UsersApi.fetchUsersList();
+        final user = users.firstWhere((u) => u.id == userId, orElse: () => UserListItem(id: '', name: '', status: '', attributes: '', callAccess: 'full'));
+        _callAccess = user.callAccess;
+      }
+      
+      final settings = await UsersApi.fetchSettings();
+      if (mounted) setState(() => _settings = settings);
+    } catch (_) {}
   }
 
   Future<void> _loadAndFetchUser() async {
@@ -208,40 +251,94 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       backgroundColor: UserDetailScreen.bg,
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-        child: Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: UserDetailScreen.accent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+        child: Builder(
+          builder: (context) {
+            final bool allowVideo = _callAccess == 'video' || _callAccess == 'full';
+            final bool allowAudio = _callAccess == 'audio' || _callAccess == 'full';
+            
+            final List<Widget> buttons = [];
+            
+            if (allowVideo) {
+              buttons.add(
+                Expanded(
+                  child: _PriceButton(
+                    label: '${_settings.videoCallRate} min',
+                    icon: Icons.videocam,
+                    onPressed: () async {
+                      if (_coinBalance < _settings.videoCallRate) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Insufficient coins for video call')),
+                        );
+                        return;
+                      }
+                      await showPermissionDialog(
+                        context,
+                        type: CallType.video,
+                        onAllow: () async {
+                          await showCallConfirmDialog(
+                            context,
+                            type: CallType.video,
+                            rateLabel: '₹${_settings.videoCallRate}/min',
+                            balanceLabel: '₹$_coinBalance',
+                            onStart: () => Navigator.pushNamed(context, '/video_call'),
+                          );
+                        },
+                      );
+                    },
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                onPressed: () {},
-                icon: const Icon(Icons.videocam, size: 18),
-                label: const Text('10 min'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: UserDetailScreen.accent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+              );
+            }
+            
+            if (allowVideo && allowAudio) {
+              buttons.add(const SizedBox(width: 12));
+            }
+            
+            if (allowAudio) {
+              buttons.add(
+                Expanded(
+                  child: _PriceButton(
+                    label: '${_settings.audioCallRate} min',
+                    icon: Icons.call,
+                    onPressed: () async {
+                      if (_coinBalance < _settings.audioCallRate) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Insufficient coins for audio call')),
+                        );
+                        return;
+                      }
+                      await showPermissionDialog(
+                        context,
+                        type: CallType.audio,
+                        onAllow: () async {
+                          await showCallConfirmDialog(
+                            context,
+                            type: CallType.audio,
+                            rateLabel: '₹${_settings.audioCallRate}/min',
+                            balanceLabel: '₹$_coinBalance',
+                            onStart: () => Navigator.pushNamed(context, '/audio_call'),
+                          );
+                        },
+                      );
+                    },
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                onPressed: () {},
-                icon: const Icon(Icons.call, size: 18),
-                label: const Text('5 min'),
-              ),
-            ),
-          ],
+              );
+            }
+            
+            if (buttons.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'No call access',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.black54, fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              );
+            }
+            
+            return Row(children: buttons);
+          },
         ),
       ),
       appBar: AppBar(
@@ -347,24 +444,65 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   }
 }
 
-class _TimeButton extends StatelessWidget {
+class _PriceButton extends StatelessWidget {
   final String label;
-  const _TimeButton({required this.label});
+  final IconData icon;
+  final VoidCallback onPressed;
+  const _PriceButton({required this.label, required this.icon, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: UserDetailScreen.accent,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 12),
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFFF8547),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        minimumSize: const Size(0, 42),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      onPressed: onPressed,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.center,
+        child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.white),
+          const SizedBox(width: 6),
+          ...() {
+            final tokens = label.split(' ');
+            final amount = tokens.isNotEmpty ? tokens.first : label;
+            final hasMin = label.toLowerCase().contains('min');
+            final rest = hasMin
+                ? '/min'
+                : (tokens.length > 1 ? ' ${tokens.sublist(1).join(' ')}' : '');
+            return [
+              Text(
+                amount,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.visible,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(width: 4),
+              Image.asset('assets/images/coin.png', width: 13, height: 13),
+              if (rest.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Text(
+                  rest,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.visible,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ];
+          }(),
+        ],
         ),
-        onPressed: () {},
-        child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
       ),
     );
   }
