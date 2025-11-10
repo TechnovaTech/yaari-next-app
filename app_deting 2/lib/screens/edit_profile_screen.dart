@@ -101,6 +101,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    final bool addMode = args is Map<String, dynamic> && ((args['mode'] == 'add') || (args['onboarding'] == true));
     final ImageProvider avatarProvider = _avatarBytes != null
         ? MemoryImage(_avatarBytes!)
         : const AssetImage('assets/images/Avtar.png');
@@ -121,9 +123,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               const SizedBox(height: 6),
 
-              const Text(
-                'Edit Profile',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
+              Text(
+                addMode ? 'Add Details' : 'Edit Profile',
+                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
               ),
 
               const SizedBox(height: 12),
@@ -342,13 +344,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     );
                     ProfileStore.instance.update(data);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Changes saved successfully')),
+                      SnackBar(content: Text(addMode ? 'Details saved successfully' : 'Changes saved successfully')),
                     );
-                    Navigator.pop(context);
+                    if (addMode) {
+                      Navigator.pushNamed(context, '/home');
+                    } else {
+                      Navigator.pop(context);
+                    }
                   },
-                  child: const Text(
-                    'Save Changes',
-                    style: TextStyle(
+                  child: Text(
+                    addMode ? 'Save Details' : 'Save Changes',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,

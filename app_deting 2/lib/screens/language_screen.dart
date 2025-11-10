@@ -109,7 +109,13 @@ class _LanguageScreenState extends State<LanguageScreen> {
                           final prefs = await SharedPreferences.getInstance();
                           await prefs.setString('language', _selected!);
                           if (!mounted) return;
-                          Navigator.pushNamed(context, '/gender');
+                          final args = ModalRoute.of(context)?.settings.arguments;
+                          final bool onboarding = args is Map<String, dynamic> && (args['onboarding'] == true);
+                          Navigator.pushNamed(
+                            context,
+                            '/gender',
+                            arguments: onboarding ? {'onboarding': true} : null,
+                          );
                         },
                   child: const Text(
                     'Next',

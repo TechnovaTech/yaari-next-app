@@ -202,16 +202,20 @@ class _OtpScreenState extends State<OtpScreen> {
         final data = result['data'] ?? {};
         await prefs.setString('user', jsonEncode(data));
         if (!mounted) return;
-        // First-time gating: if language not set -> language; else if gender not set -> gender; else -> home
-        final language = prefs.getString('language');
-        final gender = prefs.getString('gender');
-        String next = '/home';
-        if (language == null || language.isEmpty) {
-          next = '/language';
-        } else if (gender == null || gender.isEmpty) {
-          next = '/gender';
+        // Determine onboarding purely from API user fields (not local storage)
+        Map<String, dynamic> root = {};
+        if (data is Map<String, dynamic>) root = data;
+        final Map<String, dynamic> user = (root['user'] is Map<String, dynamic>)
+            ? (root['user'] as Map<String, dynamic>)
+            : root;
+        final String language = (user['language'] ?? user['lang'] ?? '').toString();
+        final String gender = (user['gender'] ?? user['sex'] ?? '').toString();
+        final bool isNew = language.isEmpty && gender.isEmpty;
+        if (isNew) {
+          Navigator.pushNamed(context, '/language', arguments: {'onboarding': true});
+        } else {
+          Navigator.pushNamed(context, '/home');
         }
-        Navigator.pushNamed(context, next);
       } else {
         final msg = (result['message'] ?? 'Invalid OTP').toString();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
