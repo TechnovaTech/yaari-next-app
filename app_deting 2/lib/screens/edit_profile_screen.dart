@@ -703,9 +703,11 @@ class _GalleryGrid extends StatelessWidget {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.memory(
-                      images[index],
-                      fit: BoxFit.cover,
+                    child: SizedBox.expand(
+                      child: Image.memory(
+                        images[index],
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                 ),
