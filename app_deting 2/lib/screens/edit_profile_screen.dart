@@ -27,6 +27,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String? _profilePicUrl; // remote profile pic URL
   String? _gender; // 'male' or 'female'
   final List<Uint8List> _gallery = [];
+  // Keep remote URLs aligned with _gallery for server operations
+  final List<String> _galleryUrls = [];
   final List<String> _hobbies = [];
   bool _saving = false;
   String _language = 'en';
@@ -68,7 +70,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           final g = data['gallery'];
           if (g is List) {
             // Load gallery images from URLs into bytes for existing UI components
-            await _loadGalleryBytes(g.map((e) => e?.toString()).where((u) => (u ?? '').isNotEmpty).cast<String>().toList());
+            _gallery.clear();
+            _galleryUrls.clear();
+            await _loadGalleryBytes(
+              g.map((e) => e?.toString()).where((u) => (u ?? '').isNotEmpty).cast<String>().toList(),
+            );
           }
           // Fallback to images endpoint if needed
           final id = data['id']?.toString() ?? data['_id']?.toString();
@@ -102,6 +108,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         final res = await http.get(Uri.parse(n));
         if (res.statusCode == 200) {
           _gallery.add(Uint8List.fromList(res.bodyBytes));
+          _galleryUrls.add(n);
         }
       } catch (_) {}
     }
@@ -126,7 +133,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         final gal = (data['gallery'] ?? []) as List<dynamic>;
         if (gal.isNotEmpty) {
           _gallery.clear();
-          await _loadGalleryBytes(gal.map((e) => e?.toString()).where((u) => (u ?? '').isNotEmpty).cast<String>().toList());
+          _galleryUrls.clear();
+          await _loadGalleryBytes(
+            gal.map((e) => e?.toString()).where((u) => (u ?? '').isNotEmpty).cast<String>().toList(),
+          );
         }
       }
     } catch (_) {}
@@ -164,7 +174,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _gallery.addAll(newImages);
       });
       for (final b in newImages) {
-        await _uploadPhoto(b, isProfilePic: false);
+        final url = await _uploadPhoto(b, isProfilePic: false);
+        if (url != null && url.isNotEmpty) {
+          setState(() => _galleryUrls.add(url));
+        }
       }
     } catch (e) {
       // Fallback: single image picker
@@ -176,7 +189,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           setState(() {
             _gallery.add(bytes);
           });
-          await _uploadPhoto(bytes, isProfilePic: false);
+          final url = await _uploadPhoto(bytes, isProfilePic: false);
+          if (url != null && url.isNotEmpty) {
+            setState(() => _galleryUrls.add(url));
+          }
         }
       } catch (err) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -201,7 +217,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     });
   }
 
-  Future<void> _uploadPhoto(Uint8List bytes, {required bool isProfilePic}) async {
+  Future<String?> _uploadPhoto(Uint8List bytes, {required bool isProfilePic}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userJson = prefs.getString('user');
@@ -215,7 +231,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           }
         } catch (_) {}
       }
-      if (userId == null || userId.isEmpty) return;
+      if (userId == null || userId.isEmpty) return null;
 
       final request = http.MultipartRequest('POST', Uri.parse('https://admin.yaari.me/api/upload-photo'));
       request.fields['userId'] = userId;
@@ -240,8 +256,75 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             } catch (_) {}
           }
         }
+        return url;
       }
     } catch (_) {}
+    return null;
+  }
+
+  Future<void> _deletePhotoAt(int index) async {
+    if (index < 0 || index >= _gallery.length) return;
+    final String? url = (index < _galleryUrls.length) ? _galleryUrls[index] : null;
+    setState(() {
+      _gallery.removeAt(index);
+      if (index < _galleryUrls.length) _galleryUrls.removeAt(index);
+    });
+
+    if (url == null || url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Local image removed. Server URL missing.')),
+      );
+      return;
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString('user');
+      String? userId;
+      if (userJson != null && userJson.isNotEmpty) {
+        try {
+          final m = jsonDecode(userJson);
+          final data = m is Map<String, dynamic> ? (m['user'] ?? m) : {};
+          if (data is Map<String, dynamic>) {
+            userId = data['id']?.toString() ?? data['_id']?.toString();
+          }
+        } catch (_) {}
+      }
+      if (userId == null || userId.isEmpty) return;
+
+      final normalized = _normalizeUrl(url) ?? url;
+      final res = await http.delete(
+        Uri.parse('https://admin.yaari.me/api/delete-photo'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'userId': userId, 'photoUrl': url, 'normalizedPhotoUrl': normalized}),
+      );
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        // Update local user gallery list
+        if (userJson != null) {
+          try {
+            final obj = jsonDecode(userJson);
+            if (obj is Map<String, dynamic>) {
+              final inner = (obj['user'] is Map<String, dynamic>) ? obj['user'] as Map<String, dynamic> : obj;
+              final gallery = (inner['gallery'] is List)
+                  ? (inner['gallery'] as List).map((e) => e.toString()).toList()
+                  : <String>[];
+              inner['gallery'] = gallery.where((u) => u != url).toList();
+              if (obj['user'] is Map<String, dynamic>) {
+                obj['user'] = inner;
+              }
+              await prefs.setString('user', jsonEncode(obj));
+            }
+          } catch (_) {}
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Delete failed: ${res.statusCode}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Network error: $e')),
+      );
+    }
   }
 
   Future<void> _saveProfileToServer() async {
@@ -485,7 +568,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       const SizedBox(height: 10),
                       _GalleryGrid(
                         images: _gallery,
-                        onRemove: (i) => setState(() => _gallery.removeAt(i)),
+                        onRemove: (i) => _deletePhotoAt(i),
                         onAdd: _addPhotos,
                       ),
 
