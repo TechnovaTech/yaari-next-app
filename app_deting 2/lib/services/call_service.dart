@@ -61,7 +61,7 @@ class CallService {
     _initialized = true;
   }
 
-  Future<void> join({required String channel, CallType type = CallType.video, String token = ''}) async {
+  Future<void> join({required String channel, CallType type = CallType.video, String token = '', int uid = 0}) async {
     await initialize(type: type);
     channelName = channel;
     if (type == CallType.video) {
@@ -73,10 +73,11 @@ class CallService {
       publishCameraTrack: type == CallType.video,
       publishMicrophoneTrack: true,
     );
+    debugPrint('🔗 [CallService] join: channel=$channel, uid=$uid, type=${type.name}, token=${token.isEmpty ? '(empty)' : '(provided)'}');
     await _engine.joinChannel(
       token: token,
       channelId: channel,
-      uid: 0,
+      uid: uid,
       options: options,
     );
     // Set earpiece immediately after joining

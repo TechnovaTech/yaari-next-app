@@ -18,6 +18,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   String _displayName = 'User Name';
   String? _avatarUrl;
   String _token = '';
+  int _uid = 0;
   bool _initialized = false;
 
   @override
@@ -37,8 +38,11 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         if (ch != null && ch.isNotEmpty) _channel = ch;
         final av = args['avatarUrl']?.toString();
         if (av != null && av.isNotEmpty) _avatarUrl = av;
-        final tk = args['token']?.toString();
+        final tk = args['token']?.toString() ?? args['rtcToken']?.toString();
         if (tk != null && tk.isNotEmpty) _token = tk;
+        final uidArg = args['uid']?.toString();
+        final parsed = int.tryParse(uidArg ?? '');
+        if (parsed != null) _uid = parsed;
       }
       _initialized = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -50,7 +54,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   Future<void> _start() async {
     await [Permission.camera, Permission.microphone].request();
     debugPrint('🎥 [VideoCall] Joining channel: $_channel with token: ${_token.isEmpty ? "(empty)" : "(provided)"}');
-    await _service.join(channel: _channel, type: CallType.video, token: _token);
+    await _service.join(channel: _channel, type: CallType.video, token: _token, uid: _uid);
     if (mounted) setState(() {});
   }
 
