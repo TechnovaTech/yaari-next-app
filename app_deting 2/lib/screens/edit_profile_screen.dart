@@ -32,6 +32,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final List<String> _hobbies = [];
   bool _saving = false;
   String _language = 'en';
+  // Lock phone/email after first successful save
+  bool _phoneLocked = false;
+  bool _emailLocked = false;
 
   @override
   void initState() {
@@ -60,6 +63,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           nameController.text = (data['name'] ?? nameController.text).toString();
           phoneController.text = (data['phone'] ?? phoneController.text).toString();
           emailController.text = (data['email'] ?? emailController.text).toString();
+          // Determine lock state based on existing persisted values
+          final existingPhone = (data['phone'] ?? '').toString().trim();
+          final existingEmail = (data['email'] ?? '').toString().trim();
+          _phoneLocked = existingPhone.isNotEmpty;
+          _emailLocked = existingEmail.isNotEmpty;
           aboutController.text = (data['about'] ?? '').toString();
           _gender = _gender ?? (data['gender']?.toString());
           final List<dynamic> hobbies = (data['hobbies'] ?? []) as List<dynamic>;
@@ -352,8 +360,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       final payload = <String, dynamic>{
         'name': nameController.text.trim(),
-        'phone': phoneController.text.trim(),
-        'email': emailController.text.trim().isEmpty ? null : emailController.text.trim(),
+        // If locked, keep existing value from base; otherwise allow first-time set
+        'phone': _phoneLocked ? base['phone'] : phoneController.text.trim(),
+        'email': _emailLocked
+            ? (base['email']?.toString().trim().isEmpty == true ? null : base['email'])
+            : (emailController.text.trim().isEmpty ? null : emailController.text.trim()),
         'about': aboutController.text.trim().isEmpty ? null : aboutController.text.trim(),
         'gender': _gender,
         'hobbies': _hobbies,
@@ -385,6 +396,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               await prefs.setString('user', jsonEncode(obj));
             }
           }
+          // After successful save, lock fields if they have values
+          setState(() {
+            if ((payload['phone']?.toString().trim().isNotEmpty ?? false)) {
+              _phoneLocked = true;
+            }
+            final emailed = payload['email']?.toString().trim();
+            if (emailed != null && emailed.isNotEmpty) {
+              _emailLocked = true;
+            }
+          });
         } catch (_) {}
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -530,12 +551,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         controller: phoneController,
                         hint: '+91 9879879877',
                         keyboardType: TextInputType.phone,
+                        enabled: !_phoneLocked,
+                        helperText: _phoneLocked ? 'Phone number is locked after first save' : null,
                       ),
                       const SizedBox(height: 14),
                       _InputField(
                         controller: emailController,
                         hint: 'Email',
                         keyboardType: TextInputType.emailAddress,
+                        enabled: !_emailLocked,
+                        helperText: _emailLocked ? 'Email is locked after first save' : null,
                       ),
                       const SizedBox(height: 14),
                       _InputField(
@@ -833,19 +858,27 @@ class _InputField extends StatelessWidget {
   final String hint;
   final TextInputType? keyboardType;
   final int? maxLines;
+  final bool enabled;
+  final String? helperText;
   const _InputField({
     required this.controller,
     required this.hint,
     this.keyboardType,
     this.maxLines,
+    this.enabled = true,
+    this.helperText,
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines ?? 1,
+      enabled: enabled,
       decoration: InputDecoration(
         hintText: hint,
         filled: true,
@@ -862,7 +895,18 @@ class _InputField extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: Color(0xFFBFBFBF)),
         ),
+        suffixIcon: enabled ? null : const Icon(Icons.lock, size: 18, color: Colors.black45),
       ),
+        ),
+        if ((helperText ?? '').isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              helperText!,
+              style: const TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ),
+      ],
     );
   }
 }
