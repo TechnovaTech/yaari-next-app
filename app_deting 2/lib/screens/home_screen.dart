@@ -39,6 +39,17 @@ class _HomeScreenState extends State<HomeScreen> {
     return 'Offline';
   }
 
+  // Normalize various gender spellings to 'male' or 'female'. Returns null if unknown.
+  String? _normalizeGender(dynamic g) {
+    final t = (g?.toString() ?? '').trim().toLowerCase();
+    if (t.isEmpty) return null;
+    const maleSet = {'male', 'm', 'man', 'boy'};
+    const femaleSet = {'female', 'f', 'woman', 'girl'};
+    if (maleSet.contains(t)) return 'male';
+    if (femaleSet.contains(t)) return 'female';
+    return null;
+  }
+
   void _sortUsersByStatus() {
     _users = _users.toList()
       ..sort((a, b) {
@@ -170,7 +181,8 @@ class _HomeScreenState extends State<HomeScreen> {
     debugPrint('📊 [HomeScreen] Loading home data...');
     try {
       final prefs = await SharedPreferences.getInstance();
-      _userGender = (prefs.getString('gender') ?? '').toLowerCase();
+      // Read saved gender and trim to avoid mismatch like 'male ' / 'female\t'
+      _userGender = (prefs.getString('gender') ?? '').toLowerCase().trim();
       // Try to read user balance from stored profile
       final raw = prefs.getString('user');
       if (raw != null) {
@@ -180,6 +192,21 @@ class _HomeScreenState extends State<HomeScreen> {
           if (bal is int) _coinBalance = bal; else if (bal is String) _coinBalance = int.tryParse(bal) ?? _coinBalance;
           // Extract current user ID
           _currentUserId = _extractUserId(m);
+          // If gender preference is missing, derive from stored user JSON
+          if ((_userGender == null || _userGender!.isEmpty)) {
+            final container = (m['user'] is Map<String, dynamic>)
+                ? m['user'] as Map<String, dynamic>
+                : (m['data'] is Map<String, dynamic>)
+                    ? m['data'] as Map<String, dynamic>
+                    : m;
+            final derived = _normalizeGender(container['gender'] ?? container['sex']);
+            if (derived != null) {
+              _userGender = derived;
+              debugPrint('🌀 [HomeScreen] Derived gender from stored user JSON: $_userGender');
+            } else {
+              debugPrint('🌀 [HomeScreen] No gender found in preferences or stored user JSON');
+            }
+          }
           // If API is available, prefer live balance
           if (_currentUserId != null && _currentUserId!.isNotEmpty) {
             final liveBal = await UsersApi.fetchBalance(_currentUserId!);
