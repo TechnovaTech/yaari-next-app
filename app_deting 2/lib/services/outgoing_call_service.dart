@@ -59,10 +59,36 @@ class OutgoingCallService {
 
     // Listen for call responses
     _socket.on('call-accepted', (data) {
-      debugPrint('✅ [OutgoingCall] Call accepted!');
-      if (_isRinging) {
-        _isRinging = false;
-        Navigator.pop(context); // Close ringing dialog
+      debugPrint('✅ [OutgoingCall] Call accepted! Data: $data');
+      try {
+        final Map m = (data is Map) ? data : {};
+        final tok = (m['token'] ?? m['rtcToken'])?.toString() ?? '';
+        final ch = (m['channelName'] ?? m['channel'])?.toString() ?? channel;
+        // Close the ringing dialog
+        if (_isRinging) {
+          _isRinging = false;
+          // Use rootNavigator to ensure the dialog route is popped
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+        // Navigate to call screen only after acceptance
+        final route = isVideo ? '/video_call' : '/audio_call';
+        // Schedule navigation on next frame to avoid Navigator lock assertion
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          try {
+            Navigator.pushNamed(context, route, arguments: {
+              'name': callerName,
+              'avatarUrl': callerAvatar,
+              'channel': ch,
+              'token': tok, // will be fetched by screen if empty
+              'callerId': callerId,
+              'receiverId': receiverId,
+            });
+          } catch (e) {
+            debugPrint('❌ [OutgoingCall] Navigation failed: $e');
+          }
+        });
+      } catch (e) {
+        debugPrint('❌ [OutgoingCall] Error handling call-accepted: $e');
       }
     });
 
@@ -88,24 +114,13 @@ class OutgoingCallService {
       }
     });
 
-    // Emit call-user event
+    // Emit call-user event (backend should notify receiver via 'incoming-call')
     _socket.emit('call-user', {
       'callerId': callerId,
       'callerName': callerDisplayName,
       'receiverId': receiverId,
       'callType': isVideo ? 'video' : 'audio',
       'channelName': channel,
-    });
-
-    // Join Agora channel immediately after emitting call
-    debugPrint('🔗 [OutgoingCall] Joining Agora channel: $channel');
-    Navigator.pushNamed(context, isVideo ? '/video_call' : '/audio_call', arguments: {
-      'name': callerName,
-      'avatarUrl': callerAvatar,
-      'channel': channel,
-      'token': '', // Will be fetched by call screen
-      'callerId': callerId,
-      'receiverId': receiverId,
     });
 
     // Show ringing UI

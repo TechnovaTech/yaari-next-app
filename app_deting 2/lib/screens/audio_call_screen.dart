@@ -25,6 +25,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
   String? _receiverId;
   bool _endListenerAdded = false;
   bool _acceptedListenerAdded = false;
+  bool _peerEndSubscribed = false;
 
   @override
   void initState() {
@@ -79,6 +80,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
     if (mounted) setState(() {});
     _maybeAddEndListener();
     _maybeAddAcceptedListener();
+    _maybeSubscribePeerEnded();
   }
 
   void _maybeAddEndListener() {
@@ -100,6 +102,22 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
         }
       } catch (_) {}
     });
+  }
+
+  void _maybeSubscribePeerEnded() {
+    if (_peerEndSubscribed) return;
+    _peerEndSubscribed = true;
+    _service.peerEnded.addListener(() {
+      if (_service.peerEnded.value) {
+        _handlePeerEnded();
+      }
+    });
+  }
+
+  Future<void> _handlePeerEnded() async {
+    debugPrint('🏁 [AudioCall] Detected peer end via Agora, closing');
+    await _service.dispose();
+    if (mounted) Navigator.pop(context);
   }
 
   void _maybeAddAcceptedListener() {

@@ -20,6 +20,8 @@ class CallService {
   CallType _currentType = CallType.audio;
   final ValueNotifier<bool> joined = ValueNotifier<bool>(false);
   final ValueNotifier<bool> speakerOn = ValueNotifier<bool>(false);
+  // Notifies when remote peer ends the call (detected via Agora callbacks)
+  final ValueNotifier<bool> peerEnded = ValueNotifier<bool>(false);
   static const platform = MethodChannel('com.example.app_deting/audio');
 
   // Helper: initialize and configure Agora engine with proper defaults
@@ -47,6 +49,11 @@ class CallService {
       onUserOffline: (RtcConnection connection, int uid, UserOfflineReasonType reason) {
         debugPrint('🚪 [CallService] User $uid offline: $reason');
         if (remoteUid == uid) remoteUid = null;
+        // If the remote user quit the channel, mark peerEnded so UI can auto-close
+        if (reason == UserOfflineReasonType.userOfflineQuit) {
+          debugPrint('🏁 [CallService] Remote user ended call');
+          peerEnded.value = true;
+        }
       },
       onLeaveChannel: (RtcConnection connection, RtcStats stats) {
         debugPrint('🚪 [CallService] Left channel');
@@ -90,6 +97,7 @@ class CallService {
     _joining = true;
     channelName = channel;
     _currentType = type;
+    peerEnded.value = false; // reset any previous end state
     // Gate join on valid token: fetch from backend if missing
     if (token.isEmpty) {
       debugPrint('🔎 [CallService] Token empty; fetching via HTTP for channel=$channel');
@@ -148,6 +156,7 @@ class CallService {
       joined.value = false;
       remoteUid = null;
       channelName = null;
+      peerEnded.value = false;
       debugPrint('✅ [CallService] Left channel and stopped preview');
     } catch (e) {
       debugPrint('❌ [CallService] leave failed: $e');

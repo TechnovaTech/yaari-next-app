@@ -15,6 +15,9 @@ class IncomingCallService {
   GlobalKey<NavigatorState>? _navKey;
   String? _currentUserId;
   bool _started = false;
+  bool _incomingDialogActive = false;
+  String? _incomingCallerId;
+  String? _incomingChannelName;
 
   Future<void> start({required GlobalKey<NavigatorState> navigatorKey}) async {
     if (_started) {
@@ -77,6 +80,11 @@ class IncomingCallService {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!nav.mounted) return;
 
+          // Track active incoming dialog to support cancellation
+          _incomingDialogActive = true;
+          _incomingCallerId = callerId;
+          _incomingChannelName = channelName;
+
           dialogs.showIncomingCallDialog(
             nav.context,
             type: callType == 'video' ? dialogs.CallType.video : dialogs.CallType.audio,
@@ -84,6 +92,7 @@ class IncomingCallService {
             avatarUrl: null,
             onAccept: () async {
               debugPrint('✅ [IncomingCall] Accepting call');
+              _incomingDialogActive = false;
 
               _socket.emit('accept-call', {
                 'callerId': callerId,
@@ -103,22 +112,53 @@ class IncomingCallService {
 
               final route = callType == 'video' ? '/video_call' : '/audio_call';
               debugPrint('🔑 [IncomingCall] Got token, navigating to $route');
-
-              nav.pushNamed(route, arguments: {
-                'name': callerName,
-                'avatarUrl': data['avatarUrl'],
-                'channel': channelName,
-                'token': token, // ✅ Valid token
-                'callerId': callerId,
-                'receiverId': _currentUserId,
+              // Schedule navigation on next frame to avoid Navigator lock
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!nav.mounted) return;
+                try {
+                  nav.pushNamed(route, arguments: {
+                    'name': callerName,
+                    'avatarUrl': data['avatarUrl'],
+                    'channel': channelName,
+                    'token': token, // ✅ Valid token
+                    'callerId': callerId,
+                    'receiverId': _currentUserId,
+                  });
+                } catch (e) {
+                  debugPrint('❌ [IncomingCall] Navigation failed: $e');
+                }
               });
             },
             onDecline: () {
               debugPrint('❌ [IncomingCall] Declining call');
+              _incomingDialogActive = false;
               _socket.emit('decline-call', {'callerId': callerId});
             },
           );
         });
+      });
+
+      // Listen for caller cancelling/ending before accept and close dialog
+      _socket.on('end-call', (data) {
+        try {
+          final Map m = (data is Map) ? data : {};
+          final u1 = m['userId']?.toString();
+          final u2 = m['otherUserId']?.toString();
+          final ch = (m['channelName'] ?? m['channel'])?.toString() ?? '';
+          // Narrow matching: only close if caller matches or channel matches the active incoming dialog
+          final matchesCaller = _incomingCallerId != null && (u1 == _incomingCallerId || u2 == _incomingCallerId);
+          final matchesChannel = _incomingChannelName != null && ch.isNotEmpty && ch == _incomingChannelName;
+          if (_incomingDialogActive && (matchesCaller || matchesChannel)) {
+            debugPrint('🔚 [IncomingCall] Caller ended/cancelled — closing incoming dialog');
+            final nav = _navKey?.currentState;
+            if (nav != null && nav.mounted) {
+              nav.pop();
+            }
+            _incomingDialogActive = false;
+            _incomingCallerId = null;
+            _incomingChannelName = null;
+          }
+        } catch (_) {}
       });
 
       debugPrint('✅ [IncomingCall] Incoming call listener registered successfully');
