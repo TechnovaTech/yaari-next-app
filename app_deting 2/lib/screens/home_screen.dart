@@ -75,6 +75,17 @@ class _HomeScreenState extends State<HomeScreen> {
         if (uid != null) {
           SocketService.instance.connect(uid);
           _listenToUserStatus();
+          // Request online users status multiple times to ensure we get the data
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              SocketService.instance.emit('get-online-users', {});
+            }
+          });
+          Future.delayed(const Duration(milliseconds: 1500), () {
+            if (mounted) {
+              SocketService.instance.emit('get-online-users', {});
+            }
+          });
           debugPrint('✅ [HomeScreen] Socket connected and listening');
         }
       } catch (e) {
@@ -89,24 +100,40 @@ class _HomeScreenState extends State<HomeScreen> {
     SocketService.instance.on('online-users', (data) {
       if (data is List && mounted) {
         debugPrint('📥 [HomeScreen] Received online-users: ${data.length} users');
+        final onlineUserIds = <String>{};
+        final busyUserIds = <String>{};
+        
+        for (final item in data) {
+          if (item is Map) {
+            final userId = item['userId']?.toString();
+            final status = _normalizeStatus(item['status']);
+            if (userId != null) {
+              if (status == 'Online') {
+                onlineUserIds.add(userId);
+              } else if (status == 'Busy') {
+                busyUserIds.add(userId);
+              }
+            }
+          }
+        }
+        
         setState(() {
           _users = _users.map((user) {
-            final statusData = data.firstWhere(
-              (s) => s['userId'] == user.id,
-              orElse: () => null,
-            );
-            if (statusData != null) {
-              return UserListItem(
-                id: user.id,
-                name: user.name,
-                status: _normalizeStatus(statusData['status']),
-                attributes: user.attributes,
-                avatarUrl: user.avatarUrl,
-                gender: user.gender,
-                callAccess: user.callAccess,
-              );
+            String newStatus = 'Offline';
+            if (onlineUserIds.contains(user.id)) {
+              newStatus = 'Online';
+            } else if (busyUserIds.contains(user.id)) {
+              newStatus = 'Busy';
             }
-            return user;
+            return UserListItem(
+              id: user.id,
+              name: user.name,
+              status: newStatus,
+              attributes: user.attributes,
+              avatarUrl: user.avatarUrl,
+              gender: user.gender,
+              callAccess: user.callAccess,
+            );
           }).toList();
           _sortUsersByStatus();
         });

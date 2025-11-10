@@ -16,7 +16,7 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <application
-        android:label="app_deting"
+        android:label="Yaari"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

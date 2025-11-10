@@ -56,6 +56,7 @@ class SocketService {
       // Re-register user after reconnection
       _socket!.emit('register', userId);
       _socket!.emit('user-online', {'userId': userId, 'status': 'online'});
+      _socket!.emit('get-online-users');
     });
 
     _socket!.onReconnectAttempt((attempt) {

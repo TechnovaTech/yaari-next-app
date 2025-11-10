@@ -109,7 +109,6 @@ class UserListItem {
       if (age.isNotEmpty) age,
       if (lang.isNotEmpty) lang,
     ].join(' • ');
-    final String s = (j['status'] ?? j['presence'] ?? 'Online').toString();
     final String? avatar = _fixUrl(
       (j['profilePic'] as String?) ?? (j['avatar'] as String?) ?? (j['image'] as String?)
     );
@@ -124,7 +123,7 @@ class UserListItem {
     return UserListItem(
       id: id,
       name: name,
-      status: s.isEmpty ? 'Online' : s,
+      status: 'Offline',
       attributes: attributes.isEmpty ? 'Attributes' : attributes,
       avatarUrl: avatar,
       gender: gender?.toLowerCase(),

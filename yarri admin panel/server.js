@@ -95,18 +95,22 @@ app.prepare().then(() => {
       pendingCalls.delete(callerId)
     })
 
-    socket.on('end-call', ({ userId, otherUserId }) => {
-      console.log('Call ended, notifying other user:', otherUserId)
+    socket.on('end-call', ({ userId, otherUserId, channelName }) => {
+      console.log('Call ended:', { userId, otherUserId, channelName })
       const otherUserSocketId = users.get(otherUserId)
       if (otherUserSocketId) {
-        io.to(otherUserSocketId).emit('call-ended')
-        console.log('Call ended notification sent')
+        io.to(otherUserSocketId).emit('end-call', { userId, otherUserId, channelName })
+        console.log('Call ended notification sent to:', otherUserId)
       }
       // Clear active call state and broadcast availability
       activeCalls.delete(userId)
       activeCalls.delete(otherUserId)
-      io.emit('user-status-change', { userId, status: 'online' })
-      io.emit('user-status-change', { userId: otherUserId, status: 'online' })
+      if (users.has(userId)) {
+        io.emit('user-status-change', { userId, status: 'online' })
+      }
+      if (users.has(otherUserId)) {
+        io.emit('user-status-change', { userId: otherUserId, status: 'online' })
+      }
     })
 
     // Provide current list of online user IDs with status
@@ -118,6 +122,13 @@ app.prepare().then(() => {
       socket.emit('online-users', userStatuses)
     })
 
+    socket.on('user-online', ({ userId, status }) => {
+      console.log('User online status update:', { userId, status })
+      if (status === 'online' && !activeCalls.has(userId)) {
+        io.emit('user-status-change', { userId, status: 'online' })
+      }
+    })
+
     socket.on('disconnect', () => {
       for (const [userId, socketId] of users.entries()) {
         if (socketId === socket.id) {
@@ -125,13 +136,25 @@ app.prepare().then(() => {
           console.log(`User ${userId} disconnected`)
           // Broadcast presence update
           io.emit('user-status-change', { userId, status: 'offline' })
-          // If user was in a call, mark the other user available
+          // If user was in a call, notify the other user and end the call
           const active = activeCalls.get(userId)
           if (active && active.otherUserId) {
+            const otherSocketId = users.get(active.otherUserId)
+            if (otherSocketId) {
+              io.to(otherSocketId).emit('end-call', { 
+                userId: active.otherUserId, 
+                otherUserId: userId, 
+                channelName: active.channelName 
+              })
+            }
             activeCalls.delete(active.otherUserId)
             activeCalls.delete(userId)
-            io.emit('user-status-change', { userId: active.otherUserId, status: 'online' })
+            if (users.has(active.otherUserId)) {
+              io.emit('user-status-change', { userId: active.otherUserId, status: 'online' })
+            }
           }
+          // Clear any pending calls
+          pendingCalls.delete(userId)
           break
         }
       }
