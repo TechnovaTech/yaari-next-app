@@ -33,6 +33,8 @@ class _GenderScreenState extends State<GenderScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    final bool onboarding = args is Map<String, dynamic> && (args['onboarding'] == true);
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: const Color(0xFFFEF8F4),
@@ -117,7 +119,15 @@ class _GenderScreenState extends State<GenderScreen> {
                           final current = ProfileStore.instance.notifier.value;
                           ProfileStore.instance.update(current.copyWith(gender: _selected!));
                           if (!mounted) return;
-                          Navigator.pushNamed(context, '/home');
+                          if (onboarding) {
+                            Navigator.pushNamed(
+                              context,
+                              '/edit_profile',
+                              arguments: {'mode': 'add', 'onboarding': true},
+                            );
+                          } else {
+                            Navigator.pushNamed(context, '/home');
+                          }
                         },
                   child: const Text(
                     'Next',

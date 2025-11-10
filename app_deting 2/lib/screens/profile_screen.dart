@@ -26,9 +26,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _normalizeUrl(String? url) {
     final u = (url ?? '').trim();
     if (u.isEmpty) return '';
-    return u
+    // Normalize local hosts to production base
+    String normalized = u
         .replaceAll(RegExp(r'https?://localhost:\d+'), _apiBase)
         .replaceAll(RegExp(r'https?://0\.0\.0\.0:\d+'), _apiBase);
+    // If server returned an admin upload path, prefix with base
+    if (normalized.startsWith('/uploads/')) {
+      normalized = '$_apiBase$normalized';
+    }
+    return normalized;
   }
 
   Future<void> _loadProfile() async {
@@ -45,12 +51,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         } catch (_) {}
       }
 
-      // Some responses store the user object under `user`, others at root
+      // Some responses store the user under `user`, others under `data.user`,
+      // and some put fields directly under `data` or at root.
+      final Map<String, dynamic> data = (root['data'] is Map<String, dynamic>)
+          ? (root['data'] as Map<String, dynamic>)
+          : <String, dynamic>{};
       final Map<String, dynamic> user = (root['user'] is Map<String, dynamic>)
           ? (root['user'] as Map<String, dynamic>)
-          : root;
+          : (data['user'] is Map<String, dynamic>)
+              ? (data['user'] as Map<String, dynamic>)
+              : (data.isNotEmpty ? data : root);
 
-      final String name = (user['name'] ?? 'User Name').toString();
+      final String name = (user['name'] ?? user['username'] ?? 'User Name').toString();
       String phone = (user['phone'] ?? prefs.getString('phone') ?? '').toString();
       String avatar = (user['profilePic'] ?? user['avatar'] ?? user['image'] ?? '').toString();
       avatar = _normalizeUrl(avatar);
@@ -68,10 +80,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final uri = Uri.parse('$_apiBase/api/users/$id/images');
           final res = await http.get(uri);
           if (res.statusCode >= 200 && res.statusCode < 300) {
-            final Map<String, dynamic> body = jsonDecode(res.body) is Map<String, dynamic>
-                ? (jsonDecode(res.body) as Map<String, dynamic>)
+            final dynamic decoded = jsonDecode(res.body);
+            final Map<String, dynamic> body = decoded is Map<String, dynamic>
+                ? decoded
                 : <String, dynamic>{};
-            final String serverPic = _normalizeUrl((body['profilePic'] ?? '').toString());
+            final Map<String, dynamic> data = body['data'] is Map<String, dynamic>
+                ? (body['data'] as Map<String, dynamic>)
+                : body;
+            final String serverPic = _normalizeUrl(
+              (data['profilePic'] ?? data['avatar'] ?? data['image'] ?? '').toString(),
+            );
             if (serverPic.isNotEmpty && serverPic != _avatarUrl) {
               if (!mounted) return;
               setState(() => _avatarUrl = serverPic);
@@ -221,6 +239,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.remove('user');
                 await prefs.remove('phone');
+                await prefs.remove('language');
+                await prefs.remove('gender');
                 // Optionally clear session-specific values
                 // await prefs.remove('gender');
                 if (context.mounted) {
