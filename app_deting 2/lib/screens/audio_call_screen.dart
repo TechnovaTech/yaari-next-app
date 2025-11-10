@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/call_service.dart';
+import '../services/socket_service.dart';
 
 class AudioCallScreen extends StatefulWidget {
   const AudioCallScreen({super.key});
@@ -19,6 +20,9 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
   String _token = '';
   int _uid = 0;
   bool _initialized = false;
+  String? _callerId;
+  String? _receiverId;
+  bool _endListenerAdded = false;
 
   @override
   void initState() {
@@ -42,6 +46,10 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
         final uidArg = args['uid']?.toString();
         final parsed = int.tryParse(uidArg ?? '');
         if (parsed != null) _uid = parsed;
+        final cId = args['callerId']?.toString();
+        final rId = args['receiverId']?.toString();
+        if (cId != null && cId.isNotEmpty) _callerId = cId;
+        if (rId != null && rId.isNotEmpty) _receiverId = rId;
       }
       _initialized = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -55,6 +63,28 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
     debugPrint('🎤 [AudioCall] Joining channel: $_channel with token: ${_token.isEmpty ? "(empty)" : "(provided)"}');
     await _service.join(channel: _channel, type: CallType.audio, token: _token, uid: _uid);
     if (mounted) setState(() {});
+    _maybeAddEndListener();
+  }
+
+  void _maybeAddEndListener() {
+    if (_endListenerAdded) return;
+    _endListenerAdded = true;
+    SocketService.instance.on('end-call', (data) async {
+      try {
+        final Map m = (data is Map) ? data : {};
+        final ch = (m['channelName'] ?? m['channel'])?.toString() ?? '';
+        final u1 = m['userId']?.toString();
+        final u2 = m['otherUserId']?.toString();
+        final matchesChannel = ch.isNotEmpty && ch == _channel;
+        final matchesUser = (_callerId != null && (u1 == _callerId || u2 == _callerId)) ||
+                            (_receiverId != null && (u1 == _receiverId || u2 == _receiverId));
+        if (matchesChannel || matchesUser) {
+          debugPrint('🔚 [AudioCall] Peer ended call, closing screen');
+          await _service.leave();
+          if (mounted) Navigator.pop(context);
+        }
+      } catch (_) {}
+    });
   }
 
   @override
@@ -152,6 +182,12 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       onPressed: () async {
+                        // Notify server and leave
+                        SocketService.instance.emit('end-call', {
+                          'userId': _callerId,
+                          'otherUserId': _receiverId,
+                          'channelName': _channel,
+                        });
                         await _service.leave();
                         if (mounted) Navigator.pop(context);
                       },

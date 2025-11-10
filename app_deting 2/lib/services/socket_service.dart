@@ -9,6 +9,7 @@ class SocketService {
   IO.Socket? _socket;
   final ValueNotifier<bool> isConnected = ValueNotifier<bool>(false);
   final _listeners = <String, List<Function>>{};
+  final Set<String> _attachedEvents = <String>{};
 
   void connect(String userId) {
     if (_socket != null && _socket!.connected) {
@@ -25,6 +26,9 @@ class SocketService {
       'reconnectionDelay': 1000,
       'reconnectionAttempts': 5,
     });
+
+    // Attach any previously registered event listeners immediately
+    _attachStoredListeners();
 
     _socket!.onConnect((_) {
       debugPrint('✅ [SocketService] Socket connected successfully');
@@ -52,12 +56,16 @@ class SocketService {
   void on(String event, Function callback) {
     debugPrint('👂 [SocketService] Listening to event: $event');
     _listeners.putIfAbsent(event, () => []).add(callback);
-    _socket?.on(event, (data) {
-      debugPrint('📥 [SocketService] Received $event: $data');
-      for (final listener in _listeners[event] ?? []) {
-        listener(data);
-      }
-    });
+    // Ensure the event handler is attached to the socket exactly once
+    if (_socket != null && !_attachedEvents.contains(event)) {
+      _socket!.on(event, (data) {
+        debugPrint('📥 [SocketService] Received $event: $data');
+        for (final listener in _listeners[event] ?? []) {
+          listener(data);
+        }
+      });
+      _attachedEvents.add(event);
+    }
   }
 
   void emit(String event, dynamic data) {
@@ -70,5 +78,20 @@ class SocketService {
     _socket?.dispose();
     _socket = null;
     isConnected.value = false;
+    _attachedEvents.clear();
+  }
+
+  void _attachStoredListeners() {
+    if (_socket == null) return;
+    for (final event in _listeners.keys) {
+      if (_attachedEvents.contains(event)) continue;
+      _socket!.on(event, (data) {
+        debugPrint('📥 [SocketService] Received $event: $data');
+        for (final listener in _listeners[event] ?? []) {
+          listener(data);
+        }
+      });
+      _attachedEvents.add(event);
+    }
   }
 }

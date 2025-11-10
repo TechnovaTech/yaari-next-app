@@ -21,14 +21,16 @@ public class MainActivity extends FlutterActivity {
                 if (call.method.equals("setSpeakerOn")) {
                     audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
                     audioManager.setSpeakerphoneOn(true);
-                    audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, 
-                        audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL), 0);
+                    int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL);
+                    int target = Math.max(1, (int)(max * 0.8));
+                    audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, target, 0);
                     result.success(null);
                 } else if (call.method.equals("setSpeakerOff")) {
                     audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
                     audioManager.setSpeakerphoneOn(false);
-                    audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, 
-                        audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL), 0);
+                    int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL);
+                    int target = Math.max(1, (int)(max * 0.6));
+                    audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, target, 0);
                     result.success(null);
                 } else {
                     result.notImplemented();

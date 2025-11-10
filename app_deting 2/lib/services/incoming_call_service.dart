@@ -19,6 +19,7 @@ class IncomingCallService {
   String? _pendingAvatarUrl;
   String _pendingCallType = 'audio';
   String? _pendingChannelName;
+  String? _pendingCallerId;
 
   Future<void> start({required GlobalKey<NavigatorState> navigatorKey}) async {
     if (_started) {
@@ -79,6 +80,7 @@ class IncomingCallService {
 
         // Cache pending details for accept-driven navigation
         _pendingCallerName = callerName;
+        _pendingCallerId = callerId;
         _pendingAvatarUrl = data['avatarUrl']?.toString();
         _pendingCallType = callType;
         _pendingChannelName = channelName;
@@ -111,6 +113,7 @@ class IncomingCallService {
                   'avatarUrl': data['avatarUrl'],
                   'channel': channelName,
                   'token': tokenFromInvite,
+                  'callerId': callerId,
                   if (uidFromInvite != null) 'uid': uidFromInvite,
                 });
               } else {
@@ -150,6 +153,7 @@ class IncomingCallService {
             'avatarUrl': _pendingAvatarUrl,
             'channel': ch,
             'token': token,
+            'callerId': _pendingCallerId,
             if (uidArg != null) 'uid': uidArg,
           });
         } finally {

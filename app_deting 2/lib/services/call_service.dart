@@ -15,6 +15,7 @@ class CallService {
   bool _initialized = false;
   int? remoteUid;
   String? channelName;
+  CallType _currentType = CallType.audio;
   final ValueNotifier<bool> joined = ValueNotifier<bool>(false);
   final ValueNotifier<bool> speakerOn = ValueNotifier<bool>(false);
   static const platform = MethodChannel('com.example.app_deting/audio');
@@ -35,9 +36,9 @@ class CallService {
       onUserJoined: (RtcConnection connection, int uid, int elapsed) {
         debugPrint('👤 [CallService] Remote user joined: $uid');
         remoteUid = uid;
-        // Set earpiece when remote user joins
+        // Adjust audio routing shortly after remote join
         Future.delayed(const Duration(milliseconds: 500), () {
-          _setAudioRouting(false);
+          _setAudioRouting(_currentType == CallType.video);
         });
       },
       onUserOffline: (RtcConnection connection, int uid, UserOfflineReasonType reason) {
@@ -50,20 +51,22 @@ class CallService {
     ));
 
     await _engine.enableAudio();
-    // Set default audio routing to earpiece
-    await _engine.setDefaultAudioRouteToSpeakerphone(false);
+    // Set default audio routing based on call type
+    await _engine.setDefaultAudioRouteToSpeakerphone(type == CallType.video);
     await _engine.setAudioScenario(
-      AudioScenarioType.audioScenarioDefault,
+      AudioScenarioType.audioScenarioCommunication,
     );
     if (type == CallType.video) {
       await _engine.enableVideo();
     }
+    _currentType = type;
     _initialized = true;
   }
 
   Future<void> join({required String channel, CallType type = CallType.video, String token = '', int uid = 0}) async {
     await initialize(type: type);
     channelName = channel;
+    _currentType = type;
     if (type == CallType.video) {
       await _engine.startPreview();
     }
@@ -74,15 +77,24 @@ class CallService {
       publishMicrophoneTrack: true,
     );
     debugPrint('🔗 [CallService] join: channel=$channel, uid=$uid, type=${type.name}, token=${token.isEmpty ? '(empty)' : '(provided)'}');
-    await _engine.joinChannel(
-      token: token,
-      channelId: channel,
-      uid: uid,
-      options: options,
-    );
-    // Set earpiece immediately after joining
+    try {
+      await _engine.joinChannel(
+        token: token,
+        channelId: channel,
+        uid: uid,
+        options: options,
+      );
+      // Ensure audio streams are unmuted
+      try { await _engine.muteLocalAudioStream(false); } catch (_) {}
+      try { await _engine.muteAllRemoteAudioStreams(false); } catch (_) {}
+    } catch (e) {
+      debugPrint('❌ [CallService] joinChannel failed: $e');
+      joined.value = false;
+      return;
+    }
+    // Adjust audio route shortly after joining
     Future.delayed(const Duration(milliseconds: 1000), () {
-      _setAudioRouting(false);
+      _setAudioRouting(_currentType == CallType.video);
     });
   }
 
@@ -113,6 +125,8 @@ class CallService {
 
   Future<void> _setAudioRouting(bool useSpeaker) async {
     try {
+      // Try routing via Agora engine too, for runtime switching
+      try { await _engine.setDefaultAudioRouteToSpeakerphone(useSpeaker); } catch (_) {}
       if (useSpeaker) {
         await platform.invokeMethod('setSpeakerOn');
       } else {

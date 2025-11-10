@@ -49,6 +49,14 @@ class OutgoingCallService {
 
     _isRinging = true;
 
+    // Ensure socket connectivity before emitting/handling events
+    if (!_socket.isConnected.value) {
+      if (callerId != null && callerId.isNotEmpty) {
+        _socket.connect(callerId);
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+    }
+
     // Listen for call responses
     _socket.on('call-accepted', (data) {
       debugPrint('✅ [OutgoingCall] Call accepted!');
@@ -70,6 +78,8 @@ class OutgoingCallService {
           'avatarUrl': callerAvatar,
           'channel': ch,
           'token': token,
+          'callerId': callerId,
+          'receiverId': receiverId,
           if (uidArg != null) 'uid': uidArg,
         });
       }
