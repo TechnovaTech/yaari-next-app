@@ -288,25 +288,32 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
                         },
                       ),
                     ),
-                    Positioned(
-                      right: 12,
-                      bottom: 12,
-                      width: 120,
-                      height: 160,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: _service.engine != null
-                            ? AgoraVideoView(
-                                controller: VideoViewController(
-                                  rtcEngine: _service.engine!,
-                                  canvas: const VideoCanvas(uid: 0),
-                                ),
-                              )
-                            : const SizedBox(),
-                      ),
+                    ValueListenableBuilder<int?>(
+                      valueListenable: _service.remoteUidNotifier,
+                      builder: (_, remoteUid, __) {
+                        // Only show PIP when remote user is present
+                        if (remoteUid == null || _service.engine == null) {
+                          return const SizedBox();
+                        }
+                        return Positioned(
+                          right: 12,
+                          bottom: 12,
+                          width: 120,
+                          height: 160,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: AgoraVideoView(
+                              controller: VideoViewController(
+                                rtcEngine: _service.engine!,
+                                canvas: const VideoCanvas(uid: 0),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
