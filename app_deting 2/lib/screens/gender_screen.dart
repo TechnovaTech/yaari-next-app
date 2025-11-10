@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_deting/models/profile_store.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class GenderScreen extends StatefulWidget {
   static const String routeName = '/gender';
@@ -115,6 +117,41 @@ class _GenderScreenState extends State<GenderScreen> {
                       : () async {
                           final prefs = await SharedPreferences.getInstance();
                           await prefs.setString('gender', _selected!);
+                          // Persist to Admin API
+                          try {
+                            final uj = prefs.getString('user');
+                            String? userId;
+                            if (uj != null && uj.isNotEmpty) {
+                              final obj = jsonDecode(uj);
+                              if (obj is Map<String, dynamic>) {
+                                final inner = (obj['user'] is Map<String, dynamic>) ? obj['user'] as Map<String, dynamic> : obj;
+                                userId = (inner['id'] ?? inner['_id'] ?? '').toString();
+                              }
+                            }
+                            if (userId != null && userId.isNotEmpty) {
+                              final res = await http.put(
+                                Uri.parse('https://admin.yaari.me/api/users/$userId'),
+                                headers: {'Content-Type': 'application/json'},
+                                body: jsonEncode({'gender': _selected}),
+                              );
+                              if (res.statusCode >= 200 && res.statusCode < 300) {
+                                // Merge into local user JSON for future starts
+                                if (uj != null) {
+                                  try {
+                                    final obj = jsonDecode(uj);
+                                    if (obj is Map<String, dynamic>) {
+                                      if (obj['user'] is Map<String, dynamic>) {
+                                        (obj['user'] as Map<String, dynamic>)['gender'] = _selected;
+                                      } else {
+                                        obj['gender'] = _selected;
+                                      }
+                                      await prefs.setString('user', jsonEncode(obj));
+                                    }
+                                  } catch (_) {}
+                                }
+                              }
+                            }
+                          } catch (_) {}
                           // Update ProfileStore gender for in-app use
                           final current = ProfileStore.instance.notifier.value;
                           ProfileStore.instance.update(current.copyWith(gender: _selected!));

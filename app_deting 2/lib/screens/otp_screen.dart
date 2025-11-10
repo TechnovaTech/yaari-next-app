@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:pinput/pinput.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import '../services/auth_api.dart';
 // removed: import 'verified_screen.dart';
 
@@ -198,19 +199,35 @@ class _OtpScreenState extends State<OtpScreen> {
       final result = await AuthApi.verifyOtp(phone: phone, otp: otp);
       if (result['success'] == true) {
         final prefs = await SharedPreferences.getInstance();
-        // Store user profile JSON (if present)
+        // Store full response body; downstream screens read `user` from it
         final data = result['data'] ?? {};
         await prefs.setString('user', jsonEncode(data));
         if (!mounted) return;
-        // Determine onboarding purely from API user fields (not local storage)
+        // Decide onboarding only for truly new users by checking server `createdAt`
         Map<String, dynamic> root = {};
         if (data is Map<String, dynamic>) root = data;
         final Map<String, dynamic> user = (root['user'] is Map<String, dynamic>)
             ? (root['user'] as Map<String, dynamic>)
             : root;
-        final String language = (user['language'] ?? user['lang'] ?? '').toString();
-        final String gender = (user['gender'] ?? user['sex'] ?? '').toString();
-        final bool isNew = language.isEmpty && gender.isEmpty;
+        final String id = (user['id'] ?? user['_id'] ?? '').toString();
+        bool isNew = false;
+        if (id.isNotEmpty) {
+          try {
+            final res = await http.get(Uri.parse('https://admin.yaari.me/api/users/$id'));
+            if (res.statusCode == 200) {
+              final full = jsonDecode(res.body);
+              // Consider new if created very recently and profile fields are empty
+              final createdStr = (full['createdAt'] ?? '').toString();
+              DateTime? createdAt;
+              try { createdAt = DateTime.tryParse(createdStr); } catch (_) {}
+              final minutesSinceCreate = createdAt != null ? DateTime.now().difference(createdAt).inMinutes : 9999;
+              final hasName = (full['name'] ?? '').toString().trim().isNotEmpty;
+              final hasGender = (full['gender'] ?? '').toString().trim().isNotEmpty;
+              final hasLanguage = (full['language'] ?? full['lang'] ?? '').toString().trim().isNotEmpty;
+              isNew = minutesSinceCreate <= 5 && !(hasName || hasGender || hasLanguage);
+            }
+          } catch (_) {}
+        }
         if (isNew) {
           Navigator.pushNamed(context, '/language', arguments: {'onboarding': true});
         } else {

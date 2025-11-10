@@ -1,7 +1,10 @@
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:app_deting/models/profile_store.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -21,18 +24,112 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController aboutController = TextEditingController();
   final TextEditingController hobbyController = TextEditingController();
   Uint8List? _avatarBytes;
+  String? _profilePicUrl; // remote profile pic URL
   String? _gender; // 'male' or 'female'
   final List<Uint8List> _gallery = [];
   final List<String> _hobbies = [];
+  bool _saving = false;
+  String _language = 'en';
 
   @override
   void initState() {
     super.initState();
+    _loadInitialState();
+  }
+
+  Future<void> _loadInitialState() async {
     // Prefill gender from ProfileStore so it reflects previously selected value
     final current = ProfileStore.instance.notifier.value;
     _gender = current.gender;
-    // Optionally prefill avatar
     _avatarBytes = current.avatarBytes;
+
+    // Load user from SharedPreferences and prefill fields
+    final prefs = await SharedPreferences.getInstance();
+    final userJson = prefs.getString('user');
+    final savedLang = prefs.getString('language');
+    if (savedLang != null && savedLang.isNotEmpty) {
+      _language = savedLang;
+    }
+    if (userJson != null && userJson.isNotEmpty) {
+      try {
+        final m = jsonDecode(userJson);
+        final data = m is Map<String, dynamic> ? (m['user'] ?? m) : {};
+        if (data is Map<String, dynamic>) {
+          nameController.text = (data['name'] ?? nameController.text).toString();
+          phoneController.text = (data['phone'] ?? phoneController.text).toString();
+          emailController.text = (data['email'] ?? emailController.text).toString();
+          aboutController.text = (data['about'] ?? '').toString();
+          _gender = _gender ?? (data['gender']?.toString());
+          final List<dynamic> hobbies = (data['hobbies'] ?? []) as List<dynamic>;
+          _hobbies.clear();
+          _hobbies.addAll(hobbies.map((e) => e.toString()).where((s) => s.trim().isNotEmpty));
+          // Profile picture and gallery
+          _profilePicUrl = _normalizeUrl((data['profilePic'] ?? data['avatar'] ?? data['image'])?.toString());
+          final g = data['gallery'];
+          if (g is List) {
+            // Load gallery images from URLs into bytes for existing UI components
+            await _loadGalleryBytes(g.map((e) => e?.toString()).where((u) => (u ?? '').isNotEmpty).cast<String>().toList());
+          }
+          // Fallback to images endpoint if needed
+          final id = data['id']?.toString() ?? data['_id']?.toString();
+          if (id != null && id.isNotEmpty) {
+            await _refreshImagesFromServer(id);
+          }
+        }
+      } catch (_) {}
+    }
+    if (mounted) setState(() {});
+  }
+
+  String? _normalizeUrl(String? url) {
+    if (url == null || url.isEmpty) return null;
+    final u = url.trim();
+    if (u.startsWith('http://') || u.startsWith('https://')) {
+      // Canonicalize localhost to admin domain
+      return u.replaceAll(RegExp(r'https?://(0\.0\.0\.0|localhost):\d+'), 'https://admin.yaari.me');
+    }
+    if (u.startsWith('/uploads')) {
+      return 'https://admin.yaari.me$u';
+    }
+    return null;
+  }
+
+  Future<void> _loadGalleryBytes(List<String> urls) async {
+    for (final url in urls) {
+      final n = _normalizeUrl(url);
+      if (n == null) continue;
+      try {
+        final res = await http.get(Uri.parse(n));
+        if (res.statusCode == 200) {
+          _gallery.add(Uint8List.fromList(res.bodyBytes));
+        }
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _refreshImagesFromServer(String userId) async {
+    try {
+      final res = await http.get(Uri.parse('https://admin.yaari.me/api/users/$userId/images'));
+      if (res.statusCode == 200) {
+        final m = jsonDecode(res.body);
+        final data = m is Map<String, dynamic> ? (m['data'] ?? m) as Map<String, dynamic> : <String, dynamic>{};
+        final p = _normalizeUrl((data['profilePic'] ?? '')?.toString());
+        if (p != null && p.isNotEmpty) {
+          _profilePicUrl = p;
+          try {
+            final imgRes = await http.get(Uri.parse(p));
+            if (imgRes.statusCode == 200) {
+              _avatarBytes = Uint8List.fromList(imgRes.bodyBytes);
+            }
+          } catch (_) {}
+        }
+        final gal = (data['gallery'] ?? []) as List<dynamic>;
+        if (gal.isNotEmpty) {
+          _gallery.clear();
+          await _loadGalleryBytes(gal.map((e) => e?.toString()).where((u) => (u ?? '').isNotEmpty).cast<String>().toList());
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _pickImage() async {
@@ -44,6 +141,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         setState(() {
           _avatarBytes = bytes;
         });
+        await _uploadPhoto(bytes, isProfilePic: true);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -65,6 +163,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       setState(() {
         _gallery.addAll(newImages);
       });
+      for (final b in newImages) {
+        await _uploadPhoto(b, isProfilePic: false);
+      }
     } catch (e) {
       // Fallback: single image picker
       try {
@@ -75,6 +176,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           setState(() {
             _gallery.add(bytes);
           });
+          await _uploadPhoto(bytes, isProfilePic: false);
         }
       } catch (err) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -97,6 +199,120 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() {
       _hobbies.remove(h);
     });
+  }
+
+  Future<void> _uploadPhoto(Uint8List bytes, {required bool isProfilePic}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString('user');
+      String? userId;
+      if (userJson != null && userJson.isNotEmpty) {
+        try {
+          final m = jsonDecode(userJson);
+          final data = m is Map<String, dynamic> ? (m['user'] ?? m) : {};
+          if (data is Map<String, dynamic>) {
+            userId = data['id']?.toString() ?? data['_id']?.toString();
+          }
+        } catch (_) {}
+      }
+      if (userId == null || userId.isEmpty) return;
+
+      final request = http.MultipartRequest('POST', Uri.parse('https://admin.yaari.me/api/upload-photo'));
+      request.fields['userId'] = userId;
+      request.fields['isProfilePic'] = isProfilePic.toString();
+      request.files.add(http.MultipartFile.fromBytes('photo', bytes, filename: 'photo.jpg'));
+      final resp = await request.send();
+      if (resp.statusCode == 200) {
+        final body = await resp.stream.bytesToString();
+        final m = jsonDecode(body);
+        final url = _normalizeUrl((m['photoUrl'] ?? m['url'] ?? '')?.toString());
+        if (isProfilePic && url != null && url.isNotEmpty) {
+          _profilePicUrl = url;
+          // Persist to local user
+          final uj = prefs.getString('user');
+          if (uj != null) {
+            try {
+              final obj = jsonDecode(uj);
+              Map<String, dynamic> data = obj is Map<String, dynamic> ? obj : <String, dynamic>{};
+              data = data;
+              data['profilePic'] = url;
+              await prefs.setString('user', jsonEncode(data));
+            } catch (_) {}
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveProfileToServer() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString('user');
+      String? userId;
+      Map<String, dynamic> base = <String, dynamic>{};
+      if (userJson != null && userJson.isNotEmpty) {
+        try {
+          final obj = jsonDecode(userJson);
+          if (obj is Map<String, dynamic>) {
+            final inner = (obj['user'] is Map<String, dynamic>) ? obj['user'] as Map<String, dynamic> : obj;
+            userId = inner['id']?.toString() ?? inner['_id']?.toString();
+            base = inner;
+          }
+        } catch (_) {}
+      }
+      if (userId == null || userId.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User ID missing, cannot save')),
+        );
+        return;
+      }
+
+      final payload = <String, dynamic>{
+        'name': nameController.text.trim(),
+        'phone': phoneController.text.trim(),
+        'email': emailController.text.trim().isEmpty ? null : emailController.text.trim(),
+        'about': aboutController.text.trim().isEmpty ? null : aboutController.text.trim(),
+        'gender': _gender,
+        'hobbies': _hobbies,
+        'language': _language,
+        if (_profilePicUrl != null) 'profilePic': _profilePicUrl,
+      };
+      final res = await http.put(
+        Uri.parse('https://admin.yaari.me/api/users/$userId'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        // Merge and persist
+        try {
+          final server = jsonDecode(res.body);
+          Map<String, dynamic> updated = {};
+          if (server is Map<String, dynamic>) {
+            updated = (server['data'] is Map<String, dynamic>) ? server['data'] as Map<String, dynamic> : server;
+          }
+          if (userJson != null) {
+            final obj = jsonDecode(userJson);
+            if (obj is Map<String, dynamic>) {
+              if (obj['user'] is Map<String, dynamic>) {
+                obj['user'] = {...(obj['user'] as Map<String, dynamic>), ...payload, ...updated};
+              } else {
+                obj.addAll(payload);
+                obj.addAll(updated);
+              }
+              await prefs.setString('user', jsonEncode(obj));
+            }
+          }
+        } catch (_) {}
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: ${res.statusCode}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Network error: $e')),
+      );
+    }
   }
 
   @override
@@ -328,7 +544,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: () {
+                  onPressed: () async {
+                    if (_saving) return;
+                    setState(() => _saving = true);
                     final current = ProfileStore.instance.notifier.value;
                     final data = ProfileData(
                       name: nameController.text.trim().isEmpty ? 'User Name' : nameController.text.trim(),
@@ -343,14 +561,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       hobbies: List<String>.from(_hobbies),
                     );
                     ProfileStore.instance.update(data);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(addMode ? 'Details saved successfully' : 'Changes saved successfully')),
-                    );
-                    if (addMode) {
-                      Navigator.pushNamed(context, '/home');
-                    } else {
-                      Navigator.pop(context);
+                    // Persist to backend like Yarri app
+                    await _saveProfileToServer();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(addMode ? 'Details saved successfully' : 'Changes saved successfully')),
+                      );
+                      if (addMode) {
+                        Navigator.pushNamed(context, '/home');
+                      } else {
+                        Navigator.pop(context);
+                      }
                     }
+                    if (mounted) setState(() => _saving = false);
                   },
                   child: Text(
                     addMode ? 'Save Details' : 'Save Changes',

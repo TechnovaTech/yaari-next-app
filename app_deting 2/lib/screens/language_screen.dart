@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class LanguageScreen extends StatefulWidget {
   static const String routeName = '/language';
@@ -108,6 +110,41 @@ class _LanguageScreenState extends State<LanguageScreen> {
                       : () async {
                           final prefs = await SharedPreferences.getInstance();
                           await prefs.setString('language', _selected!);
+                          // Persist to Admin API
+                          try {
+                            final uj = prefs.getString('user');
+                            String? userId;
+                            if (uj != null && uj.isNotEmpty) {
+                              final obj = jsonDecode(uj);
+                              if (obj is Map<String, dynamic>) {
+                                final inner = (obj['user'] is Map<String, dynamic>) ? obj['user'] as Map<String, dynamic> : obj;
+                                userId = (inner['id'] ?? inner['_id'] ?? '').toString();
+                              }
+                            }
+                            if (userId != null && userId.isNotEmpty) {
+                              final res = await http.put(
+                                Uri.parse('https://admin.yaari.me/api/users/$userId'),
+                                headers: {'Content-Type': 'application/json'},
+                                body: jsonEncode({'language': _selected}),
+                              );
+                              if (res.statusCode >= 200 && res.statusCode < 300) {
+                                // Merge into local user JSON for future starts
+                                if (uj != null) {
+                                  try {
+                                    final obj = jsonDecode(uj);
+                                    if (obj is Map<String, dynamic>) {
+                                      if (obj['user'] is Map<String, dynamic>) {
+                                        (obj['user'] as Map<String, dynamic>)['language'] = _selected;
+                                      } else {
+                                        obj['language'] = _selected;
+                                      }
+                                      await prefs.setString('user', jsonEncode(obj));
+                                    }
+                                  } catch (_) {}
+                                }
+                              }
+                            }
+                          } catch (_) {}
                           if (!mounted) return;
                           final args = ModalRoute.of(context)?.settings.arguments;
                           final bool onboarding = args is Map<String, dynamic> && (args['onboarding'] == true);
