@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -25,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _adIndex = 0;
   Timer? _adTimer;
   String? _userGender; // male | female
+  DateTime? _lastBackPress;
 
   @override
   void initState() {
@@ -106,9 +108,35 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  Future<bool> _onWillPop() async {
+    final now = DateTime.now();
+    // First back: show hint and block pop
+    if (_lastBackPress == null || now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
+      _lastBackPress = now;
+      if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Press back again to exit'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return false;
+    }
+    // Second back within 2s: exit app
+    try {
+      await SystemNavigator.pop();
+    } catch (_) {}
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
       backgroundColor: const Color(0xFFFEF8F4),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -157,9 +185,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
+          : RefreshIndicator(
+              onRefresh: _refreshHome,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
                 _AdBanner(
                   ads: _ads,
                   currentIndex: _adIndex,
@@ -185,13 +216,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       videoRate: _settings.videoCallRate,
                       audioRate: _settings.audioCallRate,
                       balance: _coinBalance,
+                      callAccess: u.callAccess,
                     ),
                     const SizedBox(height: 12),
                   ],
                 ],
               ],
             ),
+      ),
     );
+  }
+
+  Future<void> _refreshHome() async {
+    // Reuse init flow to refetch users, balance, settings, and ads
+    await _initData();
   }
 }
 
@@ -524,6 +562,7 @@ class _UserCard extends StatelessWidget {
   final int videoRate;
   final int audioRate;
   final int balance;
+  final String callAccess; // 'none' | 'audio' | 'video' | 'full'
   const _UserCard({
     this.id,
     required this.status,
@@ -533,6 +572,7 @@ class _UserCard extends StatelessWidget {
     this.videoRate = 10,
     this.audioRate = 10,
     this.balance = 250,
+    this.callAccess = 'full',
   });
 
   Color get _statusColor {
@@ -627,52 +667,89 @@ class _UserCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 // Buttons align inline on wide screens and wrap underneath on narrow
-                Row(
-                  children: [
-                    Expanded(
-                      child: _PriceButton(
-                        label: '${videoRate} min',
-                        icon: Icons.videocam,
-                        onPressed: () async {
-                          await showPermissionDialog(
-                            context,
-                            type: CallType.video,
-                            onAllow: () async {
-                              await showCallConfirmDialog(
+                Builder(
+                  builder: (context) {
+                    final bool allowVideo = callAccess == 'video' || callAccess == 'full';
+                    final bool allowAudio = callAccess == 'audio' || callAccess == 'full';
+
+                    final List<Widget> buttons = [];
+
+                    if (allowVideo) {
+                      buttons.add(
+                        Expanded(
+                          child: _PriceButton(
+                            label: '${videoRate} min',
+                            icon: Icons.videocam,
+                            onPressed: () async {
+                              if (balance < videoRate) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Insufficient coins for video call')),
+                                );
+                                return;
+                              }
+                              await showPermissionDialog(
                                 context,
                                 type: CallType.video,
-                                rateLabel: '₹${videoRate}/min',
-                                balanceLabel: '₹${balance}',
-                                onStart: () => Navigator.pushNamed(context, '/video_call'),
+                                onAllow: () async {
+                                  await showCallConfirmDialog(
+                                    context,
+                                    type: CallType.video,
+                                    rateLabel: '₹${videoRate}/min',
+                                    balanceLabel: '₹${balance}',
+                                    onStart: () => Navigator.pushNamed(context, '/video_call'),
+                                  );
+                                },
                               );
                             },
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _PriceButton(
-                        label: '${audioRate} min',
-                        icon: Icons.call,
-                        onPressed: () async {
-                          await showPermissionDialog(
-                            context,
-                            type: CallType.audio,
-                            onAllow: () async {
-                              await showCallConfirmDialog(
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (allowVideo && allowAudio) {
+                      buttons.add(const SizedBox(width: 10));
+                    }
+
+                    if (allowAudio) {
+                      buttons.add(
+                        Expanded(
+                          child: _PriceButton(
+                            label: '${audioRate} min',
+                            icon: Icons.call,
+                            onPressed: () async {
+                              if (balance < audioRate) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Insufficient coins for audio call')),
+                                );
+                                return;
+                              }
+                              await showPermissionDialog(
                                 context,
                                 type: CallType.audio,
-                                rateLabel: '₹${audioRate}/min',
-                                balanceLabel: '₹${balance}',
-                                onStart: () => Navigator.pushNamed(context, '/audio_call'),
+                                onAllow: () async {
+                                  await showCallConfirmDialog(
+                                    context,
+                                    type: CallType.audio,
+                                    rateLabel: '₹${audioRate}/min',
+                                    balanceLabel: '₹${balance}',
+                                    onStart: () => Navigator.pushNamed(context, '/audio_call'),
+                                  );
+                                },
                               );
                             },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (buttons.isEmpty) {
+                      return const Text(
+                        'No call access',
+                        style: TextStyle(color: Colors.black54, fontSize: 12, fontWeight: FontWeight.w600),
+                      );
+                    }
+                    return Row(children: buttons);
+                  },
                 ),
               ],
             ),

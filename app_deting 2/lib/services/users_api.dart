@@ -53,6 +53,7 @@ class UserListItem {
   final String attributes; // composed display string
   final String? avatarUrl;
   final String? gender; // male | female
+  final String callAccess; // 'none' | 'audio' | 'video' | 'full'
 
   const UserListItem({
     required this.id,
@@ -61,6 +62,7 @@ class UserListItem {
     required this.attributes,
     this.avatarUrl,
     this.gender,
+    this.callAccess = 'full',
   });
 
   factory UserListItem.fromJson(Map<String, dynamic> j) {
@@ -89,6 +91,13 @@ class UserListItem {
       (j['profilePic'] as String?) ?? (j['avatar'] as String?) ?? (j['image'] as String?)
     );
     final String? gender = (j['gender'] ?? j['sex'])?.toString();
+    final String rawAccess = (j['callAccess'] ?? 'full').toString().toLowerCase();
+    final String callAccess = {
+      'none': 'none',
+      'audio': 'audio',
+      'video': 'video',
+      'full': 'full',
+    }[rawAccess] ?? 'full';
     return UserListItem(
       id: id,
       name: name,
@@ -96,6 +105,7 @@ class UserListItem {
       attributes: attributes.isEmpty ? 'Attributes' : attributes,
       avatarUrl: avatar,
       gender: gender?.toLowerCase(),
+      callAccess: callAccess,
     );
   }
 }
