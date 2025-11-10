@@ -101,13 +101,21 @@ class _CallHistoryScreenState extends State<CallHistoryScreen> {
               ? decoded['data'] as List
               : <dynamic>[];
       // Deduplicate by _id to avoid duplicate entries
-      final seenIds = <String>{};
+      final seen = <String>{};
       final list = listRaw.where((e) {
         final m = e is Map<String, dynamic> ? e : <String, dynamic>{};
         final id = (m['_id'] ?? '').toString();
-        if (id.isEmpty) return true; // if server didn't provide _id, don't filter
-        if (seenIds.contains(id)) return false;
-        seenIds.add(id);
+        final createdAt = (m['createdAt'] ?? m['startTime'] ?? '').toString();
+        final otherName = (m['otherUserName'] ?? '').toString();
+        final callType = (m['callType'] ?? '').toString();
+        final isOut = (m['isOutgoing'] ?? false) == true;
+        final durationSec = _asInt(m['duration']);
+        final signature = id.isNotEmpty
+            ? id
+            : '$createdAt|$otherName|$callType|$isOut|$durationSec';
+        if (signature.isEmpty) return true;
+        if (seen.contains(signature)) return false;
+        seen.add(signature);
         return true;
       }).toList();
 
@@ -121,6 +129,7 @@ class _CallHistoryScreenState extends State<CallHistoryScreen> {
         final String attributes = (m['otherUserAbout'] ?? '').toString();
         final String createdAt = (m['createdAt'] ?? m['startTime'] ?? '').toString();
         final int durationSec = _asInt(m['duration']);
+        final String? avatar = _normalizeUrl((m['otherUserAvatar'] ?? '')?.toString());
         return _CallData(
           direction: direction,
           status: statusText,
@@ -128,6 +137,7 @@ class _CallHistoryScreenState extends State<CallHistoryScreen> {
           attributes: attributes,
           time: _formatDate(createdAt),
           duration: _formatDuration(durationSec),
+          avatarUrl: (avatar != null && avatar.isNotEmpty) ? avatar : null,
         );
       }).toList();
 
@@ -174,6 +184,18 @@ class _CallHistoryScreenState extends State<CallHistoryScreen> {
     } catch (_) {
       return '';
     }
+  }
+
+  String? _normalizeUrl(String? url) {
+    if (url == null || url.isEmpty) return null;
+    final u = url.trim();
+    if (u.startsWith('http://') || u.startsWith('https://')) {
+      return u.replaceAll(RegExp(r'https?://(0\.0\.0\.0|localhost):\d+'), 'https://admin.yaari.me');
+    }
+    if (u.startsWith('/uploads')) {
+      return 'https://admin.yaari.me$u';
+    }
+    return null;
   }
 
   @override
@@ -236,9 +258,11 @@ class _CallItem extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Avatar
-          const CircleAvatar(
+          CircleAvatar(
             radius: 26,
-            backgroundImage: AssetImage('assets/images/Avtar.png'),
+            backgroundImage: data.avatarUrl != null
+                ? NetworkImage(data.avatarUrl!)
+                : const AssetImage('assets/images/Avtar.png') as ImageProvider,
             backgroundColor: Colors.transparent,
           ),
 
@@ -249,36 +273,24 @@ class _CallItem extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: data.direction == 'Incoming'
-                        ? CallHistoryScreen.pillIncoming
-                        : CallHistoryScreen.pillOutgoing,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    data.direction,
-                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: data.direction == 'Incoming'
+                            ? CallHistoryScreen.pillIncoming
+                            : CallHistoryScreen.pillOutgoing,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        data.direction,
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                if (data.status.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: data.status.toLowerCase() == 'completed'
-                          ? CallHistoryScreen.pillCompleted
-                          : data.status.toLowerCase() == 'missed'
-                              ? CallHistoryScreen.pillMissed
-                              : CallHistoryScreen.pillCompleted,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      data.status[0].toUpperCase() + data.status.substring(1),
-                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
-                    ),
-                  ),
                 const SizedBox(height: 6),
                 Text(
                   data.name,
@@ -331,6 +343,7 @@ class _CallData {
   final String attributes;
   final String time;
   final String duration;
+  final String? avatarUrl;
   const _CallData({
     required this.direction,
     required this.status,
@@ -338,5 +351,6 @@ class _CallData {
     required this.attributes,
     required this.time,
     required this.duration,
+    this.avatarUrl,
   });
 }
