@@ -18,6 +18,19 @@ class IncomingCallService {
   bool _incomingDialogActive = false;
   String? _incomingCallerId;
   String? _incomingChannelName;
+  
+  void _closeIncomingDialog() {
+    final nav = _navKey?.currentState;
+    if (nav != null && nav.mounted) {
+      try {
+        // Use rootNavigator to match showDialog default behavior
+        Navigator.of(nav.context, rootNavigator: true).pop();
+      } catch (_) {}
+    }
+    _incomingDialogActive = false;
+    _incomingCallerId = null;
+    _incomingChannelName = null;
+  }
 
   Future<void> start({required GlobalKey<NavigatorState> navigatorKey}) async {
     if (_started) {
@@ -150,16 +163,26 @@ class IncomingCallService {
           final matchesChannel = _incomingChannelName != null && ch.isNotEmpty && ch == _incomingChannelName;
           if (_incomingDialogActive && (matchesCaller || matchesChannel)) {
             debugPrint('🔚 [IncomingCall] Caller ended/cancelled — closing incoming dialog');
-            final nav = _navKey?.currentState;
-            if (nav != null && nav.mounted) {
-              nav.pop();
-            }
-            _incomingDialogActive = false;
-            _incomingCallerId = null;
-            _incomingChannelName = null;
+            _closeIncomingDialog();
           }
         } catch (_) {}
       });
+
+      // Also close on explicit declined/cancelled variants
+      for (final evt in const ['call-declined', 'call-cancelled', 'call-canceled']) {
+        _socket.on(evt, (data) {
+          try {
+            final Map m = (data is Map) ? data : {};
+            final u1 = m['userId']?.toString();
+            final u2 = m['otherUserId']?.toString();
+            final matchesCaller = _incomingCallerId != null && (u1 == _incomingCallerId || u2 == _incomingCallerId);
+            if (_incomingDialogActive && matchesCaller) {
+              debugPrint('🔚 [IncomingCall] $evt received — closing incoming dialog');
+              _closeIncomingDialog();
+            }
+          } catch (_) {}
+        });
+      }
 
       debugPrint('✅ [IncomingCall] Incoming call listener registered successfully');
     } catch (e) {

@@ -96,7 +96,8 @@ class OutgoingCallService {
       debugPrint('❌ [OutgoingCall] Call declined');
       if (_isRinging) {
         _isRinging = false;
-        Navigator.pop(context); // Close ringing dialog
+        // Close via rootNavigator to ensure the dialog is dismissed
+        Navigator.of(context, rootNavigator: true).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Call declined')),
         );
@@ -107,7 +108,7 @@ class OutgoingCallService {
       debugPrint('📵 [OutgoingCall] User is busy');
       if (_isRinging) {
         _isRinging = false;
-        Navigator.pop(context); // Close ringing dialog
+        Navigator.of(context, rootNavigator: true).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(data['message'] ?? 'User is busy')),
         );

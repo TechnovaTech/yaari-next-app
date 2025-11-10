@@ -72,9 +72,10 @@ class CallService {
     ));
 
     await _engine.enableAudio();
-    // Dating app default: route audio to speakerphone
-    await _engine.setDefaultAudioRouteToSpeakerphone(true);
-    await _engine.setAudioScenario(AudioScenarioType.audioScenarioMeeting);
+    // Use meeting scenario for wide device compatibility
+    try { await _engine.setAudioScenario(AudioScenarioType.audioScenarioMeeting); } catch (_) {}
+    // Default route: speakerphone
+    try { await _engine.setDefaultAudioRouteToSpeakerphone(true); } catch (_) {}
     if (type == CallType.video) {
       await _engine.enableVideo();
     } else {
@@ -129,8 +130,12 @@ class CallService {
         options: options,
       );
       // Ensure audio streams are unmuted
+      try { await _engine.enableLocalAudio(true); } catch (_) {}
       try { await _engine.muteLocalAudioStream(false); } catch (_) {}
       try { await _engine.muteAllRemoteAudioStreams(false); } catch (_) {}
+      // Actively route to speaker
+      try { await _engine.setEnableSpeakerphone(true); } catch (_) {}
+      try { await _engine.setDefaultAudioRouteToSpeakerphone(true); } catch (_) {}
     } catch (e) {
       debugPrint('❌ [CallService] joinChannel failed: $e');
       joined.value = false;
@@ -172,6 +177,7 @@ class CallService {
     try {
       await leave();
       // Reset audio mode to normal
+      try { await _engine.setEnableSpeakerphone(false); } catch (_) {}
       try { await platform.invokeMethod('resetAudio'); } catch (_) {}
       // Small delay to ensure leave completes
       await Future.delayed(const Duration(milliseconds: 300));
@@ -182,6 +188,7 @@ class CallService {
     }
     _initialized = false;
     channelName = null;
+    speakerOn.value = false;
   }
 
   RtcEngine get engine => _engine;
@@ -194,6 +201,7 @@ class CallService {
   Future<void> _setAudioRouting(bool useSpeaker) async {
     try {
       // Try routing via Agora engine too, for runtime switching
+      try { await _engine.setEnableSpeakerphone(useSpeaker); } catch (_) {}
       try { await _engine.setDefaultAudioRouteToSpeakerphone(useSpeaker); } catch (_) {}
       if (useSpeaker) {
         await platform.invokeMethod('setSpeakerOn');
