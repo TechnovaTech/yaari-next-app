@@ -141,6 +141,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
   }
 
   Future<void> _handlePeerEnded() async {
+    if (!mounted) return;
     debugPrint('🏁 [VideoCall] Detected peer end via Agora, closing');
     await _service.dispose();
     if (mounted) Navigator.pop(context);
@@ -171,8 +172,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // Don't auto-dispose here - only dispose when user explicitly ends call
-    // _service.dispose() is called in button handlers
+    _endListenerAdded = false;
+    _acceptedListenerAdded = false;
+    _peerEndSubscribed = false;
     super.dispose();
   }
 
@@ -261,10 +263,14 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
                           return ValueListenableBuilder<int?>(
                             valueListenable: _service.remoteUidNotifier,
                             builder: (_, remoteUid, __) {
+                              final engine = _service.engine;
+                              if (engine == null) {
+                                return const Center(child: CircularProgressIndicator());
+                              }
                               if (remoteUid != null) {
                                 return AgoraVideoView(
                                   controller: VideoViewController.remote(
-                                    rtcEngine: _service.engine,
+                                    rtcEngine: engine,
                                     canvas: VideoCanvas(uid: remoteUid),
                                     connection: RtcConnection(channelId: _service.channelName ?? _channel),
                                   ),
@@ -272,7 +278,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
                               }
                               return AgoraVideoView(
                                 controller: VideoViewController(
-                                  rtcEngine: _service.engine,
+                                  rtcEngine: engine,
                                   canvas: const VideoCanvas(uid: 0),
                                 ),
                               );
@@ -291,12 +297,14 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
                           color: Colors.black54,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: AgoraVideoView(
-                          controller: VideoViewController(
-                            rtcEngine: _service.engine,
-                            canvas: const VideoCanvas(uid: 0),
-                          ),
-                        ),
+                        child: _service.engine != null
+                            ? AgoraVideoView(
+                                controller: VideoViewController(
+                                  rtcEngine: _service.engine!,
+                                  canvas: const VideoCanvas(uid: 0),
+                                ),
+                              )
+                            : const SizedBox(),
                       ),
                     ),
                   ],
