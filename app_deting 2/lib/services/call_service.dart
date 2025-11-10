@@ -26,14 +26,14 @@ class CallService {
 
   // Helper: initialize and configure Agora engine with proper defaults
   Future<void> initializeAgoraEngine({required CallType type}) async {
-    if (_initialized) return;
-    _engine = createAgoraRtcEngine();
-    await _engine.initialize(const RtcEngineContext(
-      appId: AgoraConfig.appId,
-      channelProfile: ChannelProfileType.channelProfileCommunication,
-    ));
+    if (!_initialized) {
+      _engine = createAgoraRtcEngine();
+      await _engine.initialize(const RtcEngineContext(
+        appId: AgoraConfig.appId,
+        channelProfile: ChannelProfileType.channelProfileCommunication,
+      ));
 
-    _engine.registerEventHandler(RtcEngineEventHandler(
+      _engine.registerEventHandler(RtcEngineEventHandler(
       onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
         debugPrint('🎉 [CallService] Joined channel successfully!');
         joined.value = true;
@@ -41,6 +41,9 @@ class CallService {
       onUserJoined: (RtcConnection connection, int uid, int elapsed) {
         debugPrint('👤 [CallService] Remote user joined: $uid');
         remoteUid = uid;
+        // Ensure remote video is actively subscribed and unmuted
+        try { _engine.muteRemoteVideoStream(uid: uid, mute: false); } catch (_) {}
+        try { _engine.setRemoteVideoStreamType(uid: uid, streamType: VideoStreamType.videoStreamHigh); } catch (_) {}
         // Adjust audio routing shortly after remote join
         Future.delayed(const Duration(milliseconds: 500), () {
           _setAudioRouting(_currentType == CallType.video);
@@ -69,21 +72,24 @@ class CallService {
       onError: (ErrorCodeType err, String msg) {
         debugPrint('❌ [CallService] Error: $err - $msg');
       },
-    ));
+      ));
 
-    await _engine.enableAudio();
-    // Use meeting scenario for wide device compatibility
-    try { await _engine.setAudioScenario(AudioScenarioType.audioScenarioMeeting); } catch (_) {}
-    // Default route: speakerphone
-    try { await _engine.setDefaultAudioRouteToSpeakerphone(true); } catch (_) {}
+      await _engine.enableAudio();
+      // Use meeting scenario for wide device compatibility
+      try { await _engine.setAudioScenario(AudioScenarioType.audioScenarioMeeting); } catch (_) {}
+      // Default route: speakerphone
+      try { await _engine.setDefaultAudioRouteToSpeakerphone(true); } catch (_) {}
+      _initialized = true;
+    }
+    // Always apply current call type to media pipeline, even if engine already initialized
+    _currentType = type;
     if (type == CallType.video) {
-      await _engine.enableVideo();
+      try { await _engine.enableVideo(); } catch (_) {}
+      try { await _engine.startPreview(); } catch (_) {}
     } else {
       // Explicitly disable video pipeline for audio-only to avoid decoder warnings
       try { await _engine.disableVideo(); } catch (_) {}
     }
-    _currentType = type;
-    _initialized = true;
   }
 
   // Backward-compatible wrapper used by existing callers
@@ -136,6 +142,7 @@ class CallService {
       // Actively route to speaker
       try { await _engine.setEnableSpeakerphone(true); } catch (_) {}
       try { await _engine.setDefaultAudioRouteToSpeakerphone(true); } catch (_) {}
+      speakerOn.value = true;
     } catch (e) {
       debugPrint('❌ [CallService] joinChannel failed: $e');
       joined.value = false;
@@ -176,9 +183,7 @@ class CallService {
     }
     try {
       await leave();
-      // Reset audio mode to normal
-      try { await _engine.setEnableSpeakerphone(false); } catch (_) {}
-      try { await platform.invokeMethod('resetAudio'); } catch (_) {}
+      // Keep current audio route; do not force earpiece on dispose
       // Small delay to ensure leave completes
       await Future.delayed(const Duration(milliseconds: 300));
       await _engine.release();

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'socket_service.dart';
+import 'tokens_api.dart';
 
 class OutgoingCallService {
   OutgoingCallService._();
@@ -57,29 +58,51 @@ class OutgoingCallService {
       }
     }
 
-    // Listen for call responses
-    _socket.on('call-accepted', (data) {
-      debugPrint('✅ [OutgoingCall] Call accepted! Data: $data');
+    // Listen for call responses from server (handle both variants)
+    bool handledAcceptance = false;
+
+    Future<void> handleAccepted(dynamic data) async {
+      if (handledAcceptance) return; // prevent double handling
       try {
         final Map m = (data is Map) ? data : {};
-        final tok = (m['token'] ?? m['rtcToken'])?.toString() ?? '';
         final ch = (m['channelName'] ?? m['channel'])?.toString() ?? channel;
-        // Close the ringing dialog
+        if (ch.isEmpty || ch != channel) {
+          // Not for this call attempt
+          return;
+        }
+
+        String tok = (m['token'] ?? m['rtcToken'])?.toString() ?? '';
+        if (tok.isEmpty) {
+          try {
+            final fetched = await TokensApi.fetchRtcToken(ch);
+            if (fetched != null && fetched.isNotEmpty) {
+              tok = fetched;
+              debugPrint('🔑 [OutgoingCall] Fetched RTC token client-side for channel $ch');
+            } else {
+              debugPrint('⚠️ [OutgoingCall] Token not provided and fetch failed; proceeding (screen will fetch)');
+            }
+          } catch (e) {
+            debugPrint('❌ [OutgoingCall] Token fetch error: $e');
+          }
+        }
+
+        handledAcceptance = true;
+        debugPrint('✅ [OutgoingCall] Call accepted! Channel: $ch');
+
+        // Close the ringing dialog if visible
         if (_isRinging) {
           _isRinging = false;
-          // Use rootNavigator to ensure the dialog route is popped
-          Navigator.of(context, rootNavigator: true).pop();
+          try { Navigator.of(context, rootNavigator: true).pop(); } catch (_) {}
         }
-        // Navigate to call screen only after acceptance
+
         final route = isVideo ? '/video_call' : '/audio_call';
-        // Schedule navigation on next frame to avoid Navigator lock assertion
         WidgetsBinding.instance.addPostFrameCallback((_) {
           try {
             Navigator.pushNamed(context, route, arguments: {
               'name': callerName,
               'avatarUrl': callerAvatar,
               'channel': ch,
-              'token': tok, // will be fetched by screen if empty
+              'token': tok, // Screen will fetch if empty
               'callerId': callerId,
               'receiverId': receiverId,
             });
@@ -88,9 +111,12 @@ class OutgoingCallService {
           }
         });
       } catch (e) {
-        debugPrint('❌ [OutgoingCall] Error handling call-accepted: $e');
+        debugPrint('❌ [OutgoingCall] Error handling acceptance: $e');
       }
-    });
+    }
+
+    _socket.on('call-accepted', handleAccepted);
+    _socket.on('accept-call', handleAccepted);
 
     _socket.on('call-declined', (_) {
       debugPrint('❌ [OutgoingCall] Call declined');

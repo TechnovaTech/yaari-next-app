@@ -257,6 +257,16 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
                           if (!joined) {
                             return const Center(child: CircularProgressIndicator());
                           }
+                          // Show remote full-screen if available, else show local preview
+                          if (_service.remoteUid != null) {
+                            return AgoraVideoView(
+                              controller: VideoViewController.remote(
+                                rtcEngine: _service.engine,
+                                canvas: VideoCanvas(uid: _service.remoteUid!),
+                                connection: RtcConnection(channelId: _service.channelName ?? _channel),
+                              ),
+                            );
+                          }
                           return AgoraVideoView(
                             controller: VideoViewController(
                               rtcEngine: _service.engine,
@@ -276,20 +286,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
                           color: Colors.black54,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Builder(builder: (context) {
-                          if (_service.remoteUid == null) {
-                            return const Center(
-                              child: Text('Waiting remote...', style: TextStyle(color: Colors.white70)),
-                            );
-                          }
-                          return AgoraVideoView(
-                            controller: VideoViewController.remote(
-                              rtcEngine: _service.engine,
-                              canvas: VideoCanvas(uid: _service.remoteUid!),
-                              connection: RtcConnection(channelId: _service.channelName ?? _channel),
-                            ),
-                          );
-                        }),
+                        child: AgoraVideoView(
+                          controller: VideoViewController(
+                            rtcEngine: _service.engine,
+                            canvas: const VideoCanvas(uid: 0),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -320,39 +322,42 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () async {
-                        // Notify server and leave
-                        SocketService.instance.emit('end-call', {
-                          'userId': _callerId,
-                          'otherUserId': _receiverId,
-                          'channelName': _channel,
-                        });
-                        // Log call end with duration
-                        try {
-                          final start = _joinedAt;
-                          final durationSec = start != null ? DateTime.now().difference(start).inSeconds : 0;
-                          final callerId = _callerId ?? '';
-                          final receiverId = _receiverId ?? '';
-                          if (callerId.isNotEmpty && receiverId.isNotEmpty) {
-                            await CallLogApi.logEnd(
-                              callerId: callerId,
-                              receiverId: receiverId,
-                              callType: 'video',
-                              durationSeconds: durationSec,
-                            );
-                          }
-                        } catch (_) {}
-                        await _service.leave();
-                        if (mounted) Navigator.pop(context);
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: _service.joined,
+                      builder: (context, hasJoined, _) {
+                        return ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accent,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: hasJoined ? () async {
+                            SocketService.instance.emit('end-call', {
+                              'userId': _callerId,
+                              'otherUserId': _receiverId,
+                              'channelName': _channel,
+                            });
+                            try {
+                              final start = _joinedAt;
+                              final durationSec = start != null ? DateTime.now().difference(start).inSeconds : 0;
+                              final callerId = _callerId ?? '';
+                              final receiverId = _receiverId ?? '';
+                              if (callerId.isNotEmpty && receiverId.isNotEmpty) {
+                                await CallLogApi.logEnd(
+                                  callerId: callerId,
+                                  receiverId: receiverId,
+                                  callType: 'video',
+                                  durationSeconds: durationSec,
+                                );
+                              }
+                            } catch (_) {}
+                            await _service.dispose();
+                            if (mounted) Navigator.pop(context);
+                          } : null,
+                          icon: const Icon(Icons.call_end, color: Colors.white),
+                          label: const Text('End Call'),
+                        );
                       },
-                      icon: const Icon(Icons.call_end, color: Colors.white),
-                      label: const Text('End Call'),
                     ),
                   ),
                 ],
