@@ -16,6 +16,8 @@ class CallService {
   bool _initialized = false;
   bool _joining = false;
   int? remoteUid;
+  // Notify UI when remote user joins/leaves so video view can update
+  final ValueNotifier<int?> remoteUidNotifier = ValueNotifier<int?>(null);
   String? channelName;
   CallType _currentType = CallType.audio;
   final ValueNotifier<bool> joined = ValueNotifier<bool>(false);
@@ -41,6 +43,7 @@ class CallService {
       onUserJoined: (RtcConnection connection, int uid, int elapsed) {
         debugPrint('👤 [CallService] Remote user joined: $uid');
         remoteUid = uid;
+        remoteUidNotifier.value = uid;
         // Ensure remote video is actively subscribed and unmuted
         try { _engine.muteRemoteVideoStream(uid: uid, mute: false); } catch (_) {}
         try { _engine.setRemoteVideoStreamType(uid: uid, streamType: VideoStreamType.videoStreamHigh); } catch (_) {}
@@ -51,7 +54,10 @@ class CallService {
       },
       onUserOffline: (RtcConnection connection, int uid, UserOfflineReasonType reason) {
         debugPrint('🚪 [CallService] User $uid offline: $reason');
-        if (remoteUid == uid) remoteUid = null;
+        if (remoteUid == uid) {
+          remoteUid = null;
+          remoteUidNotifier.value = null;
+        }
         // If the remote user quit the channel, mark peerEnded so UI can auto-close
         if (reason == UserOfflineReasonType.userOfflineQuit) {
           debugPrint('🏁 [CallService] Remote user ended call');
@@ -62,6 +68,7 @@ class CallService {
         debugPrint('🚪 [CallService] Left channel');
         joined.value = false;
         remoteUid = null;
+        remoteUidNotifier.value = null;
       },
       onConnectionLost: (RtcConnection connection) {
         debugPrint('⚠️ [CallService] Connection lost - attempting to reconnect');

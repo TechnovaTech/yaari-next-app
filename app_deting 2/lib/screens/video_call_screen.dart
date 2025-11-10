@@ -257,21 +257,26 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
                           if (!joined) {
                             return const Center(child: CircularProgressIndicator());
                           }
-                          // Show remote full-screen if available, else show local preview
-                          if (_service.remoteUid != null) {
-                            return AgoraVideoView(
-                              controller: VideoViewController.remote(
-                                rtcEngine: _service.engine,
-                                canvas: VideoCanvas(uid: _service.remoteUid!),
-                                connection: RtcConnection(channelId: _service.channelName ?? _channel),
-                              ),
-                            );
-                          }
-                          return AgoraVideoView(
-                            controller: VideoViewController(
-                              rtcEngine: _service.engine,
-                              canvas: const VideoCanvas(uid: 0),
-                            ),
+                          // Listen to remote UID changes to switch the main renderer when remote joins
+                          return ValueListenableBuilder<int?>(
+                            valueListenable: _service.remoteUidNotifier,
+                            builder: (_, remoteUid, __) {
+                              if (remoteUid != null) {
+                                return AgoraVideoView(
+                                  controller: VideoViewController.remote(
+                                    rtcEngine: _service.engine,
+                                    canvas: VideoCanvas(uid: remoteUid),
+                                    connection: RtcConnection(channelId: _service.channelName ?? _channel),
+                                  ),
+                                );
+                              }
+                              return AgoraVideoView(
+                                controller: VideoViewController(
+                                  rtcEngine: _service.engine,
+                                  canvas: const VideoCanvas(uid: 0),
+                                ),
+                              );
+                            },
                           );
                         },
                       ),
