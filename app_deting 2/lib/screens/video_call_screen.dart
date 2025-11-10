@@ -107,18 +107,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
         if (bal != null) _remainingBalance = bal;
       }
 
-      if (_isCaller && _ratePerMin > 0 && _remainingBalance < _ratePerMin) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Insufficient coins to start video call')),
-        );
-        SocketService.instance.emit('end-call', {
-          'userId': _callerId,
-          'otherUserId': _receiverId,
-          'channelName': _channel,
-        });
-        try { await _service.dispose(); } catch (_) {}
-        if (mounted) Navigator.pop(context);
-      }
+      // In-call billing: start call normally; auto-end occurs when coins run out
     } catch (e) {
       debugPrint('⚠️ [VideoCall] init billing error: $e');
     }

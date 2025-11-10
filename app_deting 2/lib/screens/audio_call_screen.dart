@@ -108,22 +108,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
         if (bal != null) _remainingBalance = bal;
       }
 
-      // Pre-call minimum balance check for caller
-      if (_isCaller && _ratePerMin > 0 && _remainingBalance < _ratePerMin) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Insufficient coins to start audio call')),
-        );
-        // Ensure remote is notified and exit
-        SocketService.instance.emit('end-call', {
-          'userId': _callerId,
-          'otherUserId': _receiverId,
-          'channelName': _channel,
-        });
-        try {
-          await _service.dispose();
-        } catch (_) {}
-        if (mounted) Navigator.pop(context);
-      }
+      // In-call billing: allow call to start; auto-end handled elsewhere when coins run out
     } catch (e) {
       debugPrint('⚠️ [AudioCall] init billing error: $e');
     }

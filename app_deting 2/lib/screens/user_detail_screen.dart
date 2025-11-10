@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/call_dialogs.dart';
 import '../services/users_api.dart';
 import '../services/outgoing_call_service.dart';
+import '../widgets/recharge_prompt.dart';
 
 class UserDetailScreen extends StatefulWidget {
   const UserDetailScreen({super.key});
@@ -267,8 +268,13 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                     icon: Icons.videocam,
                     onPressed: () async {
                       if (_coinBalance < _settings.videoCallRate) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Insufficient coins for video call')),
+                        await showRechargePrompt(
+                          context,
+                          title: 'Stay connected',
+                          message: 'Recharge now to continue your yaari moments!',
+                          onRecharge: () {
+                            Navigator.pushReplacementNamed(context, '/coins');
+                          },
                         );
                         return;
                       }
@@ -321,8 +327,13 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                     icon: Icons.call,
                     onPressed: () async {
                       if (_coinBalance < _settings.audioCallRate) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Insufficient coins for audio call')),
+                        await showRechargePrompt(
+                          context,
+                          title: 'Stay connected',
+                          message: 'Recharge now to continue your yaari moments!',
+                          onRecharge: () {
+                            Navigator.pushReplacementNamed(context, '/coins');
+                          },
                         );
                         return;
                       }

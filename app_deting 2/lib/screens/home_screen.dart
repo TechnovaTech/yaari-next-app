@@ -11,6 +11,7 @@ import '../widgets/call_dialogs.dart';
 import '../services/users_api.dart';
 import '../services/outgoing_call_service.dart';
 import '../services/socket_service.dart';
+import '../widgets/recharge_prompt.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -863,8 +864,13 @@ class _UserCard extends StatelessWidget {
                             icon: Icons.videocam,
                             onPressed: () async {
                               if (balance < videoRate) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Insufficient coins for video call')),
+                                await showRechargePrompt(
+                                  context,
+                                  title: 'Stay connected',
+                                  message: 'Recharge now to continue your yaari moments!',
+                                  onRecharge: () {
+                                    Navigator.pushReplacementNamed(context, '/coins');
+                                  },
                                 );
                                 return;
                               }
@@ -909,8 +915,13 @@ class _UserCard extends StatelessWidget {
                             icon: Icons.call,
                             onPressed: () async {
                               if (balance < audioRate) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Insufficient coins for audio call')),
+                                await showRechargePrompt(
+                                  context,
+                                  title: 'Stay connected',
+                                  message: 'Recharge now to continue your yaari moments!',
+                                  onRecharge: () {
+                                    Navigator.pushReplacementNamed(context, '/coins');
+                                  },
                                 );
                                 return;
                               }
