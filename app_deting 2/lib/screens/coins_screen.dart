@@ -253,7 +253,6 @@ class _CoinsScreenState extends State<CoinsScreen> {
                     GestureDetector(
                       onTap: () => setState(() => _selectedPlan = p),
                       child: _PlanPack(
-                        title: p.title.isEmpty ? '${p.coins}' : p.title,
                         coins: p.coins,
                         price: p.price,
                         originalPrice: p.originalPrice,
@@ -287,13 +286,11 @@ class _CoinsScreenState extends State<CoinsScreen> {
 }
 
 class _PlanPack extends StatelessWidget {
-  final String title;
   final int coins;
   final num price;
   final num originalPrice;
   final bool selected;
   const _PlanPack({
-    required this.title,
     required this.coins,
     required this.price,
     required this.originalPrice,
@@ -313,15 +310,18 @@ class _PlanPack extends StatelessWidget {
       clipBehavior: Clip.hardEdge,
       padding: const EdgeInsets.all(12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const _YCoinIcon(size: 20),
               const SizedBox(width: 8),
-              Expanded(
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
                 child: Text(
-                  title,
+                  '$coins',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   softWrap: false,
@@ -334,38 +334,20 @@ class _PlanPack extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Flexible(
-                child: Text(
-                  '₹$originalPrice',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: false,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.black54,
-                    decoration: TextDecoration.lineThrough,
-                    decorationThickness: 2,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  '₹$price',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: false,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.black),
-                ),
-              ),
-            ],
+          Text(
+            '₹$price',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.black),
           ),
           const SizedBox(height: 6),
           Text(
-            '$coins coins',
-            style: const TextStyle(fontSize: 13, color: Colors.black54, fontWeight: FontWeight.w600),
+            '₹$originalPrice',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
+            style: const TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.w600, decoration: TextDecoration.lineThrough),
           ),
         ],
       ),
