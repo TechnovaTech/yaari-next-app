@@ -150,15 +150,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   );
                                 },
                               )
-                            : Image.asset(
-                                'assets/images/Avtar.png',
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: Colors.black12,
-                                    child: const Icon(Icons.person, size: 56, color: Colors.black45),
-                                  );
-                                },
+                            : Container(
+                                color: Colors.black12,
+                                child: const Icon(Icons.person, size: 56, color: Colors.black45),
                               ),
                       ),
                     ),
