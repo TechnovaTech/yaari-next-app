@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
-class CallHistoryScreen extends StatelessWidget {
+class CallHistoryScreen extends StatefulWidget {
   const CallHistoryScreen({super.key});
 
+  // Keep static colors available for child widgets referencing CallHistoryScreen.*
   static const Color bg = Color(0xFFFEF8F4);
   static const Color pillIncoming = Color(0xFF28C76F);
   static const Color pillOutgoing = Color(0xFFFF8547);
@@ -10,18 +14,163 @@ class CallHistoryScreen extends StatelessWidget {
   static const Color divider = Color(0xFFE7E2DC);
 
   @override
+  State<CallHistoryScreen> createState() => _CallHistoryScreenState();
+}
+
+class _CallHistoryScreenState extends State<CallHistoryScreen> {
+  static const String _apiBase = 'https://admin.yaari.me';
+  List<_CallData> _items = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _initAndFetch();
+  }
+
+  Future<void> _initAndFetch() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('user');
+      String? userId;
+
+      // Try a direct userId key if available
+      userId = prefs.getString('userId');
+
+      if (raw != null && raw.isNotEmpty) {
+        try {
+          final m = jsonDecode(raw);
+          if (m is Map<String, dynamic>) {
+            final inner = (m['user'] is Map<String, dynamic>) ? m['user'] as Map<String, dynamic> : m;
+            userId = (inner['id'] ?? inner['_id'] ?? inner['userId'])?.toString();
+          }
+        } catch (_) {}
+      }
+
+      // Allow overriding via route arguments: pass a map {'userId': '...'} or string id
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map && args['userId'] != null) {
+        userId = args['userId'].toString();
+      } else if (args is String && args.isNotEmpty) {
+        userId = args;
+      }
+
+      // Fallback to query parameters (useful on web: /#call_history?userId=...)
+      if (userId == null || userId.isEmpty) {
+        final qp = Uri.base.queryParameters;
+        final qpId = qp['userId'] ?? qp['id'] ?? '';
+        if (qpId.isNotEmpty) {
+          userId = qpId;
+        }
+      }
+
+      if (userId == null || userId.isEmpty) {
+        debugPrint('⚠️ [CallHistory] No userId found in prefs, route, or URL. Showing placeholders.');
+        setState(() {
+          _items = const [];
+        });
+        return;
+      }
+
+      debugPrint('🔎 [CallHistory] Fetching history for userId=$userId');
+      await _fetchCallHistory(userId);
+    } catch (_) {
+      debugPrint('❌ [CallHistory] Error during init. Showing placeholders.');
+      setState(() {
+        _items = const [];
+      });
+    }
+  }
+
+  Future<void> _fetchCallHistory(String userId) async {
+    try {
+      final uri = Uri.parse('$_apiBase/api/call-history?userId=$userId');
+      final res = await http.get(uri);
+      final dynamic decoded = jsonDecode(res.body);
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        debugPrint('❌ [CallHistory] HTTP ${res.statusCode} fetching $uri');
+        setState(() {
+          _items = const [];
+        });
+        return;
+      }
+
+      final List<dynamic> list = decoded is List
+          ? decoded
+          : (decoded is Map<String, dynamic> && decoded['data'] is List)
+              ? decoded['data'] as List
+              : <dynamic>[];
+
+      final items = list.map((e) {
+        final m = e is Map<String, dynamic> ? e : <String, dynamic>{};
+        final String status = (m['status'] ?? '').toString();
+        final bool isOutgoing = (m['isOutgoing'] ?? false) == true;
+        final String type = status.toLowerCase() == 'completed'
+            ? 'Completed'
+            : (isOutgoing ? 'Outgoing' : 'Incoming');
+        final String name = (m['otherUserName'] ?? '').toString();
+        final String attributes = (m['otherUserAbout'] ?? '').toString();
+        final String createdAt = (m['createdAt'] ?? m['startTime'] ?? '').toString();
+        final int durationSec = _asInt(m['duration']);
+        return _CallData(
+          type: type,
+          name: name,
+          attributes: attributes,
+          time: _formatDate(createdAt),
+          duration: _formatDuration(durationSec),
+        );
+      }).toList();
+
+      setState(() {
+        _items = items;
+      });
+      debugPrint('✅ [CallHistory] Loaded ${items.length} items.');
+    } catch (_) {
+      debugPrint('❌ [CallHistory] Network or parsing error.');
+      setState(() {
+        _items = const [];
+      });
+    }
+  }
+
+  int _asInt(dynamic v) {
+    try {
+      if (v == null) return 0;
+      if (v is int) return v;
+      if (v is double) return v.round();
+      return int.tryParse(v.toString()) ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  String _formatDuration(int seconds) {
+    if (seconds <= 0) return '00:00';
+    final int m = seconds ~/ 60;
+    final int s = seconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  String _formatDate(String? iso) {
+    if (iso == null || iso.isEmpty) return '';
+    try {
+      final d = DateTime.tryParse(iso)?.toLocal();
+      if (d == null) return '';
+      final int hour24 = d.hour;
+      final int hour12 = ((hour24 + 11) % 12) + 1; // 0 -> 12, 13 -> 1
+      final String mm = d.minute.toString().padLeft(2, '0');
+      final String suffix = hour24 >= 12 ? 'PM' : 'AM';
+      return '$hour12:$mm $suffix';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final types = ['Outgoing', 'Incoming', 'Completed'];
-    final items = List.generate(9, (i) => _CallData(
-          type: types[i % types.length],
-          name: 'User Name',
-          attributes: 'Attributes',
-          time: '7:40 AM',
-          duration: '04:32',
-        ));
+    final items = _items;
 
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: CallHistoryScreen.bg,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,14 +254,14 @@ class _CallItem extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'User Name',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black),
+                Text(
+                  data.name,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black),
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  'Attributes',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                Text(
+                  data.attributes,
+                  style: const TextStyle(fontSize: 12, color: Colors.black54),
                 ),
               ],
             ),

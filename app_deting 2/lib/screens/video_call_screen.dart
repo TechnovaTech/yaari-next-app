@@ -4,6 +4,7 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import '../services/call_service.dart';
 import '../services/socket_service.dart';
 import '../services/tokens_api.dart';
+import '../services/call_log_api.dart';
 
 class VideoCallScreen extends StatefulWidget {
   const VideoCallScreen({super.key});
@@ -27,6 +28,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
   bool _endListenerAdded = false;
   bool _acceptedListenerAdded = false;
   bool _peerEndSubscribed = false;
+  DateTime? _joinedAt;
 
   @override
   void initState() {
@@ -82,6 +84,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
     _maybeAddEndListener();
     _maybeAddAcceptedListener();
     _maybeSubscribePeerEnded();
+    _maybeSubscribeJoinedForLogging('video');
   }
 
   void _maybeAddEndListener() {
@@ -111,6 +114,28 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
     _service.peerEnded.addListener(() {
       if (_service.peerEnded.value) {
         _handlePeerEnded();
+      }
+    });
+  }
+
+  void _maybeSubscribeJoinedForLogging(String callType) {
+    // Log call start exactly once when join succeeds
+    if (_joinedAt != null) return;
+    _service.joined.addListener(() async {
+      if (_service.joined.value && _joinedAt == null) {
+        _joinedAt = DateTime.now();
+        final callerId = _callerId ?? '';
+        final receiverId = _receiverId ?? '';
+        if (callerId.isNotEmpty && receiverId.isNotEmpty) {
+          await CallLogApi.logStart(
+            callerId: callerId,
+            receiverId: receiverId,
+            callType: callType,
+            channelName: _channel,
+          );
+        } else {
+          debugPrint('⚠️ [VideoCall] Missing IDs for start log');
+        }
       }
     });
   }
@@ -308,6 +333,21 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
                           'otherUserId': _receiverId,
                           'channelName': _channel,
                         });
+                        // Log call end with duration
+                        try {
+                          final start = _joinedAt;
+                          final durationSec = start != null ? DateTime.now().difference(start).inSeconds : 0;
+                          final callerId = _callerId ?? '';
+                          final receiverId = _receiverId ?? '';
+                          if (callerId.isNotEmpty && receiverId.isNotEmpty) {
+                            await CallLogApi.logEnd(
+                              callerId: callerId,
+                              receiverId: receiverId,
+                              callType: 'video',
+                              durationSeconds: durationSec,
+                            );
+                          }
+                        } catch (_) {}
                         await _service.leave();
                         if (mounted) Navigator.pop(context);
                       },
