@@ -11,6 +11,7 @@ class CallHistoryScreen extends StatefulWidget {
   static const Color pillIncoming = Color(0xFF28C76F);
   static const Color pillOutgoing = Color(0xFFFF8547);
   static const Color pillCompleted = Color(0xFF9E9E9E);
+  static const Color pillMissed = Color(0xFFE53935);
   static const Color divider = Color(0xFFE7E2DC);
 
   @override
@@ -94,25 +95,35 @@ class _CallHistoryScreenState extends State<CallHistoryScreen> {
         return;
       }
 
-      final List<dynamic> list = decoded is List
+      final List<dynamic> listRaw = decoded is List
           ? decoded
           : (decoded is Map<String, dynamic> && decoded['data'] is List)
               ? decoded['data'] as List
               : <dynamic>[];
+      // Deduplicate by _id to avoid duplicate entries
+      final seenIds = <String>{};
+      final list = listRaw.where((e) {
+        final m = e is Map<String, dynamic> ? e : <String, dynamic>{};
+        final id = (m['_id'] ?? '').toString();
+        if (id.isEmpty) return true; // if server didn't provide _id, don't filter
+        if (seenIds.contains(id)) return false;
+        seenIds.add(id);
+        return true;
+      }).toList();
 
       final items = list.map((e) {
         final m = e is Map<String, dynamic> ? e : <String, dynamic>{};
         final String status = (m['status'] ?? '').toString();
         final bool isOutgoing = (m['isOutgoing'] ?? false) == true;
-        final String type = status.toLowerCase() == 'completed'
-            ? 'Completed'
-            : (isOutgoing ? 'Outgoing' : 'Incoming');
+        final String direction = isOutgoing ? 'Outgoing' : 'Incoming';
+        final String statusText = status.isEmpty ? '' : status;
         final String name = (m['otherUserName'] ?? '').toString();
         final String attributes = (m['otherUserAbout'] ?? '').toString();
         final String createdAt = (m['createdAt'] ?? m['startTime'] ?? '').toString();
         final int durationSec = _asInt(m['duration']);
         return _CallData(
-          type: type,
+          direction: direction,
+          status: statusText,
           name: name,
           attributes: attributes,
           time: _formatDate(createdAt),
@@ -241,18 +252,33 @@ class _CallItem extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: data.type == 'Incoming'
+                    color: data.direction == 'Incoming'
                         ? CallHistoryScreen.pillIncoming
-                        : data.type == 'Outgoing'
-                            ? CallHistoryScreen.pillOutgoing
-                            : CallHistoryScreen.pillCompleted,
+                        : CallHistoryScreen.pillOutgoing,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    data.type,
+                    data.direction,
                     style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
                   ),
                 ),
+                const SizedBox(height: 4),
+                if (data.status.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: data.status.toLowerCase() == 'completed'
+                          ? CallHistoryScreen.pillCompleted
+                          : data.status.toLowerCase() == 'missed'
+                              ? CallHistoryScreen.pillMissed
+                              : CallHistoryScreen.pillCompleted,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      data.status[0].toUpperCase() + data.status.substring(1),
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 const SizedBox(height: 6),
                 Text(
                   data.name,
@@ -261,6 +287,8 @@ class _CallItem extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   data.attributes,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 12, color: Colors.black54),
                 ),
               ],
@@ -297,13 +325,15 @@ class _ListDivider extends StatelessWidget {
 }
 
 class _CallData {
-  final String type; // Outgoing, Incoming, Completed
+  final String direction; // Outgoing or Incoming
+  final String status; // completed, missed, etc.
   final String name;
   final String attributes;
   final String time;
   final String duration;
   const _CallData({
-    required this.type,
+    required this.direction,
+    required this.status,
     required this.name,
     required this.attributes,
     required this.time,
