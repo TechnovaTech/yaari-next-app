@@ -1,5 +1,10 @@
-// Conditional import bridge that selects web or stub implementation.
-import 'razorpay_stub.dart' if (dart.library.js) 'razorpay_web.dart';
+// Conditional import bridge selecting platform implementation:
+// - Web: JS checkout
+// - Android/iOS: razorpay_flutter plugin
+// - Other: stub
+import 'razorpay_stub.dart'
+    if (dart.library.js) 'razorpay_web.dart'
+    if (dart.library.io) 'razorpay_mobile.dart';
 
 class RazorpayBridge {
   static Future<Map<String, String>> openCheckout({
