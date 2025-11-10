@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../config/agora.dart';
+import 'tokens_api.dart';
 
 enum CallType { audio, video }
 
@@ -13,6 +14,7 @@ class CallService {
 
   late final RtcEngine _engine;
   bool _initialized = false;
+  bool _joining = false;
   int? remoteUid;
   String? channelName;
   CallType _currentType = CallType.audio;
@@ -20,7 +22,8 @@ class CallService {
   final ValueNotifier<bool> speakerOn = ValueNotifier<bool>(false);
   static const platform = MethodChannel('com.example.app_deting/audio');
 
-  Future<void> initialize({required CallType type}) async {
+  // Helper: initialize and configure Agora engine with proper defaults
+  Future<void> initializeAgoraEngine({required CallType type}) async {
     if (_initialized) return;
     _engine = createAgoraRtcEngine();
     await _engine.initialize(const RtcEngineContext(
@@ -51,24 +54,46 @@ class CallService {
     ));
 
     await _engine.enableAudio();
-    // Set default audio routing based on call type
-    await _engine.setDefaultAudioRouteToSpeakerphone(type == CallType.video);
-    await _engine.setAudioScenario(
-      AudioScenarioType.audioScenarioDefault,
-    );
+    // Dating app default: route audio to speakerphone
+    await _engine.setDefaultAudioRouteToSpeakerphone(true);
+    await _engine.setAudioScenario(AudioScenarioType.audioScenarioMeeting);
     if (type == CallType.video) {
       await _engine.enableVideo();
+    } else {
+      // Explicitly disable video pipeline for audio-only to avoid decoder warnings
+      try { await _engine.disableVideo(); } catch (_) {}
     }
     _currentType = type;
     _initialized = true;
   }
 
+  // Backward-compatible wrapper used by existing callers
+  Future<void> initialize({required CallType type}) => initializeAgoraEngine(type: type);
+
   Future<void> join({required String channel, CallType type = CallType.video, String token = '', int uid = 0}) async {
-    await initialize(type: type);
+    await initializeAgoraEngine(type: type);
+    if (_joining) {
+      debugPrint('⚠️ [CallService] join ignored; already joining');
+      return;
+    }
+    _joining = true;
     channelName = channel;
     _currentType = type;
+    // Gate join on valid token: fetch from backend if missing
+    if (token.isEmpty) {
+      debugPrint('🔎 [CallService] Token empty; fetching via HTTP for channel=$channel');
+      final fetched = await TokensApi.fetchRtcToken(channel);
+      if (fetched == null || fetched.isEmpty) {
+        debugPrint('❌ [CallService] Failed to fetch RTC token; aborting join');
+        _joining = false;
+        joined.value = false;
+        return;
+      }
+      token = fetched;
+      debugPrint('🔑 [CallService] Using fetched RTC token');
+    }
     if (type == CallType.video) {
-      await _engine.startPreview();
+      try { await _engine.startPreview(); } catch (_) {}
     }
     final options = ChannelMediaOptions(
       clientRoleType: ClientRoleType.clientRoleBroadcaster,
@@ -76,7 +101,7 @@ class CallService {
       publishCameraTrack: type == CallType.video,
       publishMicrophoneTrack: true,
     );
-    debugPrint('🔗 [CallService] join: channel=$channel, uid=$uid, type=${type.name}, token=${token.isEmpty ? '(empty)' : '(provided)'}');
+    debugPrint('🔗 [CallService] join: channel=$channel, uid=$uid, type=${type.name}, token=(provided)');
     try {
       await _engine.joinChannel(
         token: token,
@@ -90,28 +115,38 @@ class CallService {
     } catch (e) {
       debugPrint('❌ [CallService] joinChannel failed: $e');
       joined.value = false;
+      _joining = false;
       return;
     }
-    // Adjust audio route shortly after joining
-    Future.delayed(const Duration(milliseconds: 1000), () {
-      _setAudioRouting(_currentType == CallType.video);
+    // Adjust audio route shortly after joining (speakerphone default)
+    Future.delayed(const Duration(milliseconds: 800), () {
+      _setAudioRouting(true);
     });
+    _joining = false;
   }
 
   Future<void> leave() async {
+    debugPrint('↩️ [CallService] Leaving channel...');
     try {
       await _engine.leaveChannel();
-      await _engine.stopPreview();
+      try { await _engine.stopPreview(); } catch (_) {}
       joined.value = false;
       remoteUid = null;
-    } catch (_) {}
+      debugPrint('✅ [CallService] Left channel and stopped preview');
+    } catch (e) {
+      debugPrint('❌ [CallService] leave failed: $e');
+    }
   }
 
   Future<void> dispose() async {
+    debugPrint('🧹 [CallService] Disposing engine...');
     try {
       await leave();
       await _engine.release();
-    } catch (_) {}
+      debugPrint('✅ [CallService] Engine released');
+    } catch (e) {
+      debugPrint('❌ [CallService] dispose failed: $e');
+    }
     _initialized = false;
     channelName = null;
   }
@@ -136,6 +171,25 @@ class CallService {
       debugPrint('🔊 [CallService] Audio routing: ${useSpeaker ? "Speaker" : "Earpiece"}');
     } catch (e) {
       debugPrint('❌ [CallService] Audio routing failed: $e');
+    }
+  }
+
+  // Lifecycle helpers to be called from screens
+  Future<void> onLifecyclePaused() async {
+    debugPrint('⏸️ [CallService] App paused: muting audio and stopping preview');
+    try { await _engine.muteLocalAudioStream(true); } catch (_) {}
+    try { await _engine.muteAllRemoteAudioStreams(true); } catch (_) {}
+    if (_currentType == CallType.video) {
+      try { await _engine.stopPreview(); } catch (_) {}
+    }
+  }
+
+  Future<void> onLifecycleResumed() async {
+    debugPrint('▶️ [CallService] App resumed: unmuting audio and resuming preview');
+    try { await _engine.muteLocalAudioStream(false); } catch (_) {}
+    try { await _engine.muteAllRemoteAudioStreams(false); } catch (_) {}
+    if (_currentType == CallType.video) {
+      try { await _engine.startPreview(); } catch (_) {}
     }
   }
 }

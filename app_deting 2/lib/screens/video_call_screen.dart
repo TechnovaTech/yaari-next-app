@@ -12,7 +12,7 @@ class VideoCallScreen extends StatefulWidget {
   State<VideoCallScreen> createState() => _VideoCallScreenState();
 }
 
-class _VideoCallScreenState extends State<VideoCallScreen> {
+class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingObserver {
   
   static const Color accent = Color(0xFFFF8547);
   final _service = CallService.instance;
@@ -30,6 +30,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
@@ -63,20 +64,18 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   Future<void> _start() async {
     await [Permission.camera, Permission.microphone].request();
-    debugPrint('🎥 [VideoCall] Joining channel: $_channel with token: ${_token.isEmpty ? "(empty)" : "(provided)"}');
-    // If token is empty, attempt to fetch via HTTP in parallel
+    // Gate join on valid token fetched from backend
     if (_token.isEmpty) {
-      TokensApi.fetchRtcToken(_channel).then((tok) async {
-        if (!mounted) return;
-        if (tok != null && tok.isNotEmpty) {
-          debugPrint('🔑 [VideoCall] Fetched RTC token via HTTP; rejoining');
-          _token = tok;
-          await _service.leave();
-          await _service.join(channel: _channel, type: CallType.video, token: _token, uid: _uid);
-          setState(() {});
-        }
-      });
+      debugPrint('🔎 [VideoCall] Token empty; fetching from backend');
+      final tok = await TokensApi.fetchRtcToken(_channel);
+      if (tok == null || tok.isEmpty) {
+        debugPrint('❌ [VideoCall] Failed to fetch RTC token; not joining');
+        return;
+      }
+      _token = tok;
+      debugPrint('🔑 [VideoCall] Using fetched RTC token');
     }
+    debugPrint('🎥 [VideoCall] Joining channel: $_channel with token: (provided)');
     await _service.join(channel: _channel, type: CallType.video, token: _token, uid: _uid);
     if (mounted) setState(() {});
     _maybeAddEndListener();
@@ -97,7 +96,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                             (_receiverId != null && (u1 == _receiverId || u2 == _receiverId));
         if (matchesChannel || matchesUser) {
           debugPrint('🔚 [VideoCall] Peer ended call, closing screen');
-          await _service.leave();
+          await _service.dispose();
           if (mounted) Navigator.pop(context);
         }
       } catch (_) {}
@@ -128,9 +127,22 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   void dispose() {
-    _service.leave();
+    WidgetsBinding.instance.removeObserver(this);
+    // Dispose Agora fully; navigation will await in UI actions
+    _service.dispose();
     super.dispose();
   }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _service.onLifecyclePaused();
+    } else if (state == AppLifecycleState.resumed) {
+      _service.onLifecycleResumed();
+    }
+  }
+
+  
 
   @override
   Widget build(BuildContext context) {
@@ -141,7 +153,10 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () async {
+            await _service.dispose();
+            if (mounted) Navigator.pop(context);
+          },
         ),
         title: const Text(
           'Video Call',

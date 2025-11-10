@@ -11,7 +11,7 @@ class AudioCallScreen extends StatefulWidget {
   State<AudioCallScreen> createState() => _AudioCallScreenState();
 }
 
-class _AudioCallScreenState extends State<AudioCallScreen> {
+class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingObserver {
 
   static const Color accent = Color(0xFFFF8547);
   final _service = CallService.instance;
@@ -29,6 +29,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
@@ -62,20 +63,18 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
 
   Future<void> _start() async {
     await Permission.microphone.request();
-    debugPrint('🎤 [AudioCall] Joining channel: $_channel with token: ${_token.isEmpty ? "(empty)" : "(provided)"}');
-    // If token is empty, attempt to fetch via HTTP in parallel
+    // Gate join on valid token fetched from backend
     if (_token.isEmpty) {
-      TokensApi.fetchRtcToken(_channel).then((tok) async {
-        if (!mounted) return;
-        if (tok != null && tok.isNotEmpty) {
-          debugPrint('🔑 [AudioCall] Fetched RTC token via HTTP; rejoining');
-          _token = tok;
-          await _service.leave();
-          await _service.join(channel: _channel, type: CallType.audio, token: _token, uid: _uid);
-          setState(() {});
-        }
-      });
+      debugPrint('🔎 [AudioCall] Token empty; fetching from backend');
+      final tok = await TokensApi.fetchRtcToken(_channel);
+      if (tok == null || tok.isEmpty) {
+        debugPrint('❌ [AudioCall] Failed to fetch RTC token; not joining');
+        return;
+      }
+      _token = tok;
+      debugPrint('🔑 [AudioCall] Using fetched RTC token');
     }
+    debugPrint('🎤 [AudioCall] Joining channel: $_channel with token: (provided)');
     await _service.join(channel: _channel, type: CallType.audio, token: _token, uid: _uid);
     if (mounted) setState(() {});
     _maybeAddEndListener();
@@ -96,7 +95,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
                             (_receiverId != null && (u1 == _receiverId || u2 == _receiverId));
         if (matchesChannel || matchesUser) {
           debugPrint('🔚 [AudioCall] Peer ended call, closing screen');
-          await _service.leave();
+          await _service.dispose();
           if (mounted) Navigator.pop(context);
         }
       } catch (_) {}
@@ -127,8 +126,19 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
 
   @override
   void dispose() {
-    _service.leave();
+    WidgetsBinding.instance.removeObserver(this);
+    // Dispose Agora fully; navigation will await in UI actions
+    _service.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _service.onLifecyclePaused();
+    } else if (state == AppLifecycleState.resumed) {
+      _service.onLifecycleResumed();
+    }
   }
 
   @override
@@ -140,7 +150,10 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () async {
+            await _service.dispose();
+            if (mounted) Navigator.pop(context);
+          },
         ),
         title: const Text(
           'Audio Call',
@@ -226,7 +239,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
                           'otherUserId': _receiverId,
                           'channelName': _channel,
                         });
-                        await _service.leave();
+                        await _service.dispose();
                         if (mounted) Navigator.pop(context);
                       },
                       icon: const Icon(Icons.call_end, color: Colors.white),
