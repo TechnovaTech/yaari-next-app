@@ -55,10 +55,13 @@ class OutgoingCallService {
       if (_isRinging) {
         _isRinging = false;
         Navigator.pop(context); // Close ringing dialog
+        final token = (data is Map && data['token'] != null) ? data['token'].toString() : '';
+        final ch = (data is Map && data['channelName'] != null) ? data['channelName'].toString() : channel;
         Navigator.pushNamed(context, isVideo ? '/video_call' : '/audio_call', arguments: {
           'name': callerName,
           'avatarUrl': callerAvatar,
-          'channel': channel,
+          'channel': ch,
+          'token': token,
         });
       }
     });

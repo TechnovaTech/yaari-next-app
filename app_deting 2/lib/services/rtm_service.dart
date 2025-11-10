@@ -82,4 +82,6 @@ class RtmService {
   void removeListener(void Function(Map<String, dynamic>) listener) {
     _listeners.remove(listener);
   }
+
+  String? get currentUserId => _uid;
 }

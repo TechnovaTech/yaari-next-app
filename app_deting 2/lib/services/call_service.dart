@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../config/agora.dart';
 
 enum CallType { audio, video }
@@ -15,7 +16,8 @@ class CallService {
   int? remoteUid;
   String? channelName;
   final ValueNotifier<bool> joined = ValueNotifier<bool>(false);
-  final ValueNotifier<bool> speakerOn = ValueNotifier<bool>(true);
+  final ValueNotifier<bool> speakerOn = ValueNotifier<bool>(false);
+  static const platform = MethodChannel('com.example.app_deting/audio');
 
   Future<void> initialize({required CallType type}) async {
     if (_initialized) return;
@@ -27,10 +29,16 @@ class CallService {
 
     _engine.registerEventHandler(RtcEngineEventHandler(
       onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
+        debugPrint('🎉 [CallService] Joined channel successfully!');
         joined.value = true;
       },
       onUserJoined: (RtcConnection connection, int uid, int elapsed) {
+        debugPrint('👤 [CallService] Remote user joined: $uid');
         remoteUid = uid;
+        // Set earpiece when remote user joins
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _setAudioRouting(false);
+        });
       },
       onUserOffline: (RtcConnection connection, int uid, UserOfflineReasonType reason) {
         if (remoteUid == uid) remoteUid = null;
@@ -42,11 +50,11 @@ class CallService {
     ));
 
     await _engine.enableAudio();
-    // Default route to speakerphone for clearer audio.
-    try {
-      await _engine.setEnableSpeakerphone(true);
-      speakerOn.value = true;
-    } catch (_) {}
+    // Set default audio routing to earpiece
+    await _engine.setDefaultAudioRouteToSpeakerphone(false);
+    await _engine.setAudioScenario(
+      AudioScenarioType.audioScenarioDefault,
+    );
     if (type == CallType.video) {
       await _engine.enableVideo();
     }
@@ -71,6 +79,10 @@ class CallService {
       uid: 0,
       options: options,
     );
+    // Set earpiece immediately after joining
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      _setAudioRouting(false);
+    });
   }
 
   Future<void> leave() async {
@@ -94,10 +106,21 @@ class CallService {
   RtcEngine get engine => _engine;
 
   Future<void> toggleSpeaker() async {
+    final bool next = !speakerOn.value;
+    await _setAudioRouting(next);
+  }
+
+  Future<void> _setAudioRouting(bool useSpeaker) async {
     try {
-      final bool next = !speakerOn.value;
-      await _engine.setEnableSpeakerphone(next);
-      speakerOn.value = next;
-    } catch (_) {}
+      if (useSpeaker) {
+        await platform.invokeMethod('setSpeakerOn');
+      } else {
+        await platform.invokeMethod('setSpeakerOff');
+      }
+      speakerOn.value = useSpeaker;
+      debugPrint('🔊 [CallService] Audio routing: ${useSpeaker ? "Speaker" : "Earpiece"}');
+    } catch (e) {
+      debugPrint('❌ [CallService] Audio routing failed: $e');
+    }
   }
 }
