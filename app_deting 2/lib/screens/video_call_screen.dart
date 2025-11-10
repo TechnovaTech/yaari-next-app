@@ -7,6 +7,9 @@ import '../services/tokens_api.dart';
 import '../services/call_log_api.dart';
 import '../services/analytics_service.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/users_api.dart';
 
 class VideoCallScreen extends StatefulWidget {
   const VideoCallScreen({super.key});
@@ -33,6 +36,13 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
   DateTime? _joinedAt;
   String _callDuration = '00:00';
   Timer? _timer;
+  // Coins and rate handling
+  int _ratePerMin = 0; // coins per minute for video
+  int _remainingBalance = 0;
+  double _coinAccumulator = 0.0;
+  bool _deductInFlight = false;
+  String? _currentUserId;
+  bool _isCaller = false;
 
   @override
   void initState() {
@@ -64,8 +74,53 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
       }
       _initialized = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _start();
+        _initBillingContext().then((_) => _start());
       });
+    }
+  }
+
+  Future<void> _initBillingContext() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('user');
+      String? uid;
+      if (raw != null && raw.isNotEmpty) {
+        try {
+          final obj = jsonDecode(raw);
+          if (obj is Map<String, dynamic>) {
+            final inner = (obj['user'] is Map<String, dynamic>)
+                ? obj['user'] as Map<String, dynamic>
+                : (obj['data'] is Map<String, dynamic>)
+                    ? obj['data'] as Map<String, dynamic>
+                    : obj;
+            uid = (inner['id'] ?? inner['_id'] ?? inner['userId'])?.toString();
+          }
+        } catch (_) {}
+      }
+      _currentUserId = uid;
+      _isCaller = (_callerId != null && uid != null && _callerId == uid);
+
+      final settings = await UsersApi.fetchSettings();
+      _ratePerMin = settings.videoCallRate;
+      if (uid != null) {
+        final bal = await UsersApi.fetchBalance(uid);
+        if (bal != null) _remainingBalance = bal;
+      }
+
+      if (_isCaller && _ratePerMin > 0 && _remainingBalance < _ratePerMin) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Insufficient coins to start video call')),
+        );
+        SocketService.instance.emit('end-call', {
+          'userId': _callerId,
+          'otherUserId': _receiverId,
+          'channelName': _channel,
+        });
+        try { await _service.dispose(); } catch (_) {}
+        if (mounted) Navigator.pop(context);
+      }
+    } catch (e) {
+      debugPrint('⚠️ [VideoCall] init billing error: $e');
     }
   }
 
@@ -146,14 +201,81 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
   }
 
   void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) async {
       if (_joinedAt != null && mounted) {
         final elapsed = DateTime.now().difference(_joinedAt!);
         setState(() {
           _callDuration = '${elapsed.inMinutes.toString().padLeft(2, '0')}:${(elapsed.inSeconds % 60).toString().padLeft(2, '0')}';
         });
+
+        if (_isCaller && _ratePerMin > 0 && _currentUserId != null) {
+          _coinAccumulator += (_ratePerMin / 60.0);
+          final int toCharge = _coinAccumulator.floor();
+          if (toCharge >= 1 && !_deductInFlight) {
+            _deductInFlight = true;
+            try {
+              final newBal = await UsersApi.deductCoins(
+                userId: _currentUserId!,
+                coins: toCharge,
+                callType: 'video',
+              );
+              _coinAccumulator -= toCharge;
+              if (newBal != null) {
+                _remainingBalance = newBal;
+              } else {
+                _remainingBalance -= toCharge;
+              }
+              if (_remainingBalance <= 0) {
+                debugPrint('⛔ [VideoCall] Coins exhausted, ending call');
+                _endDueToNoCoins();
+              }
+            } catch (err) {
+              debugPrint('❌ [VideoCall] Deduct coins failed: $err');
+              _endDueToNoCoins();
+            } finally {
+              _deductInFlight = false;
+            }
+          }
+        }
       }
     });
+  }
+
+  Future<void> _endDueToNoCoins() async {
+    SocketService.instance.emit('end-call', {
+      'userId': _callerId,
+      'otherUserId': _receiverId,
+      'channelName': _channel,
+    });
+    try {
+      final start = _joinedAt;
+      final durationSec = start != null ? DateTime.now().difference(start).inSeconds : 0;
+      final callerId = _callerId ?? '';
+      final receiverId = _receiverId ?? '';
+      if (callerId.isNotEmpty && receiverId.isNotEmpty) {
+        await CallLogApi.logEnd(
+          callerId: callerId,
+          receiverId: receiverId,
+          callType: 'video',
+          durationSeconds: durationSec,
+        );
+        AnalyticsService.instance.trackCallEvent(
+          action: 'ended_no_coins',
+          callType: 'video',
+          callerId: callerId,
+          receiverId: receiverId,
+          channelName: _channel,
+          durationSeconds: durationSec,
+        );
+      }
+    } catch (_) {}
+    await _service.dispose();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Call ended: insufficient coins')),
+      );
+      Navigator.pop(context);
+    }
   }
 
   Future<void> _handlePeerEnded() async {

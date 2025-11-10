@@ -32,6 +32,29 @@ class UsersApi {
     return null;
   }
 
+  static Future<int?> deductCoins({
+    required String userId,
+    required int coins,
+    required String callType, // 'audio' | 'video'
+  }) async {
+    final res = await http.post(
+      _url('/api/users/$userId/deduct-coins'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'coins': coins, 'callType': callType}),
+    );
+    final m = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      final data = m['data'] ?? m;
+      final bal = data['newBalance'] ?? data['balance'] ?? data['coins'] ?? data['amount'];
+      if (bal is int) return bal;
+      if (bal is String) return int.tryParse(bal);
+      return null;
+    } else {
+      final err = (m['error'] ?? m['message'] ?? 'Failed to deduct coins').toString();
+      throw Exception(err);
+    }
+  }
+
   /// Fetch active ads to show on the Home hero card.
   static Future<List<AdItem>> fetchAds() async {
     final res = await http.get(_url('/api/ads'));
