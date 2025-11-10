@@ -3,7 +3,6 @@
 // <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 import 'dart:async';
 import 'dart:js' as js;
-import 'dart:js_util' as jsu;
 
 // Top-level function used by conditional bridge import
 Future<Map<String, String>> openCheckoutImpl({
@@ -18,21 +17,21 @@ Future<Map<String, String>> openCheckoutImpl({
   String? prefillContact,
 }) async {
   final completer = Completer<Map<String, String>>();
-  final handler = js.allowInterop((response) {
+  final handler = (response) {
     final paymentId = response['razorpay_payment_id']?.toString() ?? '';
     final signature = response['razorpay_signature']?.toString() ?? '';
     completer.complete({
       'razorpay_payment_id': paymentId,
       'razorpay_signature': signature,
     });
-  });
-  final onFailure = js.allowInterop((error) {
+  };
+  final onFailure = (error) {
     if (!completer.isCompleted) {
       completer.completeError(error);
     }
-  });
+  };
 
-  final options = jsu.jsify({
+  final options = js.JsObject.jsify({
     'key': keyId,
     'amount': amountPaise,
     'currency': currency,
@@ -53,12 +52,12 @@ Future<Map<String, String>> openCheckoutImpl({
     if (Razorpay == null) {
       throw 'Razorpay script not loaded';
     }
-    final rzp = jsu.callConstructor(Razorpay, [options]);
-    jsu.callMethod(rzp, 'on', [
+    final rzp = js.JsObject(Razorpay, [options]);
+    (rzp as js.JsObject).callMethod('on', [
       'payment.failed',
       onFailure,
     ]);
-    jsu.callMethod(rzp, 'open', []);
+    (rzp as js.JsObject).callMethod('open', []);
   } catch (e) {
     if (!completer.isCompleted) completer.completeError(e);
   }

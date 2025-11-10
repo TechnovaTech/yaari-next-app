@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/call_dialogs.dart' as dialogs;
 import 'socket_service.dart';
 import 'tokens_api.dart';
+import 'analytics_service.dart';
 
 class IncomingCallService {
   IncomingCallService._();
@@ -98,6 +99,15 @@ class IncomingCallService {
           _incomingCallerId = callerId;
           _incomingChannelName = channelName;
 
+          // Track incoming ring
+          AnalyticsService.instance.trackCallEvent(
+            action: 'initiated',
+            callType: callType == 'video' ? 'video' : 'audio',
+            callerId: callerId,
+            receiverId: _currentUserId,
+            channelName: channelName,
+          );
+
           dialogs.showIncomingCallDialog(
             nav.context,
             type: callType == 'video' ? dialogs.CallType.video : dialogs.CallType.audio,
@@ -106,6 +116,14 @@ class IncomingCallService {
             onAccept: () async {
               debugPrint('✅ [IncomingCall] Accepting call');
               _incomingDialogActive = false;
+
+              AnalyticsService.instance.trackCallEvent(
+                action: 'accepted',
+                callType: callType == 'video' ? 'video' : 'audio',
+                callerId: callerId,
+                receiverId: _currentUserId,
+                channelName: channelName,
+              );
 
               _socket.emit('accept-call', {
                 'callerId': callerId,
@@ -145,6 +163,13 @@ class IncomingCallService {
             onDecline: () {
               debugPrint('❌ [IncomingCall] Declining call');
               _incomingDialogActive = false;
+              AnalyticsService.instance.trackCallEvent(
+                action: 'declined',
+                callType: callType == 'video' ? 'video' : 'audio',
+                callerId: callerId,
+                receiverId: _currentUserId,
+                channelName: channelName,
+              );
               _socket.emit('decline-call', {'callerId': callerId});
             },
           );

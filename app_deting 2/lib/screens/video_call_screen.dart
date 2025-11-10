@@ -5,6 +5,7 @@ import '../services/call_service.dart';
 import '../services/socket_service.dart';
 import '../services/tokens_api.dart';
 import '../services/call_log_api.dart';
+import '../services/analytics_service.dart';
 
 class VideoCallScreen extends StatefulWidget {
   const VideoCallScreen({super.key});
@@ -360,6 +361,14 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
                                   callerId: callerId,
                                   receiverId: receiverId,
                                   callType: 'video',
+                                  durationSeconds: durationSec,
+                                );
+                                AnalyticsService.instance.trackCallEvent(
+                                  action: 'ended',
+                                  callType: 'video',
+                                  callerId: callerId,
+                                  receiverId: receiverId,
+                                  channelName: _channel,
                                   durationSeconds: durationSec,
                                 );
                               }

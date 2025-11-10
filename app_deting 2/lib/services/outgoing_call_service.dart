@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'socket_service.dart';
 import 'tokens_api.dart';
+import 'analytics_service.dart';
 
 class OutgoingCallService {
   OutgoingCallService._();
@@ -34,11 +35,16 @@ class OutgoingCallService {
     try {
       if (userData is Map<String, dynamic>) {
         final Map<String, dynamic> root = userData;
-        final Map<String, dynamic> inner = (root['user'] is Map<String, dynamic>)
-            ? root['user'] as Map<String, dynamic>
-            : (root['data'] is Map<String, dynamic>)
-                ? root['data'] as Map<String, dynamic>
-                : root;
+        Map<String, dynamic> inner = root;
+        final u = root['user'];
+        if (u is Map<String, dynamic>) {
+          inner = u;
+        } else {
+          final d = root['data'];
+          if (d is Map<String, dynamic>) {
+            inner = d;
+          }
+        }
         for (final k in const ['id', '_id', 'userId']) {
           final v = inner[k];
           if (v != null && v.toString().isNotEmpty) { callerId = v.toString(); break; }
@@ -47,6 +53,15 @@ class OutgoingCallService {
       }
     } catch (_) {}
     debugPrint('👤 [OutgoingCall] Caller: $callerDisplayName (${callerId ?? 'unknown'})');
+
+    // Track call initiation
+    AnalyticsService.instance.trackCallEvent(
+      action: 'initiated',
+      callType: isVideo ? 'video' : 'audio',
+      callerId: callerId,
+      receiverId: receiverId,
+      channelName: channel,
+    );
 
     _isRinging = true;
 
@@ -89,6 +104,15 @@ class OutgoingCallService {
         handledAcceptance = true;
         debugPrint('✅ [OutgoingCall] Call accepted! Channel: $ch');
 
+        // Track acceptance
+        AnalyticsService.instance.trackCallEvent(
+          action: 'accepted',
+          callType: isVideo ? 'video' : 'audio',
+          callerId: callerId,
+          receiverId: receiverId,
+          channelName: ch,
+        );
+
         // Close the ringing dialog if visible
         if (_isRinging) {
           _isRinging = false;
@@ -120,6 +144,13 @@ class OutgoingCallService {
 
     _socket.on('call-declined', (_) {
       debugPrint('❌ [OutgoingCall] Call declined');
+      AnalyticsService.instance.trackCallEvent(
+        action: 'declined',
+        callType: isVideo ? 'video' : 'audio',
+        callerId: callerId,
+        receiverId: receiverId,
+        channelName: channel,
+      );
       if (_isRinging) {
         _isRinging = false;
         // Close via rootNavigator to ensure the dialog is dismissed
@@ -132,6 +163,13 @@ class OutgoingCallService {
 
     _socket.on('call-busy', (data) {
       debugPrint('📵 [OutgoingCall] User is busy');
+      AnalyticsService.instance.trackCallEvent(
+        action: 'busy',
+        callType: isVideo ? 'video' : 'audio',
+        callerId: callerId,
+        receiverId: receiverId,
+        channelName: channel,
+      );
       if (_isRinging) {
         _isRinging = false;
         Navigator.of(context, rootNavigator: true).pop();
@@ -160,6 +198,13 @@ class OutgoingCallService {
         onCancel: () {
           _isRinging = false;
           _socket.emit('end-call', {'userId': callerId, 'otherUserId': receiverId});
+          AnalyticsService.instance.trackCallEvent(
+            action: 'cancel',
+            callType: isVideo ? 'video' : 'audio',
+            callerId: callerId,
+            receiverId: receiverId,
+            channelName: channel,
+          );
           Navigator.pop(ctx);
         },
       ),

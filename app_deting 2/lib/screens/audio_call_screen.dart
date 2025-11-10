@@ -4,6 +4,7 @@ import '../services/call_service.dart';
 import '../services/socket_service.dart';
 import '../services/tokens_api.dart';
 import '../services/call_log_api.dart';
+import '../services/analytics_service.dart';
 
 class AudioCallScreen extends StatefulWidget {
   const AudioCallScreen({super.key});
@@ -319,6 +320,14 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
                                   callerId: callerId,
                                   receiverId: receiverId,
                                   callType: 'audio',
+                                  durationSeconds: durationSec,
+                                );
+                                AnalyticsService.instance.trackCallEvent(
+                                  action: 'ended',
+                                  callType: 'audio',
+                                  callerId: callerId,
+                                  receiverId: receiverId,
+                                  channelName: _channel,
                                   durationSeconds: durationSec,
                                 );
                               }

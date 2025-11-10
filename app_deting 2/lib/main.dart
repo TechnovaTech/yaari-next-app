@@ -19,6 +19,7 @@ import 'screens/audio_call_screen.dart';
 import 'screens/privacy_policy_details_screen.dart';
 import 'services/incoming_call_service.dart';
 import 'services/socket_service.dart';
+import 'services/analytics_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -89,11 +90,16 @@ class _AppStartState extends State<AppStart> {
           final userData = jsonDecode(userJson);
           if (userData is Map<String, dynamic>) {
             final root = userData;
-            final inner = (root['user'] is Map<String, dynamic>)
-                ? root['user'] as Map<String, dynamic>
-                : (root['data'] is Map<String, dynamic>)
-                ? root['data'] as Map<String, dynamic>
-                : root;
+            Map<String, dynamic> inner = root;
+            final u = root['user'];
+            if (u is Map<String, dynamic>) {
+              inner = u;
+            } else {
+              final d = root['data'];
+              if (d is Map<String, dynamic>) {
+                inner = d;
+              }
+            }
             for (final k in const ['id', '_id', 'userId']) {
               final v = inner[k];
               if (v != null && v.toString().isNotEmpty) {
@@ -112,8 +118,38 @@ class _AppStartState extends State<AppStart> {
           SocketService.instance.connect(userId);
           // Wait for socket to connect
           await Future.delayed(const Duration(milliseconds: 800));
+          // Initialize analytics and identify user
+          await AnalyticsService.instance.init();
+          // Try to enrich profile from stored userJson
+          Map<String, dynamic> profile = {};
+          try {
+            final data = jsonDecode(userJson);
+            final Map<String, dynamic> root =
+                (data is Map<String, dynamic>) ? data : <String, dynamic>{};
+            Map<String, dynamic> inner = root;
+            final u2 = root['user'];
+            if (u2 is Map<String, dynamic>) {
+              inner = u2;
+            } else {
+              final d2 = root['data'];
+              if (d2 is Map<String, dynamic>) {
+                inner = d2;
+              }
+            }
+            profile = {
+              'Name': (inner['name'] ?? inner['userName'] ?? '')?.toString(),
+              'Email': (inner['email'] ?? '')?.toString(),
+              'Phone': (inner['phone'] ?? inner['mobile'] ?? '')?.toString(),
+              'Gender': (inner['gender'] ?? '')?.toString(),
+            }..removeWhere((k, v) => v == null || (v is String && v.isEmpty));
+          } catch (_) {}
+          await AnalyticsService.instance.identify(userId, profile: profile);
+          AnalyticsService.instance.track('App Open', {'Platform': 'flutter'});
         } else {
           debugPrint('⚠️ [AppStart] No user ID found, skipping socket connection');
+          // Still init analytics for screen views
+          await AnalyticsService.instance.init();
+          AnalyticsService.instance.track('App Open', {'Platform': 'flutter'});
         }
 
         // Start incoming call listener
@@ -125,9 +161,11 @@ class _AppStartState extends State<AppStart> {
         // Navigate to home
         debugPrint('✅ [AppStart] Services initialized, navigating to home');
         if (!mounted) return;
+        AnalyticsService.instance.screenView('Home');
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         debugPrint('🔓 [AppStart] No user found, navigating to login');
+        AnalyticsService.instance.screenView('Login');
         Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {

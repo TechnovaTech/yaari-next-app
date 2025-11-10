@@ -45,6 +45,8 @@ dependencies:
   # Upgrade to a Flutter-embedding v2 compatible RTM plugin
   agora_rtm: ^2.2.5
   socket_io_client: ^2.0.3+1
+  mixpanel_flutter: ^2.4.4
+  clevertap_plugin: ^3.6.0
 
 dev_dependencies:
   flutter_test:
