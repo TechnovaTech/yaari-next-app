@@ -4,6 +4,7 @@ import '../services/call_service.dart';
 import '../services/socket_service.dart';
 import '../services/tokens_api.dart';
 import '../services/call_log_api.dart';
+import 'dart:async';
 import '../services/analytics_service.dart';
 
 class AudioCallScreen extends StatefulWidget {
@@ -29,6 +30,8 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
   bool _acceptedListenerAdded = false;
   bool _peerEndSubscribed = false;
   DateTime? _joinedAt;
+  String _callDuration = '00:00';
+  Timer? _timer;
 
   @override
   void initState() {
@@ -141,6 +144,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
     _service.joined.addListener(() async {
       if (_service.joined.value && _joinedAt == null) {
         _joinedAt = DateTime.now();
+        _startTimer();
         final callerId = _callerId ?? '';
         final receiverId = _receiverId ?? '';
         if (callerId.isNotEmpty && receiverId.isNotEmpty) {
@@ -153,6 +157,17 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
         } else {
           debugPrint('⚠️ [AudioCall] Missing IDs for start log');
         }
+      }
+    });
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_joinedAt != null && mounted) {
+        final elapsed = DateTime.now().difference(_joinedAt!);
+        setState(() {
+          _callDuration = '${elapsed.inMinutes.toString().padLeft(2, '0')}:${(elapsed.inSeconds % 60).toString().padLeft(2, '0')}';
+        });
       }
     });
   }
@@ -188,6 +203,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
 
   @override
   void dispose() {
+    _timer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     // Reset listener flags so next call can register them again
     _endListenerAdded = false;
@@ -256,6 +272,8 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
                 Text('Audio Call', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
               ],
             ),
+            const SizedBox(height: 4),
+            Text(_callDuration, style: const TextStyle(fontSize: 16, color: Colors.black54, fontWeight: FontWeight.w600)),
 
             const SizedBox(height: 16),
             Expanded(
