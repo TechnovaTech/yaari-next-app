@@ -11,6 +11,18 @@ class OutgoingCallService {
 
   final SocketService _socket = SocketService.instance;
   bool _isRinging = false;
+  // Listener references for cleanup between call attempts
+  Function? _acceptedHandler;
+  Function? _acceptedHandlerAlt;
+  Function? _declinedHandler;
+  Function? _busyHandler;
+
+  void _detachOutgoingListeners() {
+    if (_acceptedHandler != null) { _socket.off('call-accepted', _acceptedHandler!); _acceptedHandler = null; }
+    if (_acceptedHandlerAlt != null) { _socket.off('accept-call', _acceptedHandlerAlt!); _acceptedHandlerAlt = null; }
+    if (_declinedHandler != null) { _socket.off('call-declined', _declinedHandler!); _declinedHandler = null; }
+    if (_busyHandler != null) { _socket.off('call-busy', _busyHandler!); _busyHandler = null; }
+  }
 
   Future<void> startCall({
     required BuildContext context,
@@ -88,6 +100,8 @@ class OutgoingCallService {
 
         handledAcceptance = true;
         debugPrint('✅ [OutgoingCall] Call accepted! Channel: $ch');
+        // Detach listeners now that call is accepted to avoid stacking
+        _detachOutgoingListeners();
 
         // Close the ringing dialog if visible
         if (_isRinging) {
@@ -115,10 +129,14 @@ class OutgoingCallService {
       }
     }
 
-    _socket.on('call-accepted', handleAccepted);
-    _socket.on('accept-call', handleAccepted);
+    // Ensure previous attempt listeners are detached before attaching new ones
+    _detachOutgoingListeners();
+    _acceptedHandler = handleAccepted;
+    _acceptedHandlerAlt = handleAccepted;
+    _socket.on('call-accepted', _acceptedHandler!);
+    _socket.on('accept-call', _acceptedHandlerAlt!);
 
-    _socket.on('call-declined', (_) {
+    _declinedHandler = (_) {
       debugPrint('❌ [OutgoingCall] Call declined');
       if (_isRinging) {
         _isRinging = false;
@@ -128,9 +146,11 @@ class OutgoingCallService {
           const SnackBar(content: Text('Call declined')),
         );
       }
-    });
+      _detachOutgoingListeners();
+    };
+    _socket.on('call-declined', _declinedHandler!);
 
-    _socket.on('call-busy', (data) {
+    _busyHandler = (data) {
       debugPrint('📵 [OutgoingCall] User is busy');
       if (_isRinging) {
         _isRinging = false;
@@ -139,7 +159,9 @@ class OutgoingCallService {
           SnackBar(content: Text(data['message'] ?? 'User is busy')),
         );
       }
-    });
+      _detachOutgoingListeners();
+    };
+    _socket.on('call-busy', _busyHandler!);
 
     // Emit call-user event (backend should notify receiver via 'incoming-call')
     _socket.emit('call-user', {
@@ -160,6 +182,7 @@ class OutgoingCallService {
         onCancel: () {
           _isRinging = false;
           _socket.emit('end-call', {'userId': callerId, 'otherUserId': receiverId});
+          _detachOutgoingListeners();
           Navigator.pop(ctx);
         },
       ),

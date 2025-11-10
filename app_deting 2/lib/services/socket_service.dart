@@ -68,6 +68,28 @@ class SocketService {
     }
   }
 
+  // Remove listener(s) for an event. If callback is provided, remove only that one; otherwise remove all.
+  void off(String event, [Function? callback]) {
+    final existing = _listeners[event];
+    if (existing == null || existing.isEmpty) return;
+    if (callback != null) {
+      existing.removeWhere((fn) => fn == callback);
+      if (existing.isEmpty) {
+        _listeners.remove(event);
+      } else {
+        _listeners[event] = existing;
+      }
+    } else {
+      _listeners.remove(event);
+    }
+    // If there are no listeners left for this event, detach from the socket
+    final hasAny = _listeners.containsKey(event) && (_listeners[event]?.isNotEmpty ?? false);
+    if (_socket != null && !hasAny) {
+      _socket!.off(event);
+      _attachedEvents.remove(event);
+    }
+  }
+
   void emit(String event, dynamic data) {
     debugPrint('📤 [SocketService] Emitting $event: $data');
     _socket?.emit(event, data);

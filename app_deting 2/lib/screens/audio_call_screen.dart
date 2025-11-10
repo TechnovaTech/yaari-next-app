@@ -28,6 +28,11 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
   bool _acceptedListenerAdded = false;
   bool _peerEndSubscribed = false;
   DateTime? _joinedAt;
+  // Listener references for cleanup
+  Function? _endCallListener;
+  Function? _acceptedListener;
+  VoidCallback? _peerEndedHandler;
+  VoidCallback? _joinedHandler;
 
   @override
   void initState() {
@@ -89,7 +94,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
   void _maybeAddEndListener() {
     if (_endListenerAdded) return;
     _endListenerAdded = true;
-    SocketService.instance.on('end-call', (data) async {
+    _endCallListener = (data) async {
       try {
         final Map m = (data is Map) ? data : {};
         final ch = (m['channelName'] ?? m['channel'])?.toString() ?? '';
@@ -104,23 +109,25 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
           if (mounted) Navigator.pop(context);
         }
       } catch (_) {}
-    });
+    };
+    SocketService.instance.on('end-call', _endCallListener!);
   }
 
   void _maybeSubscribePeerEnded() {
     if (_peerEndSubscribed) return;
     _peerEndSubscribed = true;
-    _service.peerEnded.addListener(() {
+    _peerEndedHandler = () {
       if (_service.peerEnded.value) {
         _handlePeerEnded();
       }
-    });
+    };
+    _service.peerEnded.addListener(_peerEndedHandler!);
   }
 
   void _maybeSubscribeJoinedForLogging(String callType) {
     // Log call start exactly once when join succeeds
     if (_joinedAt != null) return;
-    _service.joined.addListener(() async {
+    _joinedHandler = () async {
       if (_service.joined.value && _joinedAt == null) {
         _joinedAt = DateTime.now();
         final callerId = _callerId ?? '';
@@ -136,7 +143,8 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
           debugPrint('⚠️ [AudioCall] Missing IDs for start log');
         }
       }
-    });
+    };
+    _service.joined.addListener(_joinedHandler!);
   }
 
   Future<void> _handlePeerEnded() async {
@@ -148,7 +156,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
   void _maybeAddAcceptedListener() {
     if (_acceptedListenerAdded) return;
     _acceptedListenerAdded = true;
-    SocketService.instance.on('call-accepted', (data) async {
+    _acceptedListener = (data) async {
       try {
         final Map m = (data is Map) ? data : {};
         final tok = (m['token'] ?? m['rtcToken'])?.toString() ?? '';
@@ -164,12 +172,30 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
         await _service.join(channel: _channel, type: CallType.audio, token: _token, uid: _uid);
         if (mounted) setState(() {});
       } catch (_) {}
-    });
+    };
+    SocketService.instance.on('call-accepted', _acceptedListener!);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    // Clean up socket and notifier listeners
+    if (_endCallListener != null) {
+      SocketService.instance.off('end-call', _endCallListener!);
+      _endCallListener = null;
+    }
+    if (_acceptedListener != null) {
+      SocketService.instance.off('call-accepted', _acceptedListener!);
+      _acceptedListener = null;
+    }
+    if (_peerEndedHandler != null) {
+      _service.peerEnded.removeListener(_peerEndedHandler!);
+      _peerEndedHandler = null;
+    }
+    if (_joinedHandler != null) {
+      _service.joined.removeListener(_joinedHandler!);
+      _joinedHandler = null;
+    }
     // Don't auto-dispose here - only dispose when user explicitly ends call
     // _service.dispose() is called in button handlers
     super.dispose();
