@@ -128,8 +128,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // Dispose Agora fully; navigation will await in UI actions
-    _service.dispose();
+    // Don't auto-dispose here - only dispose when user explicitly ends call
+    // _service.dispose() is called in button handlers
     super.dispose();
   }
 
@@ -146,7 +146,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: () async {
+        // Prevent accidental back press - require explicit End Call button
+        return false;
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFFEF8F4),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -297,6 +302,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
             ),
           ],
         ),
+      ),
       ),
     );
   }

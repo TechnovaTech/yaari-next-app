@@ -15,12 +15,6 @@ class IncomingCallService {
   GlobalKey<NavigatorState>? _navKey;
   String? _currentUserId;
   bool _started = false;
-  bool _awaitingAcceptedNavigate = false;
-  String? _pendingCallerName;
-  String? _pendingAvatarUrl;
-  String _pendingCallType = 'audio';
-  String? _pendingChannelName;
-  String? _pendingCallerId;
 
   Future<void> start({required GlobalKey<NavigatorState> navigatorKey}) async {
     if (_started) {
@@ -42,7 +36,7 @@ class IncomingCallService {
       final Map<String, dynamic> userData = jsonDecode(raw);
       final uid = _extractUserId(userData);
       if (uid == null || uid.isEmpty) return;
-      
+
       _currentUserId = uid;
       debugPrint('👤 [IncomingCall] Setting up listener for user: $uid');
 
@@ -57,7 +51,7 @@ class IncomingCallService {
       _socket.on('incoming-call', (data) {
         debugPrint('🔔 [IncomingCall] Incoming call received!');
         debugPrint('📞 [IncomingCall] Data: $data');
-        
+
         if (data == null) {
           debugPrint('❌ [IncomingCall] Null data received');
           return;
@@ -79,81 +73,45 @@ class IncomingCallService {
           return;
         }
 
-        // Cache pending details for accept-driven navigation
-        _pendingCallerName = callerName;
-        _pendingCallerId = callerId;
-        _pendingAvatarUrl = data['avatarUrl']?.toString();
-        _pendingCallType = callType;
-        _pendingChannelName = channelName;
-
         // Use post frame callback to ensure UI is ready
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!nav.mounted) return;
-          
+
           dialogs.showIncomingCallDialog(
             nav.context,
             type: callType == 'video' ? dialogs.CallType.video : dialogs.CallType.audio,
             displayName: callerName,
             avatarUrl: null,
-            onAccept: () {
+            onAccept: () async {
               debugPrint('✅ [IncomingCall] Accepting call');
-              debugPrint('📞 [IncomingCall] Channel: $channelName, Type: $callType');
-              
+
               _socket.emit('accept-call', {
                 'callerId': callerId,
                 'channelName': channelName,
                 'callType': callType,
               });
-              // If token already provided in invite, navigate immediately; otherwise wait for call-accepted
-              final tokenFromInvite = (data['token'] ?? data['rtcToken'])?.toString() ?? '';
-              final uidFromInvite = (data['uid'] ?? data['agoraUid'] ?? data['rtcUid'])?.toString();
-              if (tokenFromInvite.isNotEmpty) {
-                final route = callType == 'video' ? '/video_call' : '/audio_call';
-                nav.pushNamed(route, arguments: {
-                  'name': callerName,
-                  'avatarUrl': data['avatarUrl'],
-                  'channel': channelName,
-                  'token': tokenFromInvite,
-                  'callerId': callerId,
-                  if (uidFromInvite != null) 'uid': uidFromInvite,
-                });
-              } else {
-                _awaitingAcceptedNavigate = true;
-                // Try fetching RTC token via HTTP immediately
-                TokensApi.fetchRtcToken(channelName).then((tok) {
-                  final nav2 = _navKey?.currentState;
-                  if (!_awaitingAcceptedNavigate || nav2 == null || !nav2.mounted) return;
-                  if (tok != null && tok.isNotEmpty) {
-                    final route = callType == 'video' ? '/video_call' : '/audio_call';
-                    debugPrint('🔑 [IncomingCall] Fetched RTC token via HTTP; navigating');
-                    nav2.pushNamed(route, arguments: {
-                      'name': callerName,
-                      'avatarUrl': data['avatarUrl'],
-                      'channel': channelName,
-                      'token': tok,
-                      'callerId': callerId,
-                      if (uidFromInvite != null) 'uid': uidFromInvite,
-                    });
-                    _awaitingAcceptedNavigate = false;
-                  }
-                });
-                // Fallback: if server doesn't emit call-accepted promptly, navigate with empty token
-                Future.delayed(const Duration(seconds: 3), () {
-                  final nav2 = _navKey?.currentState;
-                  if (!_awaitingAcceptedNavigate || nav2 == null || !nav2.mounted) return;
-                  final route = callType == 'video' ? '/video_call' : '/audio_call';
-                  debugPrint('⏳ [IncomingCall] call-accepted not received, navigating with empty token');
-                  nav2.pushNamed(route, arguments: {
-                    'name': callerName,
-                    'avatarUrl': data['avatarUrl'],
-                    'channel': channelName,
-                    'token': '',
-                    'callerId': callerId,
-                    if (uidFromInvite != null) 'uid': uidFromInvite,
-                  });
-                  _awaitingAcceptedNavigate = false;
-                });
+
+              // ✅ FIX: Always fetch fresh token before navigating
+              final token = await TokensApi.fetchRtcToken(channelName);
+              if (token == null || token.isEmpty) {
+                debugPrint('❌ [IncomingCall] Failed to get token');
+                ScaffoldMessenger.of(nav.context).showSnackBar(
+                  const SnackBar(content: Text('Failed to connect. Please try again.')),
+                );
+                return;
               }
+
+              final route = callType == 'video' ? '/video_call' : '/audio_call';
+              debugPrint('🔑 [IncomingCall] Got token, navigating to $route');
+
+              nav.pushNamed(route, arguments: {
+                'name': callerName,
+                'avatarUrl': data['avatarUrl'],
+                'channel': channelName,
+                'token': token, // ✅ Valid token
+                'callerId': callerId,
+                'receiverId': _currentUserId,
+              });
             },
             onDecline: () {
               debugPrint('❌ [IncomingCall] Declining call');
@@ -162,39 +120,7 @@ class IncomingCallService {
           );
         });
       });
-      
-      // Navigate upon server acceptance when token is generated server-side
-      _socket.on('call-accepted', (data) {
-        try {
-          if (!_awaitingAcceptedNavigate) return;
-          final nav = _navKey?.currentState;
-          if (nav == null || !nav.mounted) return;
-          final token = (data is Map && (data['token'] != null || data['rtcToken'] != null))
-              ? (data['token'] ?? data['rtcToken']).toString()
-              : '';
-          final ch = (data is Map && (data['channelName'] != null || data['channel'] != null))
-              ? (data['channelName'] ?? data['channel']).toString()
-              : (_pendingChannelName ?? '');
-          final uidArg = (data is Map && (data['uid'] != null || data['agoraUid'] != null || data['rtcUid'] != null))
-              ? (data['uid'] ?? data['agoraUid'] ?? data['rtcUid']).toString()
-              : null;
-          if (token.isEmpty || ch.isEmpty) {
-            debugPrint('❌ [IncomingCall] call-accepted missing token/channel');
-            return;
-          }
-          final route = _pendingCallType == 'video' ? '/video_call' : '/audio_call';
-          nav.pushNamed(route, arguments: {
-            'name': _pendingCallerName ?? 'User',
-            'avatarUrl': _pendingAvatarUrl,
-            'channel': ch,
-            'token': token,
-            'callerId': _pendingCallerId,
-            if (uidArg != null) 'uid': uidArg,
-          });
-        } finally {
-          _awaitingAcceptedNavigate = false;
-        }
-      });
+
       debugPrint('✅ [IncomingCall] Incoming call listener registered successfully');
     } catch (e) {
       debugPrint('❌ [IncomingCall] Error setting up listener: $e');

@@ -45,11 +45,22 @@ class CallService {
         });
       },
       onUserOffline: (RtcConnection connection, int uid, UserOfflineReasonType reason) {
+        debugPrint('🚪 [CallService] User $uid offline: $reason');
         if (remoteUid == uid) remoteUid = null;
       },
       onLeaveChannel: (RtcConnection connection, RtcStats stats) {
+        debugPrint('🚪 [CallService] Left channel');
         joined.value = false;
         remoteUid = null;
+      },
+      onConnectionLost: (RtcConnection connection) {
+        debugPrint('⚠️ [CallService] Connection lost - attempting to reconnect');
+      },
+      onConnectionStateChanged: (RtcConnection connection, ConnectionStateType state, ConnectionChangedReasonType reason) {
+        debugPrint('🔌 [CallService] Connection state: $state, reason: $reason');
+      },
+      onError: (ErrorCodeType err, String msg) {
+        debugPrint('❌ [CallService] Error: $err - $msg');
       },
     ));
 
@@ -126,12 +137,17 @@ class CallService {
   }
 
   Future<void> leave() async {
+    if (!_initialized || !joined.value) {
+      debugPrint('⚠️ [CallService] Not in channel, skipping leave');
+      return;
+    }
     debugPrint('↩️ [CallService] Leaving channel...');
     try {
       await _engine.leaveChannel();
       try { await _engine.stopPreview(); } catch (_) {}
       joined.value = false;
       remoteUid = null;
+      channelName = null;
       debugPrint('✅ [CallService] Left channel and stopped preview');
     } catch (e) {
       debugPrint('❌ [CallService] leave failed: $e');
@@ -140,8 +156,16 @@ class CallService {
 
   Future<void> dispose() async {
     debugPrint('🧹 [CallService] Disposing engine...');
+    if (!_initialized) {
+      debugPrint('⚠️ [CallService] Engine not initialized, skipping dispose');
+      return;
+    }
     try {
       await leave();
+      // Reset audio mode to normal
+      try { await platform.invokeMethod('resetAudio'); } catch (_) {}
+      // Small delay to ensure leave completes
+      await Future.delayed(const Duration(milliseconds: 300));
       await _engine.release();
       debugPrint('✅ [CallService] Engine released');
     } catch (e) {
@@ -176,19 +200,18 @@ class CallService {
 
   // Lifecycle helpers to be called from screens
   Future<void> onLifecyclePaused() async {
-    debugPrint('⏸️ [CallService] App paused: muting audio and stopping preview');
-    try { await _engine.muteLocalAudioStream(true); } catch (_) {}
-    try { await _engine.muteAllRemoteAudioStreams(true); } catch (_) {}
+    debugPrint('⏸️ [CallService] App paused: keeping connection alive');
+    // DO NOT mute or stop - keep the call running in background
+    // Only reduce quality if needed
     if (_currentType == CallType.video) {
-      try { await _engine.stopPreview(); } catch (_) {}
+      try { await _engine.muteLocalVideoStream(true); } catch (_) {}
     }
   }
 
   Future<void> onLifecycleResumed() async {
-    debugPrint('▶️ [CallService] App resumed: unmuting audio and resuming preview');
-    try { await _engine.muteLocalAudioStream(false); } catch (_) {}
-    try { await _engine.muteAllRemoteAudioStreams(false); } catch (_) {}
+    debugPrint('▶️ [CallService] App resumed: restoring video');
     if (_currentType == CallType.video) {
+      try { await _engine.muteLocalVideoStream(false); } catch (_) {}
       try { await _engine.startPreview(); } catch (_) {}
     }
   }

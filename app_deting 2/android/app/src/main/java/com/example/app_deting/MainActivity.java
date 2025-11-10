@@ -32,6 +32,10 @@ public class MainActivity extends FlutterActivity {
                     int target = Math.max(1, (int)(max * 0.6));
                     audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, target, 0);
                     result.success(null);
+                } else if (call.method.equals("resetAudio")) {
+                    audioManager.setMode(AudioManager.MODE_NORMAL);
+                    audioManager.setSpeakerphoneOn(false);
+                    result.success(null);
                 } else {
                     result.notImplemented();
                 }
