@@ -1,10 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:app_deting/utils/translations.dart';
+import 'package:app_deting/main.dart';
 
-class PrivacyPolicyScreen extends StatelessWidget {
+class PrivacyPolicyScreen extends StatefulWidget {
   const PrivacyPolicyScreen({super.key});
 
   static const accent = Color(0xFFFF8547);
+
+  @override
+  State<PrivacyPolicyScreen> createState() => _PrivacyPolicyScreenState();
+}
+
+class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
+  @override
+  void initState() {
+    super.initState();
+    MyApp.languageNotifier.addListener(_onLanguageChange);
+  }
+
+  @override
+  void dispose() {
+    MyApp.languageNotifier.removeListener(_onLanguageChange);
+    super.dispose();
+  }
+
+  void _onLanguageChange() {
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,22 +46,15 @@ class PrivacyPolicyScreen extends StatelessWidget {
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Privacy & Terms',
-                    style: TextStyle(
+                  Text(
+                    AppTranslations.get('privacy_terms'),
+                    style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
                       color: Colors.black,
                     ),
                   ),
                 ],
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 18.0, vertical: 6),
-              child: Text(
-                'DATA & PRIVACY',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black54),
               ),
             ),
             // Two options only: Privacy Policy and Terms of Service
@@ -48,7 +64,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 children: [
                   _MenuTile(
                     icon: Icons.privacy_tip,
-                    label: 'Privacy Policy',
+                    label: AppTranslations.get('privacy_policy'),
                     onTap: () async {
                       final Uri privacyPolicyUrl = Uri.parse('https://yaari.me/privacy');
                       if (!await launchUrl(privacyPolicyUrl, mode: LaunchMode.inAppWebView)) {
@@ -59,7 +75,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   const SizedBox(height: 14),
                   _MenuTile(
                     icon: Icons.lock_outline,
-                    label: 'Terms of Service',
+                    label: AppTranslations.get('terms_of_service'),
                     onTap: () async {
                       final Uri termsOfServiceUrl = Uri.parse('https://yaari.me/terms');
                       if (!await launchUrl(termsOfServiceUrl, mode: LaunchMode.inAppWebView)) {

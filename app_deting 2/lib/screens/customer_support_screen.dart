@@ -1,8 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:app_deting/utils/translations.dart';
+import 'package:app_deting/main.dart';
 
-class CustomerSupportScreen extends StatelessWidget {
+class CustomerSupportScreen extends StatefulWidget {
   const CustomerSupportScreen({super.key});
+
+  @override
+  State<CustomerSupportScreen> createState() => _CustomerSupportScreenState();
+}
+
+class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
+  @override
+  void initState() {
+    super.initState();
+    MyApp.languageNotifier.addListener(_onLanguageChange);
+  }
+
+  @override
+  void dispose() {
+    MyApp.languageNotifier.removeListener(_onLanguageChange);
+    super.dispose();
+  }
+
+  void _onLanguageChange() {
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,9 +45,9 @@ class CustomerSupportScreen extends StatelessWidget {
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Customer Support',
-                    style: TextStyle(
+                  Text(
+                    AppTranslations.get('customer_support'),
+                    style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w600,
                       color: Colors.black,
@@ -46,10 +69,10 @@ class CustomerSupportScreen extends StatelessWidget {
                       // Prompt with bold 'assistance?'
                       Text.rich(
                         TextSpan(
-                          children: const [
+                          children: [
                             TextSpan(
-                              text: 'Got a query or need\n',
-                              style: TextStyle(
+                              text: AppTranslations.get('got_query'),
+                              style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.black54,
@@ -57,8 +80,8 @@ class CustomerSupportScreen extends StatelessWidget {
                               ),
                             ),
                             TextSpan(
-                              text: 'assistance?',
-                              style: TextStyle(
+                              text: AppTranslations.get('assistance'),
+                              style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.black87,
@@ -73,10 +96,10 @@ class CustomerSupportScreen extends StatelessWidget {
                       const SizedBox(height: 24),
 
                       // Explanation lines above email
-                      const Text(
-                        "We're here to help! Write to us at",
+                      Text(
+                        AppTranslations.get('here_to_help'),
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 14,
                           color: Colors.black54,
                           fontFamily: 'Poppins',
@@ -106,10 +129,10 @@ class CustomerSupportScreen extends StatelessWidget {
                       const SizedBox(height: 6),
 
                       // Closing line
-                      const Text(
-                        'and our support team will get back to you\nas soon as possible.',
+                      Text(
+                        AppTranslations.get('support_team_response'),
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 14,
                           color: Colors.black54,
                           fontFamily: 'Poppins',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 enum CallType { video, audio }
 
@@ -13,11 +14,21 @@ Future<void> showPermissionDialog(
   required CallType type,
   required VoidCallback onAllow,
 }) async {
+  // Check if permissions already granted
+  final bool isVideo = type == CallType.video;
+  final micStatus = await Permission.microphone.status;
+  final camStatus = isVideo ? await Permission.camera.status : PermissionStatus.granted;
+  
+  // If already granted, skip dialog and proceed
+  if (micStatus.isGranted && camStatus.isGranted) {
+    onAllow();
+    return;
+  }
+  
   await showDialog(
     context: context,
     barrierDismissible: true,
     builder: (ctx) {
-      final bool isVideo = type == CallType.video;
       final String title = isVideo ? 'Camera & Microphone\nAccess' : 'Microphone Access';
       final String description = isVideo
           ? 'Yaari needs access to your camera and microphone to make video calls.'
@@ -72,8 +83,15 @@ Future<void> showPermissionDialog(
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.of(ctx).pop();
+                        // Request actual system permissions
+                        if (isVideo) {
+                          await Permission.camera.request();
+                          await Permission.microphone.request();
+                        } else {
+                          await Permission.microphone.request();
+                        }
                         onAllow();
                       },
                       child: const Text('Allow'),

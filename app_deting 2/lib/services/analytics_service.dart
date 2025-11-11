@@ -1,8 +1,6 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mixpanel_flutter/mixpanel_flutter.dart';
-import 'package:clevertap_plugin/clevertap_plugin.dart';
 import '../config/analytics.dart';
 
 class AnalyticsService {
@@ -10,7 +8,6 @@ class AnalyticsService {
   static final AnalyticsService instance = AnalyticsService._();
 
   Mixpanel? _mixpanel;
-  bool _cleverTapInitialized = false;
   String? _identity;
 
   Future<void> init() async {
@@ -28,16 +25,7 @@ class AnalyticsService {
       debugPrint('⚠️ [Analytics] Mixpanel init error: $e');
     }
 
-    try {
-      // CleverTap plugin initializes via native configuration; mark available on mobile
-      if (!_cleverTapInitialized && (Platform.isAndroid || Platform.isIOS)) {
-        _cleverTapInitialized = true;
-        try { CleverTapPlugin.setDebugLevel(3); } catch (_) {}
-        debugPrint('📈 [Analytics] CleverTap available');
-      }
-    } catch (e) {
-      debugPrint('⚠️ [Analytics] CleverTap availability error: $e');
-    }
+
   }
 
   Future<void> identify(String identity, {Map<String, dynamic>? profile}) async {
@@ -52,28 +40,11 @@ class AnalyticsService {
     } catch (e) {
       debugPrint('⚠️ [Analytics] Mixpanel identify error: $e');
     }
-    try {
-      if (_cleverTapInitialized) {
-        final base = {
-          'Identity': identity,
-          'MSG-push': true,
-          'MSG-email': true,
-          'MSG-sms': true,
-        };
-        final p = {...base, ...(profile ?? {})};
-        await CleverTapPlugin.onUserLogin(p);
-      }
-    } catch (e) {
-      debugPrint('⚠️ [Analytics] CleverTap onUserLogin error: $e');
-    }
+
   }
 
   void track(String event, [Map<String, dynamic>? props]) {
-    final platform = kIsWeb
-        ? 'web'
-        : (Platform.isAndroid || Platform.isIOS)
-            ? 'mobile'
-            : 'other';
+    final platform = kIsWeb ? 'web' : 'mobile';
     final enriched = {
       'timestamp': DateTime.now().toIso8601String(),
       'platform': platform,
@@ -84,13 +55,7 @@ class AnalyticsService {
     } catch (e) {
       debugPrint('⚠️ [Analytics] Mixpanel track error: $e');
     }
-    try {
-      if (_cleverTapInitialized) {
-        CleverTapPlugin.recordEvent(event, enriched);
-      }
-    } catch (e) {
-      debugPrint('⚠️ [Analytics] CleverTap recordEvent error: $e');
-    }
+
   }
 
   void screenView(String screenName, [Map<String, dynamic>? props]) {

@@ -46,7 +46,6 @@ dependencies:
   agora_rtm: ^2.2.5
   socket_io_client: ^2.0.3+1
   mixpanel_flutter: ^2.4.4
-  clevertap_plugin: ^3.6.0
 
 dev_dependencies:
   flutter_test:
@@ -76,6 +75,7 @@ flutter:
     - assets/app icon.png
     - assets/images/yari.png
     - assets/images/Avtar.png
+    - assets/images/favatar.png
     - assets/images/coin.png
 
   #   - images/a_dot_ham.jpe

@@ -12,6 +12,7 @@ import '../services/users_api.dart';
 import '../services/outgoing_call_service.dart';
 import '../services/socket_service.dart';
 import '../widgets/recharge_prompt.dart';
+import '../utils/translations.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<AdItem> _ads = const [];
   int _adIndex = 0;
   Timer? _adTimer;
+  Timer? _autoRefreshTimer;
   String? _userGender; // male | female
   String? _currentUserId;
   DateTime? _lastBackPress;
@@ -70,6 +72,15 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _initData();
     _initSocket();
+    _startAutoRefresh();
+  }
+
+  void _startAutoRefresh() {
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
+      if (mounted) {
+        _refreshHome();
+      }
+    });
   }
 
   Future<void> _initSocket() async {
@@ -218,6 +229,32 @@ class _HomeScreenState extends State<HomeScreen> {
     SocketService.instance.on('onlineUsers', handleOnlineUsers);
     SocketService.instance.on('user-status-change', handleStatusChange);
     SocketService.instance.on('userStatusChange', handleStatusChange);
+    
+    // Listen for balance updates
+    SocketService.instance.on('balance-updated', (data) {
+      if (data is Map) {
+        final newBalance = data['balance'] ?? data['coins'] ?? data['newBalance'];
+        if (newBalance != null) {
+          final bal = (newBalance is int) ? newBalance : int.tryParse(newBalance.toString());
+          if (bal != null && mounted) {
+            setState(() => _coinBalance = bal);
+            debugPrint('💰 [HomeScreen] Balance updated: $bal');
+          }
+        }
+      }
+    });
+    SocketService.instance.on('balanceUpdated', (data) {
+      if (data is Map) {
+        final newBalance = data['balance'] ?? data['coins'] ?? data['newBalance'];
+        if (newBalance != null) {
+          final bal = (newBalance is int) ? newBalance : int.tryParse(newBalance.toString());
+          if (bal != null && mounted) {
+            setState(() => _coinBalance = bal);
+            debugPrint('💰 [HomeScreen] Balance updated: $bal');
+          }
+        }
+      }
+    });
   }
 
   Future<void> _initData() async {
@@ -325,6 +362,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _adTimer?.cancel();
+    _autoRefreshTimer?.cancel();
     super.dispose();
   }
 
@@ -337,9 +375,9 @@ class _HomeScreenState extends State<HomeScreen> {
         final messenger = ScaffoldMessenger.of(context);
         messenger.hideCurrentSnackBar();
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Press back again to exit'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text(AppTranslations.get('press_back_again')),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -362,9 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
-        leadingWidth: 48,
-        leading: const SizedBox.shrink(),
-        titleSpacing: 0,
+        titleSpacing: 16,
         title: Row(
           children: [
             const Text('❤️', style: TextStyle(fontSize: 20, color: Color(0xFFFF8547))),
@@ -394,9 +430,11 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.only(right: 12.0),
             child: InkWell(
               onTap: () => Navigator.pushNamed(context, '/profile'),
-              child: const CircleAvatar(
+              child: CircleAvatar(
                 radius: 16,
-                backgroundImage: AssetImage('assets/images/Avtar.png'),
+                backgroundImage: AssetImage(
+                  (_userGender?.toLowerCase() == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png'
+                ),
                 backgroundColor: Colors.transparent,
               ),
             ),
@@ -406,7 +444,14 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Builder(
         builder: (context) {
           if (_loading) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(AppTranslations.get('loading')),
+            ],
+          ));
           }
           return RefreshIndicator(
             onRefresh: _refreshHome,
@@ -441,6 +486,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       name: u.name,
                       attributes: u.attributes,
                       avatarUrl: u.avatarUrl,
+                      gender: u.gender,
                       videoRate: _settings.videoCallRate,
                       audioRate: _settings.audioCallRate,
                       balance: _coinBalance,
@@ -682,9 +728,9 @@ class _AdBannerState extends State<_AdBanner> {
           ),
         ),
         alignment: Alignment.center,
-        child: const Text(
-          'No ads available',
-          style: TextStyle(color: Color(0xFFCC5A2D), fontWeight: FontWeight.w600),
+        child: Text(
+          AppTranslations.get('no_ads_available'),
+          style: const TextStyle(color: Color(0xFFCC5A2D), fontWeight: FontWeight.w600),
         ),
       );
     }
@@ -784,9 +830,9 @@ class _AdBannerState extends State<_AdBanner> {
                       color: Colors.black.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text(
-                      'Click to open',
-                      style: TextStyle(color: Colors.white, fontSize: 10),
+                    child: Text(
+                      AppTranslations.get('click_to_open'),
+                      style: const TextStyle(color: Colors.white, fontSize: 10),
                     ),
                   ),
                 ),
@@ -804,6 +850,7 @@ class _UserCard extends StatelessWidget {
   final String name;
   final String attributes;
   final String? avatarUrl;
+  final String? gender;
   final int videoRate;
   final int audioRate;
   final int balance;
@@ -814,6 +861,7 @@ class _UserCard extends StatelessWidget {
     this.name = 'User Name',
     this.attributes = 'Attributes',
     this.avatarUrl,
+    this.gender,
     this.videoRate = 10,
     this.audioRate = 10,
     this.balance = 250,
@@ -863,19 +911,31 @@ class _UserCard extends StatelessWidget {
                       border: Border.all(color: Colors.white, width: 3),
                     ),
                     child: ClipOval(
-                      child: () {
-                        final url = avatarUrl ?? '';
-                        if (url.isNotEmpty) {
-                          return Image.network(url, fit: BoxFit.cover);
-                        }
-                        return Image.asset('assets/images/Avtar.png', fit: BoxFit.cover);
-                      }(),
+                      child: (avatarUrl != null && avatarUrl!.isNotEmpty)
+                          ? Image.network(
+                              avatarUrl!,
+                              fit: BoxFit.cover,
+                              width: 80,
+                              height: 80,
+                              errorBuilder: (_, __, ___) => Image.asset(
+                                (gender?.toLowerCase() == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png',
+                                fit: BoxFit.cover,
+                                width: 80,
+                                height: 80,
+                              ),
+                            )
+                          : Image.asset(
+                              (gender?.toLowerCase() == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png',
+                              fit: BoxFit.cover,
+                              width: 80,
+                              height: 80,
+                            ),
                     ),
                   ),
                 ),
               ),
               Positioned(
-                left: -4,
+                left: 0,
                 bottom: -6,
                 child: _StatusChip(text: status, color: _statusColor),
               ),
@@ -926,7 +986,9 @@ class _UserCard extends StatelessWidget {
                             label: '${videoRate} min',
                             icon: Icons.videocam,
                             onPressed: () async {
+                              debugPrint('🎥 [HomeScreen] Video call button clicked for user: $name (id: $id)');
                               if (balance < videoRate) {
+                                debugPrint('⚠️ [HomeScreen] Insufficient balance: $balance < $videoRate');
                                 await showRechargePrompt(
                                   context,
                                   title: 'Stay connected',
@@ -937,10 +999,12 @@ class _UserCard extends StatelessWidget {
                                 );
                                 return;
                               }
+                              debugPrint('✅ [HomeScreen] Balance OK, showing permission dialog');
                               await showPermissionDialog(
                                 context,
                                 type: CallType.video,
                                 onAllow: () async {
+                                  debugPrint('✅ [HomeScreen] Permissions granted, showing call confirm');
                                   final channel = 'yarri_${DateTime.now().millisecondsSinceEpoch}';
                                   await showCallConfirmDialog(
                                     context,
@@ -949,14 +1013,17 @@ class _UserCard extends StatelessWidget {
                                     balanceLabel: '₹${balance}',
                                     displayName: name,
                                     avatarUrl: avatarUrl,
-                                    onStart: () => OutgoingCallService.instance.startCall(
-                                      context: context,
-                                      receiverId: (id ?? '').toString(),
-                                      callerName: name,
-                                      callerAvatar: avatarUrl,
-                                      channel: channel,
-                                      isVideo: true,
-                                    ),
+                                    onStart: () {
+                                      debugPrint('🚀 [HomeScreen] Starting video call to $id on channel $channel');
+                                      OutgoingCallService.instance.startCall(
+                                        context: context,
+                                        receiverId: (id ?? '').toString(),
+                                        callerName: name,
+                                        callerAvatar: avatarUrl,
+                                        channel: channel,
+                                        isVideo: true,
+                                      );
+                                    },
                                   );
                                 },
                               );
@@ -977,7 +1044,9 @@ class _UserCard extends StatelessWidget {
                             label: '${audioRate} min',
                             icon: Icons.call,
                             onPressed: () async {
+                              debugPrint('📞 [HomeScreen] Audio call button clicked for user: $name (id: $id)');
                               if (balance < audioRate) {
+                                debugPrint('⚠️ [HomeScreen] Insufficient balance: $balance < $audioRate');
                                 await showRechargePrompt(
                                   context,
                                   title: 'Stay connected',
@@ -988,10 +1057,12 @@ class _UserCard extends StatelessWidget {
                                 );
                                 return;
                               }
+                              debugPrint('✅ [HomeScreen] Balance OK, showing permission dialog');
                               await showPermissionDialog(
                                 context,
                                 type: CallType.audio,
                                 onAllow: () async {
+                                  debugPrint('✅ [HomeScreen] Permissions granted, showing call confirm');
                                   final channel = 'yarri_${DateTime.now().millisecondsSinceEpoch}';
                                   await showCallConfirmDialog(
                                     context,
@@ -1000,14 +1071,17 @@ class _UserCard extends StatelessWidget {
                                     balanceLabel: '₹${balance}',
                                     displayName: name,
                                     avatarUrl: avatarUrl,
-                                    onStart: () => OutgoingCallService.instance.startCall(
-                                      context: context,
-                                      receiverId: (id ?? '').toString(),
-                                      callerName: name,
-                                      callerAvatar: avatarUrl,
-                                      channel: channel,
-                                      isVideo: false,
-                                    ),
+                                    onStart: () {
+                                      debugPrint('🚀 [HomeScreen] Starting audio call to $id on channel $channel');
+                                      OutgoingCallService.instance.startCall(
+                                        context: context,
+                                        receiverId: (id ?? '').toString(),
+                                        callerName: name,
+                                        callerAvatar: avatarUrl,
+                                        channel: channel,
+                                        isVideo: false,
+                                      );
+                                    },
                                   );
                                 },
                               );
@@ -1018,9 +1092,9 @@ class _UserCard extends StatelessWidget {
                     }
 
                     if (buttons.isEmpty) {
-                      return const Text(
-                        'No call access',
-                        style: TextStyle(color: Colors.black54, fontSize: 12, fontWeight: FontWeight.w600),
+                      return Text(
+                        AppTranslations.get('no_call_access'),
+                        style: const TextStyle(color: Colors.black54, fontSize: 12, fontWeight: FontWeight.w600),
                       );
                     }
                     return Row(children: buttons);

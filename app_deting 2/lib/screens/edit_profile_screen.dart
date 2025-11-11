@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:app_deting/models/profile_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:app_deting/utils/translations.dart';
+import 'package:app_deting/main.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -425,7 +427,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final bool addMode = args is Map<String, dynamic> && ((args['mode'] == 'add') || (args['onboarding'] == true));
     final ImageProvider avatarProvider = _avatarBytes != null
         ? MemoryImage(_avatarBytes!)
-        : const AssetImage('assets/images/Avtar.png');
+        : AssetImage((_gender?.toLowerCase() == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png');
 
     return Scaffold(
       backgroundColor: bg,
@@ -436,15 +438,47 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 8),
-              // Back
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black),
-                onPressed: () => Navigator.pop(context),
+              // Back button and language toggle
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.black),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  Row(
+                    children: [
+                      _LanguageButton(
+                        label: 'HIN',
+                        selected: _language == 'hi',
+                        onTap: () async {
+                          setState(() => _language = 'hi');
+                          AppTranslations.setLanguage('hi');
+                          MyApp.languageNotifier.value = 'hi';
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setString('language', 'hi');
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _LanguageButton(
+                        label: 'ENG',
+                        selected: _language == 'en',
+                        onTap: () async {
+                          setState(() => _language = 'en');
+                          AppTranslations.setLanguage('en');
+                          MyApp.languageNotifier.value = 'en';
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setString('language', 'en');
+                        },
+                      ),
+                    ],
+                  ),
+                ],
               ),
               const SizedBox(height: 6),
 
               Text(
-                addMode ? 'Add Details' : 'Edit Profile',
+                addMode ? AppTranslations.get('add_details') : AppTranslations.get('edit_profile'),
                 style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
               ),
 
@@ -508,9 +542,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                               ),
                               onPressed: _pickImage,
-                              child: const Text(
-                                'Upload Picture',
-                                style: TextStyle(
+                              child: Text(
+                                AppTranslations.get('upload_picture'),
+                                style: const TextStyle(
                                   color: accent,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -523,9 +557,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       const SizedBox(height: 18),
 
                       // Gender (fixed to previously selected value, non-editable here)
-                      const Text(
-                        'Gender',
-                        style: TextStyle(fontWeight: FontWeight.w700),
+                      Text(
+                        AppTranslations.get('gender'),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 8),
                       Container(
@@ -537,8 +571,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                         child: Text(
                           _gender == null
-                              ? 'Not set'
-                              : (_gender == 'male' ? 'Male' : 'Female'),
+                              ? AppTranslations.get('not_set')
+                              : (_gender == 'male' ? AppTranslations.get('male') : AppTranslations.get('female')),
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -552,20 +586,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         hint: '+91 9879879877',
                         keyboardType: TextInputType.phone,
                         enabled: !_phoneLocked,
-                        helperText: _phoneLocked ? 'Phone number is locked after first save' : null,
+                        helperText: _phoneLocked ? AppTranslations.get('phone_locked') : null,
                       ),
                       const SizedBox(height: 14),
                       _InputField(
                         controller: emailController,
-                        hint: 'Email',
+                        hint: AppTranslations.get('email'),
                         keyboardType: TextInputType.emailAddress,
                         enabled: !_emailLocked,
-                        helperText: _emailLocked ? 'Email is locked after first save' : null,
+                        helperText: _emailLocked ? AppTranslations.get('email_locked') : null,
                       ),
                       const SizedBox(height: 14),
                       _InputField(
                         controller: aboutController,
-                        hint: 'About me',
+                        hint: AppTranslations.get('about_me'),
                         keyboardType: TextInputType.multiline,
                         maxLines: 5,
                       ),
@@ -575,9 +609,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Photo Gallery',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                          Text(
+                            AppTranslations.get('photo_gallery'),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                           ),
                           OutlinedButton(
                             onPressed: _addPhotos,
@@ -586,7 +620,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             ),
-                            child: const Text('Add Photos', style: TextStyle(color: accent, fontWeight: FontWeight.w600)),
+                            child: Text(AppTranslations.get('add_photos'), style: const TextStyle(color: accent, fontWeight: FontWeight.w600)),
                           ),
                         ],
                       ),
@@ -599,15 +633,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                       const SizedBox(height: 22),
                       // Hobbies
-                      const Text(
-                        'Hobbies',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      Text(
+                        AppTranslations.get('hobbies'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 10),
                       Row(
                         children: [
                           Expanded(
-                            child: _InputField(controller: hobbyController, hint: 'Add a hobby'),
+                            child: _InputField(controller: hobbyController, hint: AppTranslations.get('add_hobby')),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
@@ -617,7 +651,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                             ),
-                            child: const Text('Add'),
+                            child: Text(AppTranslations.get('add')),
                           ),
                         ],
                       ),
@@ -673,7 +707,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     await _saveProfileToServer();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(addMode ? 'Details saved successfully' : 'Changes saved successfully')),
+                        SnackBar(content: Text(addMode ? AppTranslations.get('details_saved') : AppTranslations.get('changes_saved'))),
                       );
                       if (addMode) {
                         Navigator.pushNamed(context, '/home');
@@ -684,7 +718,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     if (mounted) setState(() => _saving = false);
                   },
                   child: Text(
-                    addMode ? 'Save Details' : 'Save Changes',
+                    addMode ? AppTranslations.get('save_details') : AppTranslations.get('save_changes'),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -850,6 +884,38 @@ class _GalleryGrid extends StatelessWidget {
         },
       );
     });
+  }
+}
+
+class _LanguageButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _LanguageButton({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = _EditProfileScreenState.accent;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? accent : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: accent, width: 1.5),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : accent,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
   }
 }
 

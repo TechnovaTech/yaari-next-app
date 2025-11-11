@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:app_deting/utils/translations.dart';
+import 'package:app_deting/main.dart';
 
 class CallHistoryScreen extends StatefulWidget {
   const CallHistoryScreen({super.key});
@@ -25,7 +28,18 @@ class _CallHistoryScreenState extends State<CallHistoryScreen> {
   @override
   void initState() {
     super.initState();
+    MyApp.languageNotifier.addListener(_onLanguageChange);
     _initAndFetch();
+  }
+
+  @override
+  void dispose() {
+    MyApp.languageNotifier.removeListener(_onLanguageChange);
+    super.dispose();
+  }
+
+  void _onLanguageChange() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _initAndFetch() async {
@@ -123,7 +137,7 @@ class _CallHistoryScreenState extends State<CallHistoryScreen> {
         final m = e is Map<String, dynamic> ? e : <String, dynamic>{};
         final String status = (m['status'] ?? '').toString();
         final bool isOutgoing = (m['isOutgoing'] ?? false) == true;
-        final String direction = isOutgoing ? 'Outgoing' : 'Incoming';
+        final String direction = isOutgoing ? AppTranslations.get('outgoing') : AppTranslations.get('incoming');
         final String statusText = status.isEmpty ? '' : status;
         final String name = (m['otherUserName'] ?? '').toString();
         final String attributes = (m['otherUserAbout'] ?? '').toString();
@@ -218,9 +232,9 @@ class _CallHistoryScreenState extends State<CallHistoryScreen> {
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Call History',
-                    style: TextStyle(
+                  Text(
+                    AppTranslations.get('call_history'),
+                    style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
                       color: Colors.black,
@@ -232,12 +246,14 @@ class _CallHistoryScreenState extends State<CallHistoryScreen> {
 
             // List
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemBuilder: (context, index) => _CallItem(data: items[index]),
-                separatorBuilder: (context, index) => const _ListDivider(),
-                itemCount: items.length,
-              ),
+              child: items.isEmpty
+                  ? _EmptyCallHistory()
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemBuilder: (context, index) => _CallItem(data: items[index]),
+                      separatorBuilder: (context, index) => const _ListDivider(),
+                      itemCount: items.length,
+                    ),
             ),
           ],
         ),
@@ -353,4 +369,83 @@ class _CallData {
     required this.duration,
     this.avatarUrl,
   });
+}
+
+class _EmptyCallHistory extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: AppTranslations.get('need_help_call_history'),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black54,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                  TextSpan(
+                    text: AppTranslations.get('call_history_question'),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              AppTranslations.get('questions_unusual'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.black54,
+                fontFamily: 'Poppins',
+              ),
+            ),
+            const SizedBox(height: 6),
+            InkWell(
+              onTap: () async {
+                final uri = Uri(scheme: 'mailto', path: 'support@yaari.me');
+                await launchUrl(uri);
+              },
+              child: const Text(
+                'support@yaari.me',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFFFF8547),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'Poppins',
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              AppTranslations.get('our_team_assist'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.black54,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

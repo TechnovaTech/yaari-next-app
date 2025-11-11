@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:app_deting/utils/translations.dart';
+import 'package:app_deting/main.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -16,11 +18,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _name = 'User Name';
   String _phone = '';
   String _avatarUrl = '';
+  String? _gender;
 
   @override
   void initState() {
     super.initState();
+    MyApp.languageNotifier.addListener(_onLanguageChange);
     _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    MyApp.languageNotifier.removeListener(_onLanguageChange);
+    super.dispose();
+  }
+
+  void _onLanguageChange() {
+    if (mounted) setState(() {});
   }
 
   String _normalizeUrl(String? url) {
@@ -66,11 +80,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       String phone = (user['phone'] ?? prefs.getString('phone') ?? '').toString();
       String avatar = (user['profilePic'] ?? user['avatar'] ?? user['image'] ?? '').toString();
       avatar = _normalizeUrl(avatar);
+      final String? gender = (user['gender'] ?? prefs.getString('gender'))?.toString().toLowerCase();
 
       setState(() {
         _name = name.isEmpty ? 'User Name' : name;
         _phone = phone;
         _avatarUrl = avatar;
+        _gender = gender;
       });
 
       // Try to fetch latest profile image from server using user ID
@@ -143,16 +159,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ? Image.network(
                                 _avatarUrl,
                                 fit: BoxFit.cover,
+                                width: 120,
+                                height: 120,
                                 errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: Colors.black12,
-                                    child: const Icon(Icons.person, size: 56, color: Colors.black45),
+                                  return Image.asset(
+                                    (_gender == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png',
+                                    fit: BoxFit.cover,
+                                    width: 120,
+                                    height: 120,
                                   );
                                 },
                               )
-                            : Container(
-                                color: Colors.black12,
-                                child: const Icon(Icons.person, size: 56, color: Colors.black45),
+                            : Image.asset(
+                                (_gender == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png',
+                                fit: BoxFit.cover,
+                                width: 120,
+                                height: 120,
                               ),
                       ),
                     ),
@@ -204,31 +226,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // Action tiles
             _ActionTile(
               icon: Icons.view_list,
-              label: 'Transaction History',
+              label: AppTranslations.get('transaction_history'),
               onTap: () => Navigator.pushNamed(context, '/transaction_history'),
             ),
             const SizedBox(height: 14),
             _ActionTile(
               icon: Icons.call,
-              label: 'Call History',
+              label: AppTranslations.get('call_history'),
               onTap: () => Navigator.pushNamed(context, '/call_history'),
             ),
             const SizedBox(height: 14),
             _ActionTile(
               icon: Icons.privacy_tip,
-              label: 'Privacy Policy',
+              label: AppTranslations.get('privacy_policy'),
               onTap: () => Navigator.pushNamed(context, '/privacy_policy'),
             ),
             const SizedBox(height: 14),
             _ActionTile(
               icon: Icons.headset_mic,
-              label: 'Customer Support',
+              label: AppTranslations.get('customer_support'),
               onTap: () => Navigator.pushNamed(context, '/customer_support'),
             ),
             const SizedBox(height: 14),
             _ActionTile(
               icon: Icons.logout,
-              label: 'Log Out',
+              label: AppTranslations.get('logout'),
               onTap: () async {
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.remove('user');

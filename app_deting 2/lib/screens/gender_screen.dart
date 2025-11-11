@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_deting/models/profile_store.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:app_deting/utils/translations.dart';
 
 class GenderScreen extends StatefulWidget {
   static const String routeName = '/gender';
@@ -58,7 +59,7 @@ class _GenderScreenState extends State<GenderScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Select Gender',
+                    AppTranslations.get('select_gender'),
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: Colors.black,
@@ -77,7 +78,7 @@ class _GenderScreenState extends State<GenderScreen> {
                 children: [
                   Expanded(
                     child: _ChoiceChip(
-                      label: 'Male',
+                      label: AppTranslations.get('male'),
                       selected: _selected == 'male',
                       onTap: () => _onSelect('male'),
                       outlined: true,
@@ -86,7 +87,7 @@ class _GenderScreenState extends State<GenderScreen> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: _ChoiceChip(
-                      label: 'Female',
+                      label: AppTranslations.get('female'),
                       selected: _selected == 'female',
                       onTap: () => _onSelect('female'),
                       outlined: true,
@@ -166,9 +167,9 @@ class _GenderScreenState extends State<GenderScreen> {
                             Navigator.pushNamed(context, '/home');
                           }
                         },
-                  child: const Text(
-                    'Next',
-                    style: TextStyle(
+                  child: Text(
+                    AppTranslations.get('next'),
+                    style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                       letterSpacing: 0.5,

@@ -1,0 +1,2 @@
+D:/OFFICE WORK/yaari-next-app/app_deting 2/android/app/.cxx/debug/6v6p724k/arm64-v8a/CMakeFiles/edit_cache.dir
+D:/OFFICE WORK/yaari-next-app/app_deting 2/android/app/.cxx/debug/6v6p724k/arm64-v8a/CMakeFiles/rebuild_cache.dir

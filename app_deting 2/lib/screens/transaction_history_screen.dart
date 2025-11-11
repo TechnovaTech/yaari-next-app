@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:app_deting/utils/translations.dart';
+import 'package:app_deting/main.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -20,7 +22,18 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   @override
   void initState() {
     super.initState();
+    MyApp.languageNotifier.addListener(_onLanguageChange);
     _initAndFetch();
+  }
+
+  @override
+  void dispose() {
+    MyApp.languageNotifier.removeListener(_onLanguageChange);
+    super.dispose();
+  }
+
+  void _onLanguageChange() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _initAndFetch() async {
@@ -54,7 +67,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 
       if (userId == null || userId.isEmpty) {
         setState(() {
-          _error = 'Please login to view transactions';
+          _error = AppTranslations.get('please_login_transactions');
           _loading = false;
           _transactions = const [];
         });
@@ -64,7 +77,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       await _fetchTransactions(userId);
     } catch (e) {
       setState(() {
-        _error = 'Failed to load transactions';
+        _error = AppTranslations.get('failed_load_transactions');
         _loading = false;
       });
     }
@@ -77,8 +90,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       final dynamic decoded = jsonDecode(res.body);
       if (res.statusCode < 200 || res.statusCode >= 300) {
         final String msg = (decoded is Map<String, dynamic>)
-            ? (decoded['error']?.toString() ?? 'Failed to load transactions')
-            : 'Failed to load transactions';
+            ? (decoded['error']?.toString() ?? AppTranslations.get('failed_load_transactions'))
+            : AppTranslations.get('failed_load_transactions');
         setState(() {
           _error = msg;
           _loading = false;
@@ -106,7 +119,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       });
     } catch (e) {
       setState(() {
-        _error = 'Failed to load transactions';
+        _error = AppTranslations.get('failed_load_transactions');
         _loading = false;
         _transactions = const [];
       });
@@ -160,9 +173,9 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Transaction History',
-                    style: TextStyle(
+                  Text(
+                    AppTranslations.get('transaction_history'),
+                    style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w600,
                       color: Colors.black,
@@ -217,7 +230,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
-                                            (tx.type ?? 'Transaction'),
+                                            (tx.type ?? AppTranslations.get('transaction')),
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w600,
                                               fontSize: 14,
@@ -231,7 +244,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                                               borderRadius: BorderRadius.circular(999),
                                             ),
                                             child: Text(
-                                              (tx.status ?? 'success'),
+                                              (tx.status ?? AppTranslations.get('success')),
                                               style: const TextStyle(
                                                 fontSize: 11,
                                                 color: Colors.black54,
@@ -258,7 +271,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                                         Padding(
                                           padding: const EdgeInsets.only(top: 4.0),
                                           child: Text(
-                                            'Coins: ${tx.coins}',
+                                            '${AppTranslations.get('coins_label')}: ${tx.coins}',
                                             style: const TextStyle(fontSize: 11, color: Colors.black54),
                                           ),
                                         ),
@@ -368,10 +381,10 @@ class _EmptyState extends StatelessWidget {
           children: [
             Text.rich(
               TextSpan(
-                children: const [
+                children: [
                   TextSpan(
-                    text: 'Need help\nunderstanding\nyour ',
-                    style: TextStyle(
+                    text: AppTranslations.get('need_help_transactions'),
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
                       color: Colors.black54,
@@ -379,8 +392,8 @@ class _EmptyState extends StatelessWidget {
                     ),
                   ),
                   TextSpan(
-                    text: 'transactions?',
-                    style: TextStyle(
+                    text: AppTranslations.get('transactions_question'),
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: Colors.black87,
@@ -394,10 +407,10 @@ class _EmptyState extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            const Text(
-              'If you have any questions or spot\nsomething unusual, please reach\nout to us at',
+            Text(
+              AppTranslations.get('questions_unusual'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
                 color: Colors.black54,
                 fontFamily: 'Poppins',
@@ -426,10 +439,10 @@ class _EmptyState extends StatelessWidget {
 
             const SizedBox(height: 6),
 
-            const Text(
-              'Our team is here to assist you.',
+            Text(
+              AppTranslations.get('our_team_assist'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
                 color: Colors.black54,
                 fontFamily: 'Poppins',

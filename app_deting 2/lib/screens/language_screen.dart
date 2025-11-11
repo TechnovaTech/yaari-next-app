@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:app_deting/utils/translations.dart';
+import 'package:app_deting/main.dart';
 
 class LanguageScreen extends StatefulWidget {
   static const String routeName = '/language';
@@ -55,7 +57,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Select Language',
+                    AppTranslations.get('select_language'),
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: Colors.black,
@@ -73,16 +75,24 @@ class _LanguageScreenState extends State<LanguageScreen> {
               child: Column(
                 children: [
                   _ChoiceTile(
-                    label: 'English',
+                    label: AppTranslations.get('english'),
                     selected: _selected == 'en',
-                    onTap: () => _onSelect('en'),
-                    outlined: true, // add border like Hindi
+                    onTap: () {
+                      _onSelect('en');
+                      AppTranslations.setLanguage('en');
+                      MyApp.languageNotifier.value = 'en';
+                    },
+                    outlined: true,
                   ),
                   const SizedBox(height: 16),
                   _ChoiceTile(
-                    label: 'हिंदी',
+                    label: AppTranslations.get('hindi'),
                     selected: _selected == 'hi',
-                    onTap: () => _onSelect('hi'),
+                    onTap: () {
+                      _onSelect('hi');
+                      AppTranslations.setLanguage('hi');
+                      MyApp.languageNotifier.value = 'hi';
+                    },
                     outlined: true,
                   ),
                 ],
@@ -154,9 +164,9 @@ class _LanguageScreenState extends State<LanguageScreen> {
                             arguments: onboarding ? {'onboarding': true} : null,
                           );
                         },
-                  child: const Text(
-                    'Next',
-                    style: TextStyle(
+                  child: Text(
+                    AppTranslations.get('next'),
+                    style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                       letterSpacing: 0.5,
