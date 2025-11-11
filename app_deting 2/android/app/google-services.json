@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "427681836033",
+    "project_id": "yaari-ff378",
+    "storage_bucket": "yaari-ff378.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:427681836033:android:7feb7804e7ff4fb0b2e400",
+        "android_client_info": {
+          "package_name": "com.example.app_deting"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0lP6O_vCWHd5HLjirFEQ9tdoRlB-Ut34"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

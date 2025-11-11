@@ -67,6 +67,8 @@ class _HomeScreenState extends State<HomeScreen> {
       });
   }
 
+  String? _userProfilePic;
+
   @override
   void initState() {
     super.initState();
@@ -263,15 +265,24 @@ class _HomeScreenState extends State<HomeScreen> {
       final prefs = await SharedPreferences.getInstance();
       // Read saved gender and trim to avoid mismatch like 'male ' / 'female\t'
       _userGender = (prefs.getString('gender') ?? '').toLowerCase().trim();
-      // Try to read user balance from stored profile
+      // Try to read user balance and profile pic from stored profile
       final raw = prefs.getString('user');
       if (raw != null) {
         try {
           final m = UsersApiSettingsHelper.tryDecode(raw);
           final bal = m['balance'] ?? m['coins'] ?? m['amount'];
           if (bal is int) _coinBalance = bal; else if (bal is String) _coinBalance = int.tryParse(bal) ?? _coinBalance;
-          // Extract current user ID
+          // Extract current user ID and profile pic
           _currentUserId = _extractUserId(m);
+          final container = (m['user'] is Map<String, dynamic>)
+              ? m['user'] as Map<String, dynamic>
+              : (m['data'] is Map<String, dynamic>)
+                  ? m['data'] as Map<String, dynamic>
+                  : m;
+          _userProfilePic = (container['profilePic'] ?? container['avatar'] ?? container['image'])?.toString();
+          if (_userProfilePic != null && _userProfilePic!.isNotEmpty) {
+            _userProfilePic = _userProfilePic!.replaceAll(RegExp(r'https?://(localhost|0\.0\.0\.0):\d+'), 'https://admin.yaari.me');
+          }
           // If gender preference is missing, derive from stored user JSON
           if ((_userGender == null || _userGender!.isEmpty)) {
             final container = (m['user'] is Map<String, dynamic>)
@@ -432,9 +443,11 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () => Navigator.pushNamed(context, '/profile'),
               child: CircleAvatar(
                 radius: 16,
-                backgroundImage: AssetImage(
-                  (_userGender?.toLowerCase() == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png'
-                ),
+                backgroundImage: (_userProfilePic != null && _userProfilePic!.isNotEmpty)
+                    ? NetworkImage(_userProfilePic!)
+                    : AssetImage(
+                        (_userGender?.toLowerCase() == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png'
+                      ) as ImageProvider,
                 backgroundColor: Colors.transparent,
               ),
             ),
