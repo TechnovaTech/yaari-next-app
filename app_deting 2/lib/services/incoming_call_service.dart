@@ -78,6 +78,7 @@ class IncomingCallService {
         final callerName = data['callerName']?.toString() ?? 'User';
         final callType = data['callType']?.toString() ?? 'audio';
         final channelName = data['channelName']?.toString() ?? '';
+        final callerGender = data['callerGender']?.toString();
 
         if (callerId.isEmpty || channelName.isEmpty) {
           debugPrint('❌ [IncomingCall] Missing required data');
@@ -112,7 +113,8 @@ class IncomingCallService {
             nav.context,
             type: callType == 'video' ? dialogs.CallType.video : dialogs.CallType.audio,
             displayName: callerName,
-            avatarUrl: null,
+            avatarUrl: data['avatarUrl'],
+            gender: callerGender,
             onAccept: () async {
               debugPrint('✅ [IncomingCall] Accepting call');
               _incomingDialogActive = false;
@@ -150,6 +152,7 @@ class IncomingCallService {
                   nav.pushNamed(route, arguments: {
                     'name': callerName,
                     'avatarUrl': data['avatarUrl'],
+                    'gender': callerGender,
                     'channel': channelName,
                     'token': token, // ✅ Valid token
                     'callerId': callerId,

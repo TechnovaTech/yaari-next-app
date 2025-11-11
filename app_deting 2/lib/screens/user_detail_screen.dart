@@ -283,12 +283,20 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                         type: CallType.video,
                         onAllow: () async {
                           final channel = 'yarri_${DateTime.now().millisecondsSinceEpoch}';
+                          final profile = ProfileStore.instance.notifier.value;
+                          String? avatarUrl;
+                          if (profile.avatarBytes != null) {
+                            // We have avatar bytes but dialog needs URL, so pass null and use gender
+                            avatarUrl = null;
+                          }
                           await showCallConfirmDialog(
                             context,
                             type: CallType.video,
                             rateLabel: '₹${_settings.videoCallRate}/min',
                             balanceLabel: '₹$_coinBalance',
-                            displayName: (ProfileStore.instance.notifier.value.name),
+                            displayName: profile.name,
+                            avatarUrl: avatarUrl,
+                            gender: profile.gender,
                             onStart: () {
                               final args = ModalRoute.of(context)?.settings.arguments;
                               String receiverId = '';
@@ -342,12 +350,20 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                         type: CallType.audio,
                         onAllow: () async {
                           final channel = 'yarri_${DateTime.now().millisecondsSinceEpoch}';
+                          final profile = ProfileStore.instance.notifier.value;
+                          String? avatarUrl;
+                          if (profile.avatarBytes != null) {
+                            // We have avatar bytes but dialog needs URL, so pass null and use gender
+                            avatarUrl = null;
+                          }
                           await showCallConfirmDialog(
                             context,
                             type: CallType.audio,
                             rateLabel: '₹${_settings.audioCallRate}/min',
                             balanceLabel: '₹$_coinBalance',
-                            displayName: (ProfileStore.instance.notifier.value.name),
+                            displayName: profile.name,
+                            avatarUrl: avatarUrl,
+                            gender: profile.gender,
                             onStart: () {
                               final args = ModalRoute.of(context)?.settings.arguments;
                               String receiverId = '';
@@ -411,7 +427,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
           builder: (context, profile, _) {
             final ImageProvider avatarProvider = profile.avatarBytes != null
                 ? MemoryImage(profile.avatarBytes!)
-                : const AssetImage('assets/images/Avtar.png');
+                : AssetImage(profile.gender == 'male' ? 'assets/images/Avtar.png' : 'assets/images/favatar.png');
 
             return ListView(
               padding: const EdgeInsets.all(16),

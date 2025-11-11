@@ -144,6 +144,7 @@ class _CallHistoryScreenState extends State<CallHistoryScreen> {
         final String createdAt = (m['createdAt'] ?? m['startTime'] ?? '').toString();
         final int durationSec = _asInt(m['duration']);
         final String? avatar = _normalizeUrl((m['otherUserAvatar'] ?? '')?.toString());
+        final String? gender = (m['otherUserGender'] ?? '')?.toString();
         return _CallData(
           direction: direction,
           status: statusText,
@@ -152,6 +153,7 @@ class _CallHistoryScreenState extends State<CallHistoryScreen> {
           time: _formatDate(createdAt),
           duration: _formatDuration(durationSec),
           avatarUrl: (avatar != null && avatar.isNotEmpty) ? avatar : null,
+          gender: gender,
         );
       }).toList();
 
@@ -278,7 +280,7 @@ class _CallItem extends StatelessWidget {
             radius: 26,
             backgroundImage: data.avatarUrl != null
                 ? NetworkImage(data.avatarUrl!)
-                : const AssetImage('assets/images/Avtar.png') as ImageProvider,
+                : AssetImage(data.gender == 'male' ? 'assets/images/Avtar.png' : 'assets/images/favatar.png') as ImageProvider,
             backgroundColor: Colors.transparent,
           ),
 
@@ -360,6 +362,7 @@ class _CallData {
   final String time;
   final String duration;
   final String? avatarUrl;
+  final String? gender;
   const _CallData({
     required this.direction,
     required this.status,
@@ -368,6 +371,7 @@ class _CallData {
     required this.time,
     required this.duration,
     this.avatarUrl,
+    this.gender,
   });
 }
 

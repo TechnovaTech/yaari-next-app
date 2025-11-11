@@ -24,6 +24,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
   String _channel = 'yarri_${DateTime.now().millisecondsSinceEpoch}';
   String _displayName = 'User Name';
   String? _avatarUrl;
+  String? _gender;
   String _token = '';
   int _uid = 0;
   bool _initialized = false;
@@ -61,6 +62,8 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
         if (ch != null && ch.isNotEmpty) _channel = ch;
         final av = args['avatarUrl']?.toString();
         if (av != null && av.isNotEmpty) _avatarUrl = av;
+        final gn = args['gender']?.toString();
+        if (gn != null && gn.isNotEmpty) _gender = gn;
         final tk = args['token']?.toString() ?? args['rtcToken']?.toString();
         if (tk != null && tk.isNotEmpty) _token = tk;
         final uidArg = args['uid']?.toString();
@@ -368,7 +371,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
               final String url = _avatarUrl ?? '';
               final ImageProvider<Object> avatarImage = url.isNotEmpty
                   ? NetworkImage(url)
-                  : const AssetImage('assets/images/Avtar.png');
+                  : AssetImage(_gender == 'male' ? 'assets/images/Avtar.png' : 'assets/images/favatar.png');
               return CircleAvatar(
                 radius: 42,
                 backgroundColor: Colors.transparent,

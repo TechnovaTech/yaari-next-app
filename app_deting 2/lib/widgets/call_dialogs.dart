@@ -112,6 +112,7 @@ Future<void> showIncomingCallDialog(
   required CallType type,
   required String displayName,
   String? avatarUrl,
+  String? gender,
   required VoidCallback onAccept,
   required VoidCallback onDecline,
 }) async {
@@ -142,7 +143,7 @@ Future<void> showIncomingCallDialog(
                 final String url = avatarUrl ?? '';
                 final ImageProvider<Object> avatarImage = url.isNotEmpty
                     ? NetworkImage(url)
-                    : const AssetImage('assets/images/Avtar.png');
+                    : AssetImage(gender == 'male' ? 'assets/images/Avtar.png' : 'assets/images/favatar.png');
                 return CircleAvatar(
                   radius: 38,
                   backgroundColor: Colors.transparent,
@@ -229,6 +230,7 @@ Future<void> showCallConfirmDialog(
   String balanceLabel = '₹250',
   String displayName = 'User Name',
   String? avatarUrl,
+  String? gender,
 }) async {
   await showDialog(
     context: context,
@@ -254,7 +256,7 @@ Future<void> showCallConfirmDialog(
                 final String url = avatarUrl ?? '';
                 final ImageProvider<Object> avatarImage = url.isNotEmpty
                     ? NetworkImage(url)
-                    : const AssetImage('assets/images/Avtar.png');
+                    : AssetImage(gender == 'male' ? 'assets/images/Avtar.png' : 'assets/images/favatar.png');
                 return CircleAvatar(
                   radius: 38,
                   backgroundColor: Colors.transparent,
