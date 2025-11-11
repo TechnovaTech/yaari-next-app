@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
+import 'package:http/http.dart' as http;
 import '../widgets/call_dialogs.dart';
 import '../services/users_api.dart';
 import '../services/outgoing_call_service.dart';
@@ -298,12 +299,27 @@ class _HomeScreenState extends State<HomeScreen> {
               debugPrint('🌀 [HomeScreen] No gender found in preferences or stored user JSON');
             }
           }
-          // If API is available, prefer live balance
+          // If API is available, prefer live balance and fetch profile pic
           if (_currentUserId != null && _currentUserId!.isNotEmpty) {
             final liveBal = await UsersApi.fetchBalance(_currentUserId!);
             if (liveBal != null) {
               _coinBalance = liveBal;
             }
+            // Fetch profile pic from server
+            try {
+              final res = await http.get(Uri.parse('https://admin.yaari.me/api/users/$_currentUserId/images'));
+              if (res.statusCode == 200) {
+                final body = jsonDecode(res.body);
+                final data = body is Map<String, dynamic> ? (body['data'] ?? body) : {};
+                final pic = (data['profilePic'] ?? data['avatar'] ?? data['image'])?.toString();
+                if (pic != null && pic.isNotEmpty) {
+                  _userProfilePic = pic.replaceAll(RegExp(r'https?://(localhost|0\.0\.0\.0):\d+'), 'https://admin.yaari.me');
+                  if (_userProfilePic!.startsWith('/uploads/')) {
+                    _userProfilePic = 'https://admin.yaari.me$_userProfilePic';
+                  }
+                }
+              }
+            } catch (_) {}
           }
         } catch (_) {}
       }
