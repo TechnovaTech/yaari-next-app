@@ -932,7 +932,7 @@ class _UserCard extends StatelessWidget {
                                   title: 'Stay connected',
                                   message: 'Recharge now to continue your yaari moments!',
                                   onRecharge: () {
-                                    Navigator.pushReplacementNamed(context, '/coins');
+                                    Navigator.pushNamed(context, '/coins');
                                   },
                                 );
                                 return;
@@ -983,7 +983,7 @@ class _UserCard extends StatelessWidget {
                                   title: 'Stay connected',
                                   message: 'Recharge now to continue your yaari moments!',
                                   onRecharge: () {
-                                    Navigator.pushReplacementNamed(context, '/coins');
+                                    Navigator.pushNamed(context, '/coins');
                                   },
                                 );
                                 return;
