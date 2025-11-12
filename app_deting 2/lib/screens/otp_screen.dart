@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pinput/pinput.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,9 +17,12 @@ class OtpScreen extends StatefulWidget {
 class _OtpScreenState extends State<OtpScreen> {
   final TextEditingController _otpController = TextEditingController();
   final FocusNode _otpFocusNode = FocusNode();
-  bool _isChecked = false;
+  bool _isChecked = true; // Pre-check 18+ confirmation by default
   bool _isVerifying = false;
   bool _isResending = false;
+  int _resendSeconds = 15;
+  Timer? _resendTimer;
+  bool _canResend = false;
 
   @override
   void initState() {
@@ -26,13 +30,37 @@ class _OtpScreenState extends State<OtpScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _otpFocusNode.requestFocus();
     });
+    _startResendCooldown(15);
   }
 
   @override
   void dispose() {
     _otpController.dispose();
     _otpFocusNode.dispose();
+    _resendTimer?.cancel();
     super.dispose();
+  }
+
+  void _startResendCooldown(int seconds) {
+    _resendTimer?.cancel();
+    setState(() {
+      _resendSeconds = seconds;
+      _canResend = false;
+    });
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      if (_resendSeconds <= 1) {
+        t.cancel();
+        setState(() {
+          _resendSeconds = 0;
+          _canResend = true;
+        });
+      } else {
+        setState(() {
+          _resendSeconds -= 1;
+        });
+      }
+    });
   }
 
   @override
@@ -129,14 +157,14 @@ class _OtpScreenState extends State<OtpScreen> {
                     ),
                     const SizedBox(height: 15),
                     TextButton(
-                      onPressed: _isResending ? null : () => _handleResend(phone),
+                      onPressed: (_isResending || !_canResend) ? null : () => _handleResend(phone),
                       child: _isResending
                           ? const SizedBox(
                               width: 22,
                               height: 22,
                               child: CircularProgressIndicator(strokeWidth: 2.5),
                             )
-                          : const Text('Resend OTP'),
+                          : Text(_canResend ? 'Resend OTP' : 'Resend in ${_resendSeconds}s'),
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -267,6 +295,8 @@ class _OtpScreenState extends State<OtpScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _isResending = false);
+      // Re-arm cooldown regardless of outcome to prevent spamming
+      if (mounted) _startResendCooldown(15);
     }
   }
 }

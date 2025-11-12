@@ -9,6 +9,31 @@ const Color _bg = Color(0xFFFEF8F4);
 IconData _iconFor(CallType type) => type == CallType.video ? Icons.videocam : Icons.call;
 String _labelFor(CallType type) => type == CallType.video ? 'Video Call' : 'Audio Call';
 
+// Helpers to render amounts with the app's coin icon instead of currency symbol
+String _extractAmount(String label) {
+  final m = RegExp(r"(\d+(?:\.\d+)?)").firstMatch(label);
+  return m?.group(1) ?? label;
+}
+
+bool _isPerMinute(String label) => label.toLowerCase().contains('min');
+
+Widget _coinAmount(String label, {Color color = _accent}) {
+  final amount = _extractAmount(label);
+  final perMin = _isPerMinute(label);
+  return Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(amount, style: TextStyle(color: color, fontWeight: FontWeight.w800)),
+      const SizedBox(width: 4),
+      Image.asset('assets/images/coin.png', width: 14, height: 14),
+      if (perMin) ...[
+        const SizedBox(width: 4),
+        Text('/min', style: TextStyle(color: color, fontWeight: FontWeight.w800)),
+      ],
+    ],
+  );
+}
+
 Future<void> showPermissionDialog(
   BuildContext context, {
   required CallType type,
@@ -287,7 +312,7 @@ Future<void> showCallConfirmDialog(
                     Expanded(
                       child: const Text('Rate', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
                     ),
-                    Text(rateLabel, style: const TextStyle(color: _accent, fontWeight: FontWeight.w800)),
+                    _coinAmount(rateLabel, color: _accent),
                   ],
                 ),
               ),
@@ -304,13 +329,13 @@ Future<void> showCallConfirmDialog(
                     const Expanded(
                       child: Text('Your Balance', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
                     ),
-                    Text(balanceLabel, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
+                    _coinAmount(balanceLabel, color: Colors.black),
                   ],
                 ),
               ),
               const SizedBox(height: 14),
               Text(
-                'You will be charged $rateLabel for this call',
+                'You will be charged ${_extractAmount(rateLabel)} coins/min for this call',
                 style: const TextStyle(color: Colors.black45),
                 textAlign: TextAlign.center,
               ),
@@ -340,7 +365,7 @@ Future<void> showCallConfirmDialog(
                         Navigator.of(ctx).pop();
                         onStart();
                       },
-                      child: const Text('Start Call'),
+                      child: const Text('Start Call', style: TextStyle(color: Colors.white)),
                     ),
                   ),
                 ],

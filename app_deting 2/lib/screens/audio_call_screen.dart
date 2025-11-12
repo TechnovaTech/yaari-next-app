@@ -33,6 +33,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
   bool _endListenerAdded = false;
   bool _acceptedListenerAdded = false;
   bool _peerEndSubscribed = false;
+  bool _closing = false;
   DateTime? _joinedAt;
   String _callDuration = '00:00';
   Timer? _timer;
@@ -168,10 +169,10 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
         final matchesChannel = ch.isNotEmpty && ch == _channel;
         final matchesUser = (_callerId != null && (u1 == _callerId || u2 == _callerId)) ||
                             (_receiverId != null && (u1 == _receiverId || u2 == _receiverId));
+        if (_closing) return;
         if (matchesChannel || matchesUser) {
-          debugPrint('🔚 [AudioCall] Peer ended call, closing screen');
-          await _service.dispose();
-          if (mounted) Navigator.pop(context);
+          debugPrint('🔚 [AudioCall] Peer ended call, closing to Home');
+          await _closeToHome();
         }
       } catch (_) {}
     });
@@ -280,20 +281,18 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
         );
       }
     } catch (_) {}
-    await _service.dispose();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Call ended: insufficient coins')),
       );
-      Navigator.pop(context);
     }
+    await _closeToHome();
   }
 
   Future<void> _handlePeerEnded() async {
     if (!mounted) return;
     debugPrint('🏁 [AudioCall] Detected peer end via Agora, closing');
-    await _service.dispose();
-    if (mounted) Navigator.pop(context);
+    await _closeToHome();
   }
 
   void _maybeAddAcceptedListener() {
@@ -353,8 +352,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
           onPressed: () async {
-            await _service.dispose();
-            if (mounted) Navigator.pop(context);
+            await _closeToHome();
           },
         ),
         title: const Text(
@@ -466,9 +464,8 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
                                   durationSeconds: durationSec,
                                 );
                               }
-                            } catch (_) {}
-                            await _service.dispose();
-                            if (mounted) Navigator.pop(context);
+                          } catch (_) {}
+                            await _closeToHome();
                           } : null,
                           icon: const Icon(Icons.call_end, color: Colors.white),
                           label: const Text('End Call'),
@@ -484,5 +481,17 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
       ),
       ),
     );
+  }
+
+  Future<void> _closeToHome() async {
+    if (_closing) return;
+    _closing = true;
+    try { await _service.dispose(); } catch (_) {}
+    if (!mounted) return;
+    try {
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+    } catch (_) {
+      try { Navigator.pop(context); } catch (_) {}
+    }
   }
 }

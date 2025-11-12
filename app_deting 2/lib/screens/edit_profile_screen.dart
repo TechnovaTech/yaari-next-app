@@ -19,9 +19,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   static const Color bg = Color(0xFFFEF8F4);
   static const Color accent = Color(0xFFFF8547);
 
-  final TextEditingController nameController = TextEditingController(text: 'User Name');
+  final TextEditingController nameController = TextEditingController();
   final TextEditingController phoneController = TextEditingController(text: '+91 9879879877');
-  final TextEditingController emailController = TextEditingController(text: 'user@example.com');
+  final TextEditingController emailController = TextEditingController();
   final TextEditingController addressController = TextEditingController();
   final TextEditingController aboutController = TextEditingController();
   final TextEditingController hobbyController = TextEditingController();
@@ -62,9 +62,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         final m = jsonDecode(userJson);
         final data = m is Map<String, dynamic> ? (m['user'] ?? m) : {};
         if (data is Map<String, dynamic>) {
-          nameController.text = (data['name'] ?? nameController.text).toString();
+          nameController.text = (data['name'] ?? '').toString();
           phoneController.text = (data['phone'] ?? phoneController.text).toString();
-          emailController.text = (data['email'] ?? emailController.text).toString();
+          emailController.text = (data['email'] ?? '').toString();
           // Determine lock state based on existing persisted values
           final existingPhone = (data['phone'] ?? '').toString().trim();
           final existingEmail = (data['email'] ?? '').toString().trim();
@@ -361,7 +361,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       final payload = <String, dynamic>{
-        'name': nameController.text.trim(),
+        'name': nameController.text.trim().isEmpty ? null : nameController.text.trim(),
         // If locked, keep existing value from base; otherwise allow first-time set
         'phone': _phoneLocked ? base['phone'] : phoneController.text.trim(),
         'email': _emailLocked
@@ -651,7 +651,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                             ),
-                            child: Text(AppTranslations.get('add')),
+                            child: Text(AppTranslations.get('add'), style: const TextStyle(color: Colors.white)),
                           ),
                         ],
                       ),
@@ -691,7 +691,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     setState(() => _saving = true);
                     final current = ProfileStore.instance.notifier.value;
                     final data = ProfileData(
-                      name: nameController.text.trim().isEmpty ? 'User Name' : nameController.text.trim(),
+                      name: nameController.text.trim(),
                       phone: phoneController.text.trim().isEmpty ? '+91 9879879877' : phoneController.text.trim(),
                       email: emailController.text.trim().isEmpty ? null : emailController.text.trim(),
                       // Keep existing address; field removed from UI

@@ -1,8 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Yaari</string>
-    <string name="title_activity_main">Yaari</string>
-    <string name="package_name">com.yaari.app</string>
-    <string name="custom_url_scheme">com.yaari.app</string>
-    <string name="server_client_id">38963010109-kms7n3hb3dno6m5ol27km954mnmbf0vc.apps.googleusercontent.com</string>
-</resources>
