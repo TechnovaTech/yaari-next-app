@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   try {
     const { channelName } = await request.json()
     
-    const appId = '5296c3e4d4b2432f8cf42a9f8e2041e5'
+    const appId = '5a7aebfcfc72459cbd561e0564325515'
     const appCertificate = 'b1e7ac4a7273473998567faebb1630fa'
     const uid = 0 // 0 means any user
     const role = RtcRole.PUBLISHER
