@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:app_deting/models/profile_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -787,6 +788,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       hobbies: List<String>.from(_hobbies),
                     );
                     ProfileStore.instance.update(data);
+                    
+                    // Upload default avatar if no profile picture in add mode
+                    if (addMode && _avatarBytes == null && _profilePicUrl == null && _gender != null) {
+                      final defaultPath = (_gender?.toLowerCase() == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png';
+                      final ByteData bytes = await rootBundle.load(defaultPath);
+                      final Uint8List defaultAvatar = bytes.buffer.asUint8List();
+                      await _uploadPhoto(defaultAvatar, isProfilePic: true);
+                    }
+                    
                     // Persist to backend like Yarri app
                     await _saveProfileToServer();
                     
