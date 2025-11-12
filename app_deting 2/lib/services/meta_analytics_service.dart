@@ -5,13 +5,17 @@ class MetaAnalyticsService {
   MetaAnalyticsService._();
   static final MetaAnalyticsService instance = MetaAnalyticsService._();
 
-  final _facebookAppEvents = FacebookAppEvents();
+  FacebookAppEvents? _facebookAppEvents;
+  bool _isInitialized = false;
 
   Future<void> init() async {
     try {
-      await _facebookAppEvents.setAdvertiserTracking(enabled: true);
+      _facebookAppEvents = FacebookAppEvents();
+      await _facebookAppEvents?.setAdvertiserTracking(enabled: true);
+      _isInitialized = true;
       debugPrint('📊 [Meta Analytics] Initialized');
     } catch (e) {
+      _isInitialized = false;
       debugPrint('⚠️ [Meta Analytics] Init error: $e');
     }
   }
@@ -21,8 +25,9 @@ class MetaAnalyticsService {
     required String method,
     String? referralCode,
   }) {
+    if (!_isInitialized) return;
     try {
-      _facebookAppEvents.logEvent(
+      _facebookAppEvents?.logEvent(
         name: 'registrationDone',
         parameters: {
           'userId': userId,
@@ -41,8 +46,9 @@ class MetaAnalyticsService {
     required int ratePerMin,
     required int walletBalance,
   }) {
+    if (!_isInitialized) return;
     try {
-      _facebookAppEvents.logEvent(
+      _facebookAppEvents?.logEvent(
         name: 'videoCallCtaClicked',
         parameters: {
           'creatorId': creatorId,
@@ -61,8 +67,9 @@ class MetaAnalyticsService {
     required int ratePerMin,
     required int walletBalance,
   }) {
+    if (!_isInitialized) return;
     try {
-      _facebookAppEvents.logEvent(
+      _facebookAppEvents?.logEvent(
         name: 'audioCallCtaClicked',
         parameters: {
           'creatorId': creatorId,
@@ -83,8 +90,9 @@ class MetaAnalyticsService {
     required String paymentGateway,
     required String status,
   }) {
+    if (!_isInitialized) return;
     try {
-      _facebookAppEvents.logEvent(
+      _facebookAppEvents?.logEvent(
         name: 'paymentDone',
         parameters: {
           'packId': packId,

@@ -6,18 +6,20 @@ class FirebaseAnalyticsService {
   static final FirebaseAnalyticsService instance = FirebaseAnalyticsService._();
 
   FirebaseAnalytics? _analytics;
+  FirebaseAnalyticsObserver? _observer;
+
+  FirebaseAnalyticsObserver? get observer => _observer;
 
   Future<void> init() async {
     try {
       _analytics = FirebaseAnalytics.instance;
       await _analytics?.setAnalyticsCollectionEnabled(true);
+      _observer = FirebaseAnalyticsObserver(analytics: _analytics!);
       
-      // Enable debug mode for immediate event visibility
-      if (kDebugMode) {
-        await _analytics?.setAnalyticsCollectionEnabled(true);
-      }
+      // Log app_open event
+      await _analytics?.logAppOpen();
       
-      debugPrint('📊 [Firebase Analytics] Initialized');
+      debugPrint('📊 [Firebase Analytics] Initialized successfully');
     } catch (e) {
       debugPrint('⚠️ [Firebase Analytics] Init error: $e');
     }

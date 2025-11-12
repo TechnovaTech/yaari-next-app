@@ -82,6 +82,10 @@ class _MyAppState extends State<MyApp> {
       title: 'Yaari',
       theme: ThemeData(fontFamily: 'Poppins'),
       navigatorKey: MyApp.appNavigatorKey,
+      navigatorObservers: [
+        if (FirebaseAnalyticsService.instance.observer != null)
+          FirebaseAnalyticsService.instance.observer!,
+      ],
       home: const AppStart(),
       routes: {
         '/login': (context) => const LoginPage(),
@@ -130,12 +134,14 @@ class _AppStartState extends State<AppStart> {
 
       if (!mounted) return;
 
+      // Initialize Firebase Analytics first (works for both logged in and logged out)
+      await FirebaseAnalyticsService.instance.init();
+      
       if (userJson != null && userJson.isNotEmpty) {
         debugPrint('🔄 [AppStart] User logged in, initializing services...');
 
-        // Initialize analytics
+        // Initialize other analytics
         await AnalyticsService.instance.init();
-        await FirebaseAnalyticsService.instance.init();
         await MetaAnalyticsService.instance.init();
         
         // Track appOpen event with os and appVersion (Mixpanel/CleverTap only)
