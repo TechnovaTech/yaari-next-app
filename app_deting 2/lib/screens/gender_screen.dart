@@ -4,6 +4,7 @@ import 'package:app_deting/models/profile_store.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:app_deting/utils/translations.dart';
+import 'package:app_deting/services/analytics_service.dart';
 
 class GenderScreen extends StatefulWidget {
   static const String routeName = '/gender';
@@ -156,6 +157,10 @@ class _GenderScreenState extends State<GenderScreen> {
                           // Update ProfileStore gender for in-app use
                           final current = ProfileStore.instance.notifier.value;
                           ProfileStore.instance.update(current.copyWith(gender: _selected!));
+                          
+                          // Track gender selected event
+                          AnalyticsService.instance.track('genderSelected', {'gender': _selected});
+                          
                           if (!mounted) return;
                           if (onboarding) {
                             Navigator.pushNamed(

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:app_deting/utils/translations.dart';
 import 'package:app_deting/main.dart';
+import 'package:app_deting/services/analytics_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -38,10 +39,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _phoneLocked = false;
   bool _emailLocked = false;
   bool _hobbyFieldEmpty = true;
+  bool _nameFieldEmpty = true;
 
   @override
   void initState() {
     super.initState();
+    nameController.addListener(() {
+      final isEmpty = nameController.text.trim().isEmpty;
+      if (_nameFieldEmpty != isEmpty) {
+        setState(() => _nameFieldEmpty = isEmpty);
+      }
+    });
     hobbyController.addListener(() {
       final isEmpty = hobbyController.text.trim().isEmpty;
       if (_hobbyFieldEmpty != isEmpty) {
@@ -49,6 +57,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     });
     _loadInitialState();
+    
+    // Track profile clicked event
+    AnalyticsService.instance.track('profileClicked');
   }
 
   Future<void> _loadInitialState() async {
@@ -644,7 +655,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                       const SizedBox(height: 18),
 
-                      _InputField(controller: nameController, hint: 'User Name'),
+                      _InputField(
+                        controller: nameController,
+                        hint: 'User Name',
+                        required: addMode,
+                      ),
                       const SizedBox(height: 14),
                       _InputField(
                         controller: phoneController,
@@ -747,12 +762,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: accent,
+                    disabledBackgroundColor: Colors.grey.shade300,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: () async {
+                  onPressed: (addMode && nameController.text.trim().isEmpty) ? null : () async {
                     if (_saving) return;
                     setState(() => _saving = true);
                     final current = ProfileStore.instance.notifier.value;
@@ -771,6 +787,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ProfileStore.instance.update(data);
                     // Persist to backend like Yarri app
                     await _saveProfileToServer();
+                    
+                    // Track registration done event if in add mode
+                    if (addMode) {
+                      final prefs = await SharedPreferences.getInstance();
+                      final userJson = prefs.getString('user');
+                      String? userId;
+                      if (userJson != null && userJson.isNotEmpty) {
+                        try {
+                          final m = jsonDecode(userJson);
+                          final d = m is Map<String, dynamic> ? (m['user'] ?? m) : {};
+                          if (d is Map<String, dynamic>) {
+                            userId = d['id']?.toString() ?? d['_id']?.toString();
+                          }
+                        } catch (_) {}
+                      }
+                      AnalyticsService.instance.track('registrationDone', {
+                        'userId': userId ?? '',
+                        'method': 'phone',
+                      });
+                    }
+                    
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(addMode ? AppTranslations.get('details_saved') : AppTranslations.get('changes_saved'))),
@@ -785,8 +822,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   },
                   child: Text(
                     addMode ? AppTranslations.get('save_details') : AppTranslations.get('save_changes'),
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: (addMode && nameController.text.trim().isEmpty) ? Colors.grey.shade600 : Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
@@ -992,6 +1029,7 @@ class _InputField extends StatelessWidget {
   final int? maxLines;
   final bool enabled;
   final String? helperText;
+  final bool required;
   const _InputField({
     required this.controller,
     required this.hint,
@@ -999,6 +1037,7 @@ class _InputField extends StatelessWidget {
     this.maxLines,
     this.enabled = true,
     this.helperText,
+    this.required = false,
   });
 
   @override
@@ -1006,6 +1045,22 @@ class _InputField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (required)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              children: [
+                Text(
+                  hint,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                const Text(
+                  ' *',
+                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
         TextField(
       controller: controller,
       keyboardType: keyboardType,

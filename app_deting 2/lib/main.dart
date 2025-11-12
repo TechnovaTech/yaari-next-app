@@ -119,7 +119,13 @@ class _AppStartState extends State<AppStart> {
 
         // Initialize analytics
         await AnalyticsService.instance.init();
-        AnalyticsService.instance.track('App Open', {'Platform': 'flutter'});
+        
+        // Track appOpen event with os and appVersion
+        final platform = kIsWeb ? 'web' : (Theme.of(context).platform == TargetPlatform.iOS ? 'iOS' : 'android');
+        AnalyticsService.instance.track('appOpen', {
+          'os': platform,
+          'appVersion': '1.0.0',
+        });
 
         // Skip socket and incoming call services on web
         if (!kIsWeb) {

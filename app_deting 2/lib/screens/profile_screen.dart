@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:app_deting/utils/translations.dart';
 import 'package:app_deting/main.dart';
+import 'package:app_deting/services/analytics_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -243,7 +244,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _ActionTile(
               icon: Icons.headset_mic,
               label: AppTranslations.get('customer_support'),
-              onTap: () => Navigator.pushNamed(context, '/customer_support'),
+              onTap: () {
+                AnalyticsService.instance.track('customerCareClicked');
+                Navigator.pushNamed(context, '/customer_support');
+              },
             ),
             const SizedBox(height: 14),
             _ActionTile(

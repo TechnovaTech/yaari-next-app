@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/users_api.dart';
 import '../services/payments_api.dart';
 import '../utils/razorpay_bridge.dart';
+import '../services/analytics_service.dart';
 
 class CoinsScreen extends StatefulWidget {
   const CoinsScreen({super.key});
@@ -26,6 +27,9 @@ class _CoinsScreenState extends State<CoinsScreen> {
   void initState() {
     super.initState();
     _init();
+    
+    // Track wallet clicked event
+    AnalyticsService.instance.track('walletClicked', {'walletBalance': _balance});
   }
 
   @override
@@ -56,7 +60,11 @@ class _CoinsScreenState extends State<CoinsScreen> {
       }
       _plans = await PaymentsApi.fetchPlans();
     } catch (_) {}
-    if (mounted) setState(() => _loading = false);
+    if (mounted) {
+      setState(() => _loading = false);
+      // Track recharge pack viewed event after loading
+      AnalyticsService.instance.track('rechargePackViewed');
+    }
   }
 
   String? _extractUserId(Map<String, dynamic> m) {
@@ -121,6 +129,25 @@ class _CoinsScreenState extends State<CoinsScreen> {
         signature: payment['razorpay_signature'] ?? '',
       );
       if (verify?.success == true) {
+        // Track payment done event
+        AnalyticsService.instance.track('paymentDone', {
+          'packId': isPlan ? _selectedPlan!.id : '',
+          'packValue': amountRupees,
+          'transactionId': payment['razorpay_payment_id'] ?? '',
+          'paymentGateway': 'razorpay',
+          'status': 'success',
+        });
+        
+        // Track charged event for revenue tracking
+        AnalyticsService.instance.trackCharged(
+          amount: amountRupees,
+          currency: 'INR',
+          paymentGateway: 'razorpay',
+          transactionId: payment['razorpay_payment_id'] ?? '',
+          productId: isPlan ? _selectedPlan!.id : 'custom_topup',
+          quantity: isPlan ? _selectedPlan!.coins : coinsRequested,
+        );
+        
         setState(() {
           _balance = verify?.newBalance ?? _balance;
           _coinsInput.clear();
@@ -251,7 +278,16 @@ class _CoinsScreenState extends State<CoinsScreen> {
                 children: [
                   for (final p in _plans.where((p) => p.isActive))
                     GestureDetector(
-                      onTap: () => setState(() => _selectedPlan = p),
+                      onTap: () {
+                        setState(() => _selectedPlan = p);
+                        // Track recharge CTA clicked event
+                        AnalyticsService.instance.track('rechargeCtaClicked', {
+                          'packId': p.id,
+                          'packValue': p.price,
+                          'packMinutes': p.coins,
+                          'paymentGateway': 'razorpay',
+                        });
+                      },
                       child: _PlanPack(
                         coins: p.coins,
                         price: p.price,

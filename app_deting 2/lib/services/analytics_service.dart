@@ -98,4 +98,32 @@ class AnalyticsService {
     };
     track(eventName, props);
   }
+
+  void trackCharged({
+    required num amount,
+    required String currency,
+    required String paymentGateway,
+    String? transactionId,
+    String? productId,
+    int? quantity,
+    Map<String, dynamic>? extra,
+  }) {
+    final props = {
+      'Amount': amount,
+      'Currency': currency,
+      'Payment Gateway': paymentGateway,
+      if (transactionId != null) 'Transaction ID': transactionId,
+      if (productId != null) 'Product ID': productId,
+      if (quantity != null) 'Quantity': quantity,
+      ...(extra ?? {}),
+    };
+    track('Charged', props);
+    
+    // For Mixpanel, also track revenue
+    try {
+      _mixpanel?.getPeople().trackCharge(amount.toDouble(), properties: props);
+    } catch (e) {
+      debugPrint('⚠️ [Analytics] Mixpanel trackCharge error: $e');
+    }
+  }
 }

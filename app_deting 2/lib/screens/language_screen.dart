@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:app_deting/utils/translations.dart';
 import 'package:app_deting/main.dart';
+import 'package:app_deting/services/analytics_service.dart';
 
 class LanguageScreen extends StatefulWidget {
   static const String routeName = '/language';
@@ -155,6 +156,10 @@ class _LanguageScreenState extends State<LanguageScreen> {
                               }
                             }
                           } catch (_) {}
+                          
+                          // Track language selected event
+                          AnalyticsService.instance.track('languageSelected', {'language': _selected});
+                          
                           if (!mounted) return;
                           final args = ModalRoute.of(context)?.settings.arguments;
                           final bool onboarding = args is Map<String, dynamic> && (args['onboarding'] == true);
