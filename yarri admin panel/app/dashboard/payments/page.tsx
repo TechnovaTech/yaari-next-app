@@ -41,7 +41,7 @@ export default function PaymentsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b">
-                <th className="text-left py-4 px-4 font-semibold text-gray-700">Transaction ID</th>
+                <th className="text-left py-4 px-4 font-semibold text-gray-700">Transaction IDs</th>
                 <th className="text-left py-4 px-4 font-semibold text-gray-700">User Email</th>
                 <th className="text-left py-4 px-4 font-semibold text-gray-700">Phone Number</th>
                 <th className="text-left py-4 px-4 font-semibold text-gray-700">Amount</th>
