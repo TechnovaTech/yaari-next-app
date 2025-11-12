@@ -15,6 +15,7 @@ import '../services/socket_service.dart';
 import '../widgets/recharge_prompt.dart';
 import '../utils/translations.dart';
 import '../services/analytics_service.dart';
+import '../services/firebase_analytics_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -1040,11 +1041,18 @@ class _UserCard extends StatelessWidget {
                             icon: Icons.videocam,
                             onPressed: () async {
                               debugPrint('🎥 [HomeScreen] Video call button clicked for user: $name (id: $id)');
+                              // Track to Mixpanel/CleverTap
                               AnalyticsService.instance.track('videoCallCtaClicked', {
                                 'creatorId': id ?? '',
                                 'ratePerMin': videoRate,
                                 'walletBalance': balance,
                               });
+                              // Track to Firebase Analytics
+                              FirebaseAnalyticsService.instance.trackVideoCallCtaClicked(
+                                creatorId: id ?? '',
+                                ratePerMin: videoRate,
+                                walletBalance: balance,
+                              );
                               if (balance < videoRate) {
                                 debugPrint('⚠️ [HomeScreen] Insufficient balance: $balance < $videoRate');
                                 await showRechargePrompt(
@@ -1103,11 +1111,18 @@ class _UserCard extends StatelessWidget {
                             icon: Icons.call,
                             onPressed: () async {
                               debugPrint('📞 [HomeScreen] Audio call button clicked for user: $name (id: $id)');
+                              // Track to Mixpanel/CleverTap
                               AnalyticsService.instance.track('audioCallCtaClicked', {
                                 'creatorId': id ?? '',
                                 'ratePerMin': audioRate,
                                 'walletBalance': balance,
                               });
+                              // Track to Firebase Analytics
+                              FirebaseAnalyticsService.instance.trackAudioCallCtaClicked(
+                                creatorId: id ?? '',
+                                ratePerMin: audioRate,
+                                walletBalance: balance,
+                              );
                               if (balance < audioRate) {
                                 debugPrint('⚠️ [HomeScreen] Insufficient balance: $balance < $audioRate');
                                 await showRechargePrompt(

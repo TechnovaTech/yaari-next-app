@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'screens/otp_screen.dart';
@@ -20,16 +22,28 @@ import 'screens/edit_profile_screen.dart';
 import 'screens/video_call_screen.dart';
 import 'screens/audio_call_screen.dart';
 import 'screens/privacy_policy_details_screen.dart';
+import 'screens/test_analytics_screen.dart';
 import 'services/incoming_call_service.dart';
 import 'services/socket_service.dart';
 import 'services/analytics_service.dart';
+import 'services/firebase_analytics_service.dart';
 import 'utils/translations.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Pass all uncaught "fatal" errors from the framework to Crashlytics
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  
+  // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
+  
   runApp(const MyApp());
 }
 
@@ -85,6 +99,7 @@ class _MyAppState extends State<MyApp> {
         '/privacy_policy_details': (context) => const PrivacyPolicyDetailsScreen(),
         '/video_call': (context) => const VideoCallScreen(),
         '/audio_call': (context) => const AudioCallScreen(),
+        '/test_analytics': (context) => const TestAnalyticsScreen(),
       },
     );
   }
@@ -119,8 +134,9 @@ class _AppStartState extends State<AppStart> {
 
         // Initialize analytics
         await AnalyticsService.instance.init();
+        await FirebaseAnalyticsService.instance.init();
         
-        // Track appOpen event with os and appVersion
+        // Track appOpen event with os and appVersion (Mixpanel/CleverTap only)
         final platform = kIsWeb ? 'web' : (Theme.of(context).platform == TargetPlatform.iOS ? 'iOS' : 'android');
         AnalyticsService.instance.track('appOpen', {
           'os': platform,
@@ -201,11 +217,9 @@ class _AppStartState extends State<AppStart> {
         // Navigate to home
         debugPrint('✅ [AppStart] Services initialized, navigating to home');
         if (!mounted) return;
-        AnalyticsService.instance.screenView('Home');
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         debugPrint('🔓 [AppStart] No user found, navigating to login');
-        AnalyticsService.instance.screenView('Login');
         Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {

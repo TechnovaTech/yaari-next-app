@@ -6,6 +6,7 @@ import '../services/users_api.dart';
 import '../services/payments_api.dart';
 import '../utils/razorpay_bridge.dart';
 import '../services/analytics_service.dart';
+import '../services/firebase_analytics_service.dart';
 
 class CoinsScreen extends StatefulWidget {
   const CoinsScreen({super.key});
@@ -129,7 +130,7 @@ class _CoinsScreenState extends State<CoinsScreen> {
         signature: payment['razorpay_signature'] ?? '',
       );
       if (verify?.success == true) {
-        // Track payment done event
+        // Track payment done event to Mixpanel/CleverTap
         AnalyticsService.instance.track('paymentDone', {
           'packId': isPlan ? _selectedPlan!.id : '',
           'packValue': amountRupees,
@@ -138,7 +139,7 @@ class _CoinsScreenState extends State<CoinsScreen> {
           'status': 'success',
         });
         
-        // Track charged event for revenue tracking
+        // Track charged event for revenue tracking (Mixpanel)
         AnalyticsService.instance.trackCharged(
           amount: amountRupees,
           currency: 'INR',
@@ -146,6 +147,15 @@ class _CoinsScreenState extends State<CoinsScreen> {
           transactionId: payment['razorpay_payment_id'] ?? '',
           productId: isPlan ? _selectedPlan!.id : 'custom_topup',
           quantity: isPlan ? _selectedPlan!.coins : coinsRequested,
+        );
+        
+        // Track to Firebase Analytics
+        FirebaseAnalyticsService.instance.trackPaymentDone(
+          packId: isPlan ? _selectedPlan!.id : 'custom_topup',
+          packValue: amountRupees,
+          transactionId: payment['razorpay_payment_id'] ?? '',
+          paymentGateway: 'razorpay',
+          status: 'success',
         );
         
         setState(() {

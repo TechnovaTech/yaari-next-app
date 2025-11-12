@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:app_deting/utils/translations.dart';
 import 'package:app_deting/main.dart';
 import 'package:app_deting/services/analytics_service.dart';
+import 'package:app_deting/services/firebase_analytics_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -802,10 +803,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           }
                         } catch (_) {}
                       }
+                      // Track to Mixpanel/CleverTap
                       AnalyticsService.instance.track('registrationDone', {
                         'userId': userId ?? '',
                         'method': 'phone',
                       });
+                      // Track to Firebase Analytics
+                      FirebaseAnalyticsService.instance.trackRegistrationDone(
+                        userId: userId ?? '',
+                        method: 'phone',
+                      );
                     }
                     
                     if (mounted) {

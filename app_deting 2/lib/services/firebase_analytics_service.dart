@@ -1,73 +1,113 @@
+import 'package:flutter/foundation.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 
 class FirebaseAnalyticsService {
-  static final FirebaseAnalyticsService _instance = FirebaseAnalyticsService._();
-  static FirebaseAnalyticsService get instance => _instance;
   FirebaseAnalyticsService._();
+  static final FirebaseAnalyticsService instance = FirebaseAnalyticsService._();
 
-  final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
+  FirebaseAnalytics? _analytics;
 
-  Future<void> logPaymentDone({
-    required String packId,
-    required double packValue,
-    required String transactionId,
-    required String paymentGateway,
-    required String status,
-  }) async {
-    await _analytics.logEvent(
-      name: 'paymentDone',
-      parameters: {
-        'packId': packId,
-        'packValue': packValue,
-        'transactionId': transactionId,
-        'paymentGateway': paymentGateway,
-        'status': status,
-      },
-    );
+  Future<void> init() async {
+    try {
+      _analytics = FirebaseAnalytics.instance;
+      await _analytics?.setAnalyticsCollectionEnabled(true);
+      
+      // Enable debug mode for immediate event visibility
+      if (kDebugMode) {
+        await _analytics?.setAnalyticsCollectionEnabled(true);
+      }
+      
+      debugPrint('📊 [Firebase Analytics] Initialized');
+    } catch (e) {
+      debugPrint('⚠️ [Firebase Analytics] Init error: $e');
+    }
   }
 
-  Future<void> logRegistrationDone({
+  // Event 1: registrationDone
+  void trackRegistrationDone({
     required String userId,
     required String method,
     String? referralCode,
-  }) async {
-    await _analytics.logEvent(
-      name: 'registrationDone',
-      parameters: {
-        'userId': userId,
-        'method': method,
-        if (referralCode != null) 'referralCode': referralCode,
-      },
-    );
+  }) {
+    try {
+      _analytics?.logEvent(
+        name: 'registrationDone',
+        parameters: {
+          'userId': userId,
+          'method': method,
+          if (referralCode != null) 'referralCode': referralCode,
+        },
+      );
+      debugPrint('📊 [Firebase Analytics] registrationDone: userId=$userId, method=$method');
+    } catch (e) {
+      debugPrint('⚠️ [Firebase Analytics] trackRegistrationDone error: $e');
+    }
   }
 
-  Future<void> logVideoCallCtaClicked({
+  // Event 2: videoCallCtaClicked
+  void trackVideoCallCtaClicked({
     required String creatorId,
     required int ratePerMin,
     required int walletBalance,
-  }) async {
-    await _analytics.logEvent(
-      name: 'videoCallCtaClicked',
-      parameters: {
-        'creatorId': creatorId,
-        'ratePerMin': ratePerMin,
-        'walletBalance': walletBalance,
-      },
-    );
+  }) {
+    try {
+      _analytics?.logEvent(
+        name: 'videoCallCtaClicked',
+        parameters: {
+          'creatorId': creatorId,
+          'ratePerMin': ratePerMin,
+          'walletBalance': walletBalance,
+        },
+      );
+      debugPrint('📊 [Firebase Analytics] videoCallCtaClicked: creatorId=$creatorId');
+    } catch (e) {
+      debugPrint('⚠️ [Firebase Analytics] trackVideoCallCtaClicked error: $e');
+    }
   }
 
-  Future<void> logAudioCallCtaClicked({
+  // Event 3: audioCallCtaClicked
+  void trackAudioCallCtaClicked({
     required String creatorId,
     required int ratePerMin,
     required int walletBalance,
-  }) async {
-    await _analytics.logEvent(
-      name: 'audioCallCtaClicked',
-      parameters: {
-        'creatorId': creatorId,
-        'ratePerMin': ratePerMin,
-        'walletBalance': walletBalance,
-      },
-    );
+  }) {
+    try {
+      _analytics?.logEvent(
+        name: 'audioCallCtaClicked',
+        parameters: {
+          'creatorId': creatorId,
+          'ratePerMin': ratePerMin,
+          'walletBalance': walletBalance,
+        },
+      );
+      debugPrint('📊 [Firebase Analytics] audioCallCtaClicked: creatorId=$creatorId');
+    } catch (e) {
+      debugPrint('⚠️ [Firebase Analytics] trackAudioCallCtaClicked error: $e');
+    }
+  }
+
+  // Event 4: paymentDone
+  void trackPaymentDone({
+    required String packId,
+    required num packValue,
+    required String transactionId,
+    required String paymentGateway,
+    required String status,
+  }) {
+    try {
+      _analytics?.logEvent(
+        name: 'paymentDone',
+        parameters: {
+          'packId': packId,
+          'packValue': packValue,
+          'transactionId': transactionId,
+          'paymentGateway': paymentGateway,
+          'status': status,
+        },
+      );
+      debugPrint('📊 [Firebase Analytics] paymentDone: transactionId=$transactionId, status=$status');
+    } catch (e) {
+      debugPrint('⚠️ [Firebase Analytics] trackPaymentDone error: $e');
+    }
   }
 }
