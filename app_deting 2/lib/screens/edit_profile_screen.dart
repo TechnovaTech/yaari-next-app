@@ -9,6 +9,7 @@ import 'package:app_deting/utils/translations.dart';
 import 'package:app_deting/main.dart';
 import 'package:app_deting/services/analytics_service.dart';
 import 'package:app_deting/services/firebase_analytics_service.dart';
+import 'package:app_deting/services/meta_analytics_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -810,6 +811,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       });
                       // Track to Firebase Analytics
                       FirebaseAnalyticsService.instance.trackRegistrationDone(
+                        userId: userId ?? '',
+                        method: 'phone',
+                      );
+                      // Track to Meta Analytics
+                      MetaAnalyticsService.instance.trackRegistrationDone(
                         userId: userId ?? '',
                         method: 'phone',
                       );

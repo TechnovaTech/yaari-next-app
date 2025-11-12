@@ -27,6 +27,7 @@ import 'services/incoming_call_service.dart';
 import 'services/socket_service.dart';
 import 'services/analytics_service.dart';
 import 'services/firebase_analytics_service.dart';
+import 'services/meta_analytics_service.dart';
 import 'utils/translations.dart';
 
 Future<void> main() async {
@@ -135,6 +136,7 @@ class _AppStartState extends State<AppStart> {
         // Initialize analytics
         await AnalyticsService.instance.init();
         await FirebaseAnalyticsService.instance.init();
+        await MetaAnalyticsService.instance.init();
         
         // Track appOpen event with os and appVersion (Mixpanel/CleverTap only)
         final platform = kIsWeb ? 'web' : (Theme.of(context).platform == TargetPlatform.iOS ? 'iOS' : 'android');

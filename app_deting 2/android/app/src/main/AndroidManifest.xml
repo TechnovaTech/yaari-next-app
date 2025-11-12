@@ -51,6 +51,9 @@
         <meta-data android:name="CLEVERTAP_ACCOUNT_ID" android:value="${CLEVERTAP_ACCOUNT_ID}" />
         <meta-data android:name="CLEVERTAP_TOKEN" android:value="${CLEVERTAP_TOKEN}" />
         <meta-data android:name="CLEVERTAP_REGION" android:value="${CLEVERTAP_REGION}" />
+        
+        <!-- Meta (Facebook) App ID -->
+        <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

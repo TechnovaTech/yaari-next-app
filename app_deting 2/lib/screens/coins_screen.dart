@@ -7,6 +7,7 @@ import '../services/payments_api.dart';
 import '../utils/razorpay_bridge.dart';
 import '../services/analytics_service.dart';
 import '../services/firebase_analytics_service.dart';
+import '../services/meta_analytics_service.dart';
 
 class CoinsScreen extends StatefulWidget {
   const CoinsScreen({super.key});
@@ -151,6 +152,15 @@ class _CoinsScreenState extends State<CoinsScreen> {
         
         // Track to Firebase Analytics
         FirebaseAnalyticsService.instance.trackPaymentDone(
+          packId: isPlan ? _selectedPlan!.id : 'custom_topup',
+          packValue: amountRupees,
+          transactionId: payment['razorpay_payment_id'] ?? '',
+          paymentGateway: 'razorpay',
+          status: 'success',
+        );
+        
+        // Track to Meta Analytics
+        MetaAnalyticsService.instance.trackPaymentDone(
           packId: isPlan ? _selectedPlan!.id : 'custom_topup',
           packValue: amountRupees,
           transactionId: payment['razorpay_payment_id'] ?? '',

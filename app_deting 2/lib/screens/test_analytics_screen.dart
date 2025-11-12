@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/firebase_analytics_service.dart';
+import '../services/meta_analytics_service.dart';
 
 class TestAnalyticsScreen extends StatelessWidget {
   const TestAnalyticsScreen({super.key});
@@ -17,7 +18,7 @@ class TestAnalyticsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Test Firebase Analytics Events',
+              'Test Firebase & Meta Analytics Events',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
@@ -28,8 +29,13 @@ class TestAnalyticsScreen extends StatelessWidget {
                   method: 'phone',
                   referralCode: 'TEST123',
                 );
+                MetaAnalyticsService.instance.trackRegistrationDone(
+                  userId: 'test_user_123',
+                  method: 'phone',
+                  referralCode: 'TEST123',
+                );
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('registrationDone event sent')),
+                  const SnackBar(content: Text('registrationDone event sent to Firebase & Meta')),
                 );
               },
               child: const Text('Test registrationDone'),
@@ -42,8 +48,13 @@ class TestAnalyticsScreen extends StatelessWidget {
                   ratePerMin: 10,
                   walletBalance: 100,
                 );
+                MetaAnalyticsService.instance.trackVideoCallCtaClicked(
+                  creatorId: 'creator_456',
+                  ratePerMin: 10,
+                  walletBalance: 100,
+                );
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('videoCallCtaClicked event sent')),
+                  const SnackBar(content: Text('videoCallCtaClicked event sent to Firebase & Meta')),
                 );
               },
               child: const Text('Test videoCallCtaClicked'),
@@ -56,8 +67,13 @@ class TestAnalyticsScreen extends StatelessWidget {
                   ratePerMin: 5,
                   walletBalance: 100,
                 );
+                MetaAnalyticsService.instance.trackAudioCallCtaClicked(
+                  creatorId: 'creator_789',
+                  ratePerMin: 5,
+                  walletBalance: 100,
+                );
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('audioCallCtaClicked event sent')),
+                  const SnackBar(content: Text('audioCallCtaClicked event sent to Firebase & Meta')),
                 );
               },
               child: const Text('Test audioCallCtaClicked'),
@@ -72,8 +88,15 @@ class TestAnalyticsScreen extends StatelessWidget {
                   paymentGateway: 'razorpay',
                   status: 'success',
                 );
+                MetaAnalyticsService.instance.trackPaymentDone(
+                  packId: 'pack_100',
+                  packValue: 99.99,
+                  transactionId: 'txn_test_123',
+                  paymentGateway: 'razorpay',
+                  status: 'success',
+                );
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('paymentDone event sent')),
+                  const SnackBar(content: Text('paymentDone event sent to Firebase & Meta')),
                 );
               },
               child: const Text('Test paymentDone'),
@@ -85,10 +108,10 @@ class TestAnalyticsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             const Text(
-              '1. Enable debug mode (see FIREBASE_ANALYTICS_DEBUG.md)\n'
+              '1. Enable debug mode for Firebase (see FIREBASE_ANALYTICS_DEBUG.md)\n'
               '2. Click the buttons above\n'
-              '3. Go to Firebase Console > Analytics > DebugView\n'
-              '4. Select your device to see events in real-time',
+              '3. Firebase: Go to Firebase Console > Analytics > DebugView\n'
+              '4. Meta: Go to Meta Events Manager to see events',
               style: TextStyle(fontSize: 14),
             ),
           ],
