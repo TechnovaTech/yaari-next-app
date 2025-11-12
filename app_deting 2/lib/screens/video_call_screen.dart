@@ -38,6 +38,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
   DateTime? _joinedAt;
   String _callDuration = '00:00';
   Timer? _timer;
+  // In-call controls
+  bool _micMuted = false;
+  bool _videoMuted = false;
   // Coins and rate handling
   int _ratePerMin = 0; // coins per minute for video
   int _remainingBalance = 0;
@@ -313,7 +316,10 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
     if (state == AppLifecycleState.paused) {
       _service.onLifecyclePaused();
     } else if (state == AppLifecycleState.resumed) {
-      _service.onLifecycleResumed();
+      // Respect current camera state: only resume preview if not manually muted
+      if (!_videoMuted) {
+        _service.onLifecycleResumed();
+      }
     }
   }
 
@@ -327,203 +333,178 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
         return false;
       },
       child: Scaffold(
-      backgroundColor: const Color(0xFFFEF8F4),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () async {
-            await _closeToHome();
-          },
-        ),
-        title: const Text(
-          'Video Call',
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.black),
-        ),
-      ),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 16),
-            Builder(builder: (context) {
-              final String url = _avatarUrl ?? '';
-              final ImageProvider<Object> avatarImage = url.isNotEmpty
-                  ? NetworkImage(url)
-                  : AssetImage(_gender == 'male' ? 'assets/images/Avtar.png' : 'assets/images/favatar.png');
-              return CircleAvatar(
-                radius: 42,
-                backgroundColor: Colors.transparent,
-                backgroundImage: avatarImage,
-              );
-            }),
-            const SizedBox(height: 8),
-            Text(_displayName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.videocam, color: accent),
-                SizedBox(width: 6),
-                Text('Video Call', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(_callDuration, style: const TextStyle(fontSize: 16, color: Colors.black54, fontWeight: FontWeight.w600)),
-
-            const SizedBox(height: 16),
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF202020),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: ValueListenableBuilder<bool>(
-                        valueListenable: _service.joined,
-                        builder: (_, joined, __) {
-                          if (!joined) {
-                            return const Center(child: CircularProgressIndicator());
-                          }
-                          // Listen to remote UID changes to switch the main renderer when remote joins
-                          return ValueListenableBuilder<int?>(
-                            valueListenable: _service.remoteUidNotifier,
-                            builder: (_, remoteUid, __) {
-                              final engine = _service.engine;
-                              if (engine == null) {
-                                return const Center(child: CircularProgressIndicator());
-                              }
-                              if (remoteUid != null) {
-                                return AgoraVideoView(
-                                  controller: VideoViewController.remote(
-                                    rtcEngine: engine,
-                                    canvas: VideoCanvas(uid: remoteUid),
-                                    connection: RtcConnection(channelId: _service.channelName ?? _channel),
-                                  ),
-                                );
-                              }
-                              return AgoraVideoView(
-                                controller: VideoViewController(
-                                  rtcEngine: engine,
-                                  canvas: const VideoCanvas(uid: 0),
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                    ValueListenableBuilder<int?>(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Stack(
+            children: [
+              // Main video area: remote if available, else local preview
+              Positioned.fill(
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _service.joined,
+                  builder: (_, joined, __) {
+                    if (!joined || _service.engine == null) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    return ValueListenableBuilder<int?>(
                       valueListenable: _service.remoteUidNotifier,
                       builder: (_, remoteUid, __) {
-                        // Only show PIP when remote user is present
-                        if (remoteUid == null || _service.engine == null) {
-                          return const SizedBox();
+                        final engine = _service.engine!;
+                        if (remoteUid != null) {
+                          return AgoraVideoView(
+                            controller: VideoViewController.remote(
+                              rtcEngine: engine,
+                              canvas: VideoCanvas(uid: remoteUid),
+                              connection: RtcConnection(channelId: _service.channelName ?? _channel),
+                            ),
+                          );
                         }
-                        return Positioned(
-                          right: 12,
-                          bottom: 12,
-                          width: 120,
-                          height: 160,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black54,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: AgoraVideoView(
-                              controller: VideoViewController(
-                                rtcEngine: _service.engine!,
-                                canvas: const VideoCanvas(uid: 0),
-                              ),
-                            ),
+                        return AgoraVideoView(
+                          controller: VideoViewController(
+                            rtcEngine: engine,
+                            canvas: const VideoCanvas(uid: 0),
                           ),
                         );
                       },
+                    );
+                  },
+                ),
+              ),
+
+              // Top center: name and timer
+              Positioned(
+                top: 16,
+                left: 0,
+                right: 0,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _displayName,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _callDuration,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
               ),
-            ),
 
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ValueListenableBuilder<bool>(
-                      valueListenable: _service.speakerOn,
-                      builder: (context, on, _) {
-                        return OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                            side: const BorderSide(color: Color(0xFFE0DFDD)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          onPressed: () => _service.toggleSpeaker(),
-                          icon: Icon(on ? Icons.volume_up : Icons.hearing, color: Colors.black87),
-                          label: Text(on ? 'Speaker' : 'Earpiece', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ValueListenableBuilder<bool>(
-                      valueListenable: _service.joined,
-                      builder: (context, hasJoined, _) {
-                        return ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: accent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          onPressed: hasJoined ? () async {
-                            SocketService.instance.emit('end-call', {
-                              'userId': _callerId,
-                              'otherUserId': _receiverId,
-                              'channelName': _channel,
-                            });
-                            try {
-                              final start = _joinedAt;
-                              final durationSec = start != null ? DateTime.now().difference(start).inSeconds : 0;
-                              final callerId = _callerId ?? '';
-                              final receiverId = _receiverId ?? '';
-                              if (callerId.isNotEmpty && receiverId.isNotEmpty) {
-                                await CallLogApi.logEnd(
-                                  callerId: callerId,
-                                  receiverId: receiverId,
-                                  callType: 'video',
-                                  durationSeconds: durationSec,
-                                );
-                                AnalyticsService.instance.trackCallEvent(
-                                  action: 'ended',
-                                  callType: 'video',
-                                  callerId: callerId,
-                                  receiverId: receiverId,
-                                  channelName: _channel,
-                                  durationSeconds: durationSec,
-                                );
-                              }
-                            } catch (_) {}
-                            await _closeToHome();
-                          } : null,
-                          icon: const Icon(Icons.call_end, color: Colors.white),
-                          label: const Text('End Call'),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+              // Local PiP with switch camera overlay
+              ValueListenableBuilder<int?>(
+                valueListenable: _service.remoteUidNotifier,
+                builder: (_, remoteUid, __) {
+                  if (_service.engine == null) return const SizedBox();
+                  // Only show local PiP if remote user is present
+                  if (remoteUid != null) {
+                    return Positioned(
+                      bottom: 100, // Adjust as needed
+                      right: 16, // Adjust as needed
+                      width: 90,
+                      height: 120,
+                      child: GestureDetector(
+                        onTap: () {
+                          // Handle tap on local PiP if needed
+                        },
+                        child: Stack(
+                          children: [
+                            _videoMuted
+                                ? Container(color: Colors.black)
+                                : AgoraVideoView(
+                                    controller: VideoViewController(
+                                      rtcEngine: _service.engine!,
+                                      canvas: const VideoCanvas(uid: 0),
+                                    ),
+                                  ),
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: _roundControl(
+                                icon: Icons.switch_camera,
+                                onPressed: _switchCamera,
+                                background: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  return const SizedBox();
+                },
               ),
-            ),
-          ],
+
+              // Bottom controls bar
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0E1621),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(18),
+                      topRight: Radius.circular(18),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _roundControl(
+                        icon: _micMuted ? Icons.mic_off : Icons.mic,
+                        background: const Color(0xFF2B3643),
+                        onPressed: _toggleMic,
+                      ),
+                      _roundControl(
+                        icon: Icons.call_end,
+                        background: const Color(0xFFE04E4E),
+                        onPressed: () async {
+                          SocketService.instance.emit('end-call', {
+                            'userId': _callerId,
+                            'otherUserId': _receiverId,
+                            'channelName': _channel,
+                          });
+                          try {
+                            final start = _joinedAt;
+                            final durationSec = start != null ? DateTime.now().difference(start).inSeconds : 0;
+                            final callerId = _callerId ?? '';
+                            final receiverId = _receiverId ?? '';
+                          if (callerId.isNotEmpty && receiverId.isNotEmpty) {
+                              await CallLogApi.logEnd(
+                                callerId: callerId,
+                                receiverId: receiverId,
+                                callType: 'video',
+                                durationSeconds: durationSec,
+                              );
+                              AnalyticsService.instance.trackCallEvent(
+                                action: 'ended',
+                                callType: 'video',
+                                callerId: callerId,
+                                receiverId: receiverId,
+                                channelName: _channel,
+                                durationSeconds: durationSec,
+                              );
+                            }
+                          } catch (_) {}
+                          await _closeToHome();
+                        },
+                      ),
+                      _roundControl(
+                        icon: _videoMuted ? Icons.videocam_off : Icons.videocam,
+                        background: const Color(0xFF2B3643),
+                        onPressed: _toggleVideo,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -538,5 +519,36 @@ class _VideoCallScreenState extends State<VideoCallScreen> with WidgetsBindingOb
     } catch (_) {
       try { Navigator.pop(context); } catch (_) {}
     }
+  }
+
+  // Helpers for controls
+  Widget _roundControl({required IconData icon, required Color background, required VoidCallback onPressed}) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(36),
+      child: Container(
+        width: 72,
+        height: 72,
+        decoration: BoxDecoration(color: background, shape: BoxShape.circle),
+        child: Icon(icon, color: Colors.white, size: 28),
+      ),
+    );
+  }
+
+  void _toggleMic() async {
+    _micMuted = !_micMuted;
+    try { await _service.engine?.muteLocalAudioStream(_micMuted); } catch (_) {}
+    if (mounted) setState(() {});
+  }
+
+  void _toggleVideo() async {
+    _videoMuted = !_videoMuted;
+    try { await _service.engine?.muteLocalVideoStream(_videoMuted); } catch (_) {}
+    if (!_videoMuted) { try { await _service.engine?.startPreview(); } catch (_) {} }
+    if (mounted) setState(() {});
+  }
+
+  void _switchCamera() async {
+    try { await _service.engine?.switchCamera(); } catch (_) {}
   }
 }

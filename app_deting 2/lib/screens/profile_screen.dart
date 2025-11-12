@@ -155,23 +155,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         border: Border.all(color: Colors.white, width: 3),
                       ),
                       child: ClipOval(
-                        child: _avatarUrl.isNotEmpty
+                        child: (_avatarUrl.isNotEmpty)
                             ? Image.network(
                                 _avatarUrl,
                                 fit: BoxFit.cover,
                                 width: 120,
                                 height: 120,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Image.asset(
-                                    (_gender == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png',
-                                    fit: BoxFit.cover,
-                                    width: 120,
-                                    height: 120,
-                                  );
-                                },
+                                errorBuilder: (_, __, ___) => Image.asset(
+                                  (_gender?.toLowerCase() == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png',
+                                  fit: BoxFit.cover,
+                                  width: 120,
+                                  height: 120,
+                                ),
                               )
                             : Image.asset(
-                                (_gender == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png',
+                                (_gender?.toLowerCase() == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png',
                                 fit: BoxFit.cover,
                                 width: 120,
                                 height: 120,

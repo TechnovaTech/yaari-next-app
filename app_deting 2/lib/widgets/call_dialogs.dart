@@ -145,101 +145,139 @@ Future<void> showIncomingCallDialog(
     context: context,
     barrierDismissible: false,
     builder: (ctx) {
+      // Full-screen overlay styled to match the reference design
       return Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Align(
-                alignment: Alignment.topRight,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.black38),
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    onDecline();
-                  },
-                ),
+        insetPadding: EdgeInsets.zero,
+        backgroundColor: Colors.transparent,
+        child: SizedBox.expand(
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF0F1C28), Color(0xFF0B1018)],
               ),
-              Builder(builder: (context) {
-                final String url = avatarUrl ?? '';
-                final ImageProvider<Object> avatarImage = url.isNotEmpty
-                    ? NetworkImage(url)
-                    : AssetImage(gender == 'male' ? 'assets/images/Avtar.png' : 'assets/images/favatar.png');
-                return CircleAvatar(
-                  radius: 38,
-                  backgroundColor: Colors.transparent,
-                  backgroundImage: avatarImage,
-                );
-              }),
-              const SizedBox(height: 12),
-              Text(
-                displayName,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 6),
-              Row(
+            ),
+            child: SafeArea(
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Icon(_iconFor(type), color: _accent),
-                  const SizedBox(width: 6),
+                  // Avatar with green ring
+                  Builder(builder: (context) {
+                    final String url = avatarUrl ?? '';
+                    final ImageProvider<Object> avatarImage = url.isNotEmpty
+                        ? NetworkImage(url)
+                        : AssetImage((gender ?? '').toLowerCase() == 'male'
+                            ? 'assets/images/Avtar.png'
+                            : 'assets/images/favatar.png');
+                    return Container(
+                      width: 160,
+                      height: 160,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.transparent,
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 16),
+                        ],
+                        border: Border.all(color: Colors.greenAccent.shade400, width: 6),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(6.0),
+                        child: CircleAvatar(
+                          backgroundImage: avatarImage,
+                          radius: 68,
+                          backgroundColor: Colors.transparent,
+                        ),
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 16),
                   Text(
-                    '${_labelFor(type)} Incoming',
-                    style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+                    displayName,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(_iconFor(type), color: Colors.white70),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Incoming ${_labelFor(type).toLowerCase()}...',
+                        style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.circle, size: 10, color: Colors.greenAccent),
+                      SizedBox(width: 10),
+                      Icon(Icons.circle, size: 10, color: Colors.greenAccent),
+                      SizedBox(width: 10),
+                      Icon(Icons.circle, size: 10, color: Colors.greenAccent),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          children: [
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFE53935),
+                                shape: const CircleBorder(),
+                                padding: const EdgeInsets.all(22),
+                                elevation: 2,
+                              ),
+                              onPressed: () {
+                                Navigator.of(ctx).pop();
+                                onDecline();
+                              },
+                              child: const Icon(Icons.call_end, color: Colors.white, size: 28),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text('Decline', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                        Column(
+                          children: [
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2E7D32),
+                                shape: const CircleBorder(),
+                                padding: const EdgeInsets.all(22),
+                                elevation: 2,
+                              ),
+                              onPressed: () {
+                                Navigator.of(ctx).pop();
+                                onAccept();
+                              },
+                              child: Icon(
+                                _iconFor(type),
+                                color: Colors.white70,
+                                size: 28,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text('Accept', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF9F9F9),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE0DFDD)),
-                ),
-                child: const Text(
-                  'User is calling you. Accept to start the call.',
-                  style: TextStyle(color: Colors.black54),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                        side: const BorderSide(color: Color(0xFFE0DFDD)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        onDecline();
-                      },
-                      child: const Text('Decline'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _accent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        onAccept();
-                      },
-                      child: const Text('Accept'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       );

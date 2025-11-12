@@ -37,10 +37,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   // Lock phone/email after first successful save
   bool _phoneLocked = false;
   bool _emailLocked = false;
+  bool _hobbyFieldEmpty = true;
 
   @override
   void initState() {
     super.initState();
+    hobbyController.addListener(() {
+      final isEmpty = hobbyController.text.trim().isEmpty;
+      if (_hobbyFieldEmpty != isEmpty) {
+        setState(() => _hobbyFieldEmpty = isEmpty);
+      }
+    });
     _loadInitialState();
   }
 
@@ -272,6 +279,54 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return null;
   }
 
+  Future<void> _removeProfilePicture() async {
+    final url = _profilePicUrl;
+    setState(() {
+      _avatarBytes = null;
+      _profilePicUrl = null;
+    });
+
+    if (url == null || url.isEmpty) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString('user');
+      String? userId;
+      if (userJson != null && userJson.isNotEmpty) {
+        try {
+          final m = jsonDecode(userJson);
+          final data = m is Map<String, dynamic> ? (m['user'] ?? m) : {};
+          if (data is Map<String, dynamic>) {
+            userId = data['id']?.toString() ?? data['_id']?.toString();
+          }
+        } catch (_) {}
+      }
+      if (userId == null || userId.isEmpty) return;
+
+      final normalized = _normalizeUrl(url) ?? url;
+      final res = await http.delete(
+        Uri.parse('https://admin.yaari.me/api/delete-photo'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'userId': userId, 'photoUrl': url, 'normalizedPhotoUrl': normalized, 'isProfilePic': true}),
+      );
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        if (userJson != null) {
+          try {
+            final obj = jsonDecode(userJson);
+            if (obj is Map<String, dynamic>) {
+              final inner = (obj['user'] is Map<String, dynamic>) ? obj['user'] as Map<String, dynamic> : obj;
+              inner['profilePic'] = null;
+              if (obj['user'] is Map<String, dynamic>) {
+                obj['user'] = inner;
+              }
+              await prefs.setString('user', jsonEncode(obj));
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
+
   Future<void> _deletePhotoAt(int index) async {
     if (index < 0 || index >= _gallery.length) return;
     final String? url = (index < _galleryUrls.length) ? _galleryUrls[index] : null;
@@ -425,9 +480,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     final args = ModalRoute.of(context)?.settings.arguments;
     final bool addMode = args is Map<String, dynamic> && ((args['mode'] == 'add') || (args['onboarding'] == true));
-    final ImageProvider avatarProvider = _avatarBytes != null
-        ? MemoryImage(_avatarBytes!)
-        : AssetImage((_gender?.toLowerCase() == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png');
+    final String defaultAvatar = (_gender?.toLowerCase() == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png';
 
     return Scaffold(
       backgroundColor: bg,
@@ -497,21 +550,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             child: Stack(
                               clipBehavior: Clip.none,
                               children: [
-                                CircleAvatar(
-                                  radius: 48,
-                                  backgroundImage: avatarProvider,
-                                  backgroundColor: Colors.transparent,
+                                Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 3),
+                                  ),
+                                  child: ClipOval(
+                                    child: _avatarBytes != null
+                                        ? Image.memory(
+                                            _avatarBytes!,
+                                            fit: BoxFit.cover,
+                                            width: 96,
+                                            height: 96,
+                                          )
+                                        : Image.asset(
+                                            defaultAvatar,
+                                            fit: BoxFit.cover,
+                                            width: 96,
+                                            height: 96,
+                                          ),
+                                  ),
                                 ),
                                 if (_avatarBytes != null)
                                   Positioned(
                                     top: -4,
                                     right: -4,
                                     child: InkWell(
-                                      onTap: () {
-                                        setState(() {
-                                          _avatarBytes = null;
-                                        });
-                                      },
+                                      onTap: _removeProfilePicture,
                                       borderRadius: BorderRadius.circular(12),
                                       child: Container(
                                         width: 28,
@@ -645,13 +710,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
-                            onPressed: _addHobby,
+                            onPressed: _hobbyFieldEmpty ? null : _addHobby,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: accent,
+                              disabledBackgroundColor: Colors.grey.shade300,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                             ),
-                            child: Text(AppTranslations.get('add'), style: const TextStyle(color: Colors.white)),
+                            child: Text(AppTranslations.get('add'), style: TextStyle(color: _hobbyFieldEmpty ? Colors.grey.shade600 : Colors.white)),
                           ),
                         ],
                       ),

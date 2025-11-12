@@ -280,9 +280,11 @@ class _HomeScreenState extends State<HomeScreen> {
               : (m['data'] is Map<String, dynamic>)
                   ? m['data'] as Map<String, dynamic>
                   : m;
-          _userProfilePic = (container['profilePic'] ?? container['avatar'] ?? container['image'])?.toString();
-          if (_userProfilePic != null && _userProfilePic!.isNotEmpty) {
-            _userProfilePic = _userProfilePic!.replaceAll(RegExp(r'https?://(localhost|0\.0\.0\.0):\d+'), 'https://admin.yaari.me');
+          final pic = (container['profilePic'] ?? container['avatar'] ?? container['image'])?.toString();
+          if (pic != null && pic.isNotEmpty && pic != 'null') {
+            _userProfilePic = pic.replaceAll(RegExp(r'https?://(localhost|0\.0\.0\.0):\d+'), 'https://admin.yaari.me');
+          } else {
+            _userProfilePic = null;
           }
           // If gender preference is missing, derive from stored user JSON
           if ((_userGender == null || _userGender!.isEmpty)) {
@@ -312,11 +314,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 final body = jsonDecode(res.body);
                 final data = body is Map<String, dynamic> ? (body['data'] ?? body) : {};
                 final pic = (data['profilePic'] ?? data['avatar'] ?? data['image'])?.toString();
-                if (pic != null && pic.isNotEmpty) {
+                if (pic != null && pic.isNotEmpty && pic != 'null') {
                   _userProfilePic = pic.replaceAll(RegExp(r'https?://(localhost|0\.0\.0\.0):\d+'), 'https://admin.yaari.me');
                   if (_userProfilePic!.startsWith('/uploads/')) {
                     _userProfilePic = 'https://admin.yaari.me$_userProfilePic';
                   }
+                } else {
+                  _userProfilePic = null;
                 }
               }
             } catch (_) {}
@@ -459,12 +463,28 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () => Navigator.pushNamed(context, '/profile'),
               child: CircleAvatar(
                 radius: 16,
-                backgroundImage: (_userProfilePic != null && _userProfilePic!.isNotEmpty)
-                    ? NetworkImage(_userProfilePic!)
-                    : AssetImage(
-                        (_userGender?.toLowerCase() == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png'
-                      ) as ImageProvider,
                 backgroundColor: Colors.transparent,
+                child: ClipOval(
+                  child: (_userProfilePic != null && _userProfilePic!.isNotEmpty)
+                      ? Image.network(
+                          _userProfilePic!,
+                          fit: BoxFit.cover,
+                          width: 32,
+                          height: 32,
+                          errorBuilder: (_, __, ___) => Image.asset(
+                            (_userGender?.toLowerCase() == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png',
+                            fit: BoxFit.cover,
+                            width: 32,
+                            height: 32,
+                          ),
+                        )
+                      : Image.asset(
+                          (_userGender?.toLowerCase() == 'female') ? 'assets/images/favatar.png' : 'assets/images/Avtar.png',
+                          fit: BoxFit.cover,
+                          width: 32,
+                          height: 32,
+                        ),
+                ),
               ),
             ),
           )
