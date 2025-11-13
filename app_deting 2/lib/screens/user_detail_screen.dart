@@ -25,6 +25,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   Settings _settings = const Settings();
   String _callAccess = 'full';
   bool _loadingProfile = true;
+  bool _loadingImages = true;
 
   @override
   void initState() {
@@ -175,10 +176,14 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
           hobbies: hobbies,
         ),
       );
-      setState(() { _loadingProfile = false; });
+      setState(() { _loadingProfile = false; _loadingImages = true; });
 
       // Fetch images in background and update when ready (non-blocking)
-      unawaited(_fetchImages(profilePic, _dedupeByCanonical(galleryUrls)));
+      if ((profilePic == null || profilePic.isEmpty) && galleryUrls.isEmpty) {
+        setState(() { _loadingImages = false; });
+      } else {
+        unawaited(_fetchImages(profilePic, _dedupeByCanonical(galleryUrls)));
+      }
     } catch (_) {
       // Keep defaults if network fails
       setState(() { _loadingProfile = false; });
@@ -198,6 +203,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       ProfileStore.instance.update(
         current.copyWith(avatarBytes: avatarBytes, gallery: galleryBytes),
       );
+      if (mounted) setState(() { _loadingImages = false; });
     } catch (_) {}
   }
 
@@ -533,7 +539,10 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
-                _GalleryGrid(images: profile.gallery),
+                if (_loadingImages && profile.gallery.isEmpty)
+                  const _SkeletonGrid()
+                else
+                  _GalleryGrid(images: profile.gallery),
               ],
             );
           },
@@ -644,11 +653,95 @@ class _GalleryGrid extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.memory(images[index], fit: BoxFit.cover),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => _GalleryViewer(images: images, initialIndex: index),
+                    ),
+                  );
+                },
+                child: Image.memory(images[index], fit: BoxFit.cover),
+              ),
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _GalleryViewer extends StatefulWidget {
+  final List<Uint8List> images;
+  final int initialIndex;
+  const _GalleryViewer({required this.images, this.initialIndex = 0});
+
+  @override
+  State<_GalleryViewer> createState() => _GalleryViewerState();
+}
+
+class _GalleryViewerState extends State<_GalleryViewer> {
+  late final PageController _controller;
+  int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.initialIndex;
+    _controller = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _controller,
+            itemCount: widget.images.length,
+            onPageChanged: (i) => setState(() => _index = i),
+            itemBuilder: (context, i) {
+              return Container(
+                alignment: Alignment.center,
+                color: Colors.black,
+                child: InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 4,
+                  child: Image.memory(
+                    widget.images[i],
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              );
+            },
+          ),
+          SafeArea(
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${_index + 1}/${widget.images.length}',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

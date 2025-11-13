@@ -74,7 +74,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _imagesLoading = true;
     });
 
-    // Prefill gender from ProfileStore so previously selected value reflects immediately
     final current = ProfileStore.instance.notifier.value;
     _gender = current.gender;
     _avatarBytes = current.avatarBytes; // show cached avatar while images fetch
@@ -83,6 +82,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     final userJson = prefs.getString('user');
     final savedLang = prefs.getString('language');
+    final savedGender = prefs.getString('gender');
     if (savedLang != null && savedLang.isNotEmpty) {
       _language = savedLang;
     }
@@ -95,6 +95,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         localData = m is Map<String, dynamic> ? (m['user'] ?? m) as Map<String, dynamic> : <String, dynamic>{};
         userId = localData['id']?.toString() ?? localData['_id']?.toString();
       } catch (_) {}
+    }
+
+    final derivedGender = _normalizeGender(_gender ?? localData['gender']?.toString() ?? localData['sex']?.toString() ?? savedGender);
+    if (derivedGender != null) {
+      _gender = derivedGender;
     }
 
     // Fetch latest profile details from server and update controllers/state
@@ -135,7 +140,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         phoneController.text = (data['phone'] ?? phoneController.text).toString();
         emailController.text = (data['email'] ?? '').toString();
         aboutController.text = (data['about'] ?? '').toString();
-        _gender = _gender ?? (data['gender']?.toString());
+        _gender = _normalizeGender(data['gender']?.toString() ?? data['sex']?.toString()) ?? _gender;
         final List<dynamic> hobbies = (data['hobbies'] ?? []) as List<dynamic>;
         _hobbies
           ..clear()
@@ -180,6 +185,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return 'https://admin.yaari.me$u';
     }
     return null;
+  }
+
+  String? _normalizeGender(String? v) {
+    if (v == null) return null;
+    final s = v.trim().toLowerCase();
+    if (s.isEmpty) return null;
+    if (s.startsWith('f')) return 'female';
+    if (s.startsWith('m')) return 'male';
+    if (s == '0') return 'female';
+    if (s == '1') return 'male';
+    return s;
   }
 
   Future<void> _loadGalleryBytes(List<String> urls) async {
