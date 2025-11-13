@@ -54,9 +54,15 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     await db.collection('users').deleteOne({ _id: new ObjectId(params.id) })
     
     // Notify the user via socket to logout
-    const io = (global as any).io
-    if (io) {
-      io.to(params.id).emit('force-logout', { reason: 'account_deleted' })
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://admin.yaari.me'
+      await fetch(`${baseUrl}/api/force-logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: params.id })
+      })
+    } catch (e) {
+      console.error('Failed to send force-logout:', e)
     }
     
     return NextResponse.json({ success: true }, {
