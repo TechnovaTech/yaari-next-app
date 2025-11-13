@@ -89,6 +89,15 @@ class UserListItem {
   });
 
   factory UserListItem.fromJson(Map<String, dynamic> j) {
+    String? _normalizeGender(dynamic g) {
+      final t = (g?.toString() ?? '').trim().toLowerCase();
+      if (t.isEmpty) return null;
+      if (t.startsWith('m')) return 'male';
+      if (t.startsWith('f')) return 'female';
+      if (t == '0') return 'female';
+      if (t == '1') return 'male';
+      return t;
+    }
     String? _fixUrl(String? url) {
       if (url == null || url.isEmpty) return url;
       // Normalize admin uploads
@@ -112,7 +121,7 @@ class UserListItem {
     final String? avatar = _fixUrl(
       (j['profilePic'] as String?) ?? (j['avatar'] as String?) ?? (j['image'] as String?)
     );
-    final String? gender = (j['gender'] ?? j['sex'])?.toString();
+    final String? gender = _normalizeGender(j['gender'] ?? j['sex']);
     final String rawAccess = (j['callAccess'] ?? 'full').toString().toLowerCase();
     final String callAccess = {
       'none': 'none',
@@ -126,7 +135,7 @@ class UserListItem {
       status: 'Offline',
       attributes: attributes.isEmpty ? 'Attributes' : attributes,
       avatarUrl: avatar,
-      gender: gender?.toLowerCase(),
+      gender: gender,
       callAccess: callAccess,
     );
   }

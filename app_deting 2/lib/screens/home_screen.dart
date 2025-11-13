@@ -169,12 +169,35 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
 
+    void applyOffline(String id) {
+      _statusById[id] = 'Offline';
+      setState(() {
+        _users = _users.map((user) {
+          final newStatus = user.id == id ? 'Offline' : (_statusById[user.id] ?? user.status);
+          return UserListItem(
+            id: user.id,
+            name: user.name,
+            status: newStatus,
+            attributes: user.attributes,
+            avatarUrl: user.avatarUrl,
+            gender: user.gender,
+            callAccess: user.callAccess,
+          );
+        }).toList();
+        _sortUsersByStatus();
+      });
+    }
+
     String? _idFrom(dynamic item) {
       if (item == null) return null;
       if (item is String || item is num) return item.toString();
       if (item is Map) {
         final m = item as Map;
-        final v = m['userId'] ?? m['id'] ?? m['_id'];
+        dynamic v = m['userId'] ?? m['userid'] ?? m['user_id'] ?? m['uid'] ?? m['id'] ?? m['_id'];
+        if (v == null && m['user'] is Map) {
+          final u = m['user'] as Map;
+          v = u['id'] ?? u['_id'] ?? u['userId'] ?? u['userid'];
+        }
         return v?.toString();
       }
       return null;
@@ -192,27 +215,44 @@ class _HomeScreenState extends State<HomeScreen> {
           String st = 'Online';
           if (item is Map) {
             st = _normalizeStatus(item['status']);
-            authoritative = true; // maps with explicit status considered authoritative
           }
           if (st == 'Online') onlineIds.add(id);
           if (st == 'Busy') busyIds.add(id);
         }
       } else if (data is Map) {
-        // Shapes like { online: [...], busy: [...] }
-        authoritative = true;
-        final onlineList = data['online'];
-        final busyList = data['busy'] ?? data['oncall'];
+        final onlineList = data['online'] ?? data['onlineUsers'] ?? data['available'] ?? data['active'] ?? data['users'] ?? data['list'] ?? data['ids'] ?? data['onlineUserIds'] ?? data['online_ids'];
+        final busyList = data['busy'] ?? data['busyUsers'] ?? data['oncall'] ?? data['on_call'] ?? data['calling'] ?? data['busyUserIds'] ?? data['busy_ids'] ?? data['occupied'];
+        authoritative = onlineList is List;
         if (onlineList is List) {
           for (final item in onlineList) {
             final id = _idFrom(item);
             if (id != null) onlineIds.add(id);
           }
+        } else if (onlineList is Map) {
+          onlineList.forEach((key, value) {
+            final id = _idFrom(key) ?? key?.toString();
+            if (id != null) {
+              final st = _normalizeStatus(value);
+              if (st == 'Online') onlineIds.add(id);
+              if (st == 'Busy') busyIds.add(id);
+            }
+          });
+          authoritative = true;
         }
         if (busyList is List) {
           for (final item in busyList) {
             final id = _idFrom(item);
             if (id != null) busyIds.add(id);
           }
+        } else if (busyList is Map) {
+          busyList.forEach((key, value) {
+            final id = _idFrom(key) ?? key?.toString();
+            if (id != null) {
+              final st = _normalizeStatus(value);
+              if (st == 'Busy') busyIds.add(id);
+            }
+          });
+          authoritative = true;
         }
       }
       debugPrint('📥 [HomeScreen] Computed online=${onlineIds.length}, busy=${busyIds.length}');
@@ -237,8 +277,45 @@ class _HomeScreenState extends State<HomeScreen> {
     // Listen to multiple event name variants to maximize compatibility
     SocketService.instance.on('online-users', handleOnlineUsers);
     SocketService.instance.on('onlineUsers', handleOnlineUsers);
+    SocketService.instance.on('presence', handleOnlineUsers);
+    SocketService.instance.on('presence-update', handleOnlineUsers);
+    SocketService.instance.on('statusUpdate', handleOnlineUsers);
+    SocketService.instance.on('userPresence', handleOnlineUsers);
     SocketService.instance.on('user-status-change', handleStatusChange);
     SocketService.instance.on('userStatusChange', handleStatusChange);
+    void handleOfflineEvent(dynamic data) {
+      try {
+        if (data is Map) {
+          final id = (data['userId'] ?? data['userid'] ?? data['user_id'] ?? data['uid'] ?? data['id'] ?? data['_id'])?.toString();
+          if (id != null && id.isNotEmpty) applyOffline(id);
+        } else if (data is String || data is num) {
+          applyOffline(data.toString());
+        }
+      } catch (_) {}
+    }
+    SocketService.instance.on('user-offline', handleOfflineEvent);
+    SocketService.instance.on('userOffline', handleOfflineEvent);
+    SocketService.instance.on('user-disconnected', handleOfflineEvent);
+    SocketService.instance.on('userDisconnected', handleOfflineEvent);
+    SocketService.instance.on('peer-left', handleOfflineEvent);
+    SocketService.instance.on('left-channel', handleOfflineEvent);
+    SocketService.instance.on('leave-channel', handleOfflineEvent);
+    SocketService.instance.on('leftChannel', handleOfflineEvent);
+    SocketService.instance.on('end-call', (data) {
+      try {
+        if (data is Map) {
+          final u1 = (data['userId'] ?? data['userid'] ?? data['id'] ?? data['_id'])?.toString();
+          final u2 = (data['otherUserId'] ?? data['other_user_id'])?.toString();
+          final online = <String>{};
+          if (u1 != null && u1.isNotEmpty) online.add(u1);
+          if (u2 != null && u2.isNotEmpty) online.add(u2);
+          if (online.isNotEmpty) {
+            applyStatuses(online, const <String>{}, authoritative: false);
+          }
+          try { SocketService.instance.emit('get-online-users', {}); } catch (_) {}
+        }
+      } catch (_) {}
+    });
     
     // Listen for balance updates
     SocketService.instance.on('balance-updated', (data) {
@@ -359,11 +436,12 @@ class _HomeScreenState extends State<HomeScreen> {
         // Exclude self
         if (_currentUserId != null && u.id == _currentUserId) return false;
         // Gender-based filtering
+        final g = _normalizeGender(u.gender);
         if (_userGender == 'male') {
-          return (u.gender ?? '').toLowerCase() == 'female';
+          return g == 'female';
         }
         if (_userGender == 'female') {
-          return (u.gender ?? '').toLowerCase() == 'male';
+          return g == 'male';
         }
         return true; // if gender not set, show all
       }).toList();
