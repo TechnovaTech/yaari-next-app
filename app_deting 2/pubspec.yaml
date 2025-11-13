@@ -66,7 +66,7 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/app icon.png"
+  image_path: "assets/images/applogo.png"
   remove_alpha_ios: true
 
 # For information on the generic Dart part of this file, see the
@@ -76,7 +76,8 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
   assets:
-    - assets/app icon.png
+    - assets/images/applogo.png
+
     - assets/images/yari.png
     - assets/images/Avtar.png
     - assets/images/favatar.png
