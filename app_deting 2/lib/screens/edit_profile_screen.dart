@@ -43,6 +43,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _emailLocked = false;
   bool _hobbyFieldEmpty = true;
   bool _nameFieldEmpty = true;
+  bool _profileLoading = true; // gate for text fields
+  bool _imagesLoading = true; // gate for avatar and gallery
 
   @override
   void initState() {
@@ -66,56 +68,105 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _loadInitialState() async {
-    // Prefill gender from ProfileStore so it reflects previously selected value
+    // Start in loading state; we'll unblock sections as fresh data arrives
+    if (mounted) setState(() {
+      _profileLoading = true;
+      _imagesLoading = true;
+    });
+
+    // Prefill gender from ProfileStore so previously selected value reflects immediately
     final current = ProfileStore.instance.notifier.value;
     _gender = current.gender;
-    _avatarBytes = current.avatarBytes;
+    _avatarBytes = current.avatarBytes; // show cached avatar while images fetch
 
-    // Load user from SharedPreferences and prefill fields
+    // Read persisted prefs for user id and language
     final prefs = await SharedPreferences.getInstance();
     final userJson = prefs.getString('user');
     final savedLang = prefs.getString('language');
     if (savedLang != null && savedLang.isNotEmpty) {
       _language = savedLang;
     }
+
+    String? userId;
+    Map<String, dynamic> localData = <String, dynamic>{};
     if (userJson != null && userJson.isNotEmpty) {
       try {
         final m = jsonDecode(userJson);
-        final data = m is Map<String, dynamic> ? (m['user'] ?? m) : {};
-        if (data is Map<String, dynamic>) {
-          nameController.text = (data['name'] ?? '').toString();
-          phoneController.text = (data['phone'] ?? phoneController.text).toString();
-          emailController.text = (data['email'] ?? '').toString();
-          // Determine lock state based on existing persisted values
-          final existingPhone = (data['phone'] ?? '').toString().trim();
-          final existingEmail = (data['email'] ?? '').toString().trim();
-          _phoneLocked = existingPhone.isNotEmpty;
-          _emailLocked = existingEmail.isNotEmpty;
-          aboutController.text = (data['about'] ?? '').toString();
-          _gender = _gender ?? (data['gender']?.toString());
-          final List<dynamic> hobbies = (data['hobbies'] ?? []) as List<dynamic>;
-          _hobbies.clear();
-          _hobbies.addAll(hobbies.map((e) => e.toString()).where((s) => s.trim().isNotEmpty));
-          // Profile picture and gallery
-          _profilePicUrl = _normalizeUrl((data['profilePic'] ?? data['avatar'] ?? data['image'])?.toString());
-          final g = data['gallery'];
-          if (g is List) {
-            // Load gallery images from URLs into bytes for existing UI components
-            _gallery.clear();
-            _galleryUrls.clear();
-            await _loadGalleryBytes(
-              g.map((e) => e?.toString()).where((u) => (u ?? '').isNotEmpty).cast<String>().toList(),
-            );
-          }
-          // Fallback to images endpoint if needed
-          final id = data['id']?.toString() ?? data['_id']?.toString();
-          if (id != null && id.isNotEmpty) {
-            await _refreshImagesFromServer(id);
-          }
-        }
+        localData = m is Map<String, dynamic> ? (m['user'] ?? m) as Map<String, dynamic> : <String, dynamic>{};
+        userId = localData['id']?.toString() ?? localData['_id']?.toString();
       } catch (_) {}
     }
-    if (mounted) setState(() {});
+
+    // Fetch latest profile details from server and update controllers/state
+    if (userId != null && userId.isNotEmpty) {
+      await _refreshUserFromServer(userId);
+      // Fetch images in background; do not block text fields
+      _refreshImagesFromServer(userId).whenComplete(() {
+        if (mounted) setState(() => _imagesLoading = false);
+      });
+    } else {
+      // No server id; fall back to local prefill minimally
+      try {
+        nameController.text = (localData['name'] ?? '').toString();
+        phoneController.text = (localData['phone'] ?? phoneController.text).toString();
+        emailController.text = (localData['email'] ?? '').toString();
+        aboutController.text = (localData['about'] ?? '').toString();
+        _gender = _gender ?? (localData['gender']?.toString());
+        final List<dynamic> hobbies = (localData['hobbies'] ?? []) as List<dynamic>;
+        _hobbies
+          ..clear()
+          ..addAll(hobbies.map((e) => e.toString()).where((s) => s.trim().isNotEmpty));
+      } catch (_) {}
+      if (mounted) setState(() {
+        _profileLoading = false;
+        _imagesLoading = false;
+      });
+    }
+  }
+
+  Future<void> _refreshUserFromServer(String userId) async {
+    try {
+      final res = await http.get(Uri.parse('https://admin.yaari.me/api/users/$userId'));
+      if (res.statusCode == 200) {
+        final m = jsonDecode(res.body);
+        final data = m is Map<String, dynamic> ? (m['data'] ?? m) as Map<String, dynamic> : <String, dynamic>{};
+        // Update input fields with fresh server data
+        nameController.text = (data['name'] ?? '').toString();
+        phoneController.text = (data['phone'] ?? phoneController.text).toString();
+        emailController.text = (data['email'] ?? '').toString();
+        aboutController.text = (data['about'] ?? '').toString();
+        _gender = _gender ?? (data['gender']?.toString());
+        final List<dynamic> hobbies = (data['hobbies'] ?? []) as List<dynamic>;
+        _hobbies
+          ..clear()
+          ..addAll(hobbies.map((e) => e.toString()).where((s) => s.trim().isNotEmpty));
+        _profilePicUrl = _normalizeUrl((data['profilePic'] ?? data['avatar'] ?? data['image'])?.toString());
+
+        // Determine lock state based on server values
+        final existingPhone = (data['phone'] ?? '').toString().trim();
+        final existingEmail = (data['email'] ?? '').toString().trim();
+        _phoneLocked = existingPhone.isNotEmpty;
+        _emailLocked = existingEmail.isNotEmpty;
+
+        // Persist fresh user object back to prefs
+        final prefs = await SharedPreferences.getInstance();
+        try {
+          final uj = prefs.getString('user');
+          if (uj != null && uj.isNotEmpty) {
+            final obj = jsonDecode(uj);
+            if (obj is Map<String, dynamic>) {
+              if (obj['user'] is Map<String, dynamic>) {
+                obj['user'] = {...(obj['user'] as Map<String, dynamic>), ...data};
+              } else {
+                obj.addAll(data);
+              }
+              await prefs.setString('user', jsonEncode(obj));
+            }
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _profileLoading = false);
   }
 
   String? _normalizeUrl(String? url) {
@@ -558,19 +609,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     children: [
                       Row(
                         children: [
-                          SizedBox(
-                            width: 96,
-                            height: 96,
-                            child: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 3),
-                                  ),
-                                  child: ClipOval(
-                                    child: _avatarBytes != null
+                      SizedBox(
+                        width: 96,
+                        height: 96,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 3),
+                              ),
+                              child: ClipOval(
+                                child: _imagesLoading
+                                    ? const _SkeletonCircle(size: 96)
+                                    : (_avatarBytes != null
                                         ? Image.memory(
                                             _avatarBytes!,
                                             fit: BoxFit.cover,
@@ -582,33 +635,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                             fit: BoxFit.cover,
                                             width: 96,
                                             height: 96,
-                                          ),
+                                          )),
+                              ),
+                            ),
+                            if (!_imagesLoading && _avatarBytes != null)
+                              Positioned(
+                                top: -4,
+                                right: -4,
+                                child: InkWell(
+                                  onTap: _removeProfilePicture,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      boxShadow: const [
+                                        BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3)),
+                                      ],
+                                    ),
+                                    child: const Icon(Icons.close, size: 16, color: Colors.black54),
                                   ),
                                 ),
-                                if (_avatarBytes != null)
-                                  Positioned(
-                                    top: -4,
-                                    right: -4,
-                                    child: InkWell(
-                                      onTap: _removeProfilePicture,
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Container(
-                                        width: 28,
-                                        height: 28,
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          shape: BoxShape.circle,
-                                          boxShadow: const [
-                                            BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3)),
-                                          ],
-                                        ),
-                                        child: const Icon(Icons.close, size: 16, color: Colors.black54),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
+                              ),
+                          ],
+                        ),
+                      ),
                           const SizedBox(width: 16),
                           SizedBox(
                             width: 160,
@@ -658,34 +711,44 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                       const SizedBox(height: 18),
 
-                      _InputField(
-                        controller: nameController,
-                        hint: 'User Name',
-                        required: addMode,
-                      ),
-                      const SizedBox(height: 14),
-                      _InputField(
-                        controller: phoneController,
-                        hint: '+91 9879879877',
-                        keyboardType: TextInputType.phone,
-                        enabled: !_phoneLocked,
-                        helperText: _phoneLocked ? AppTranslations.get('phone_locked') : null,
-                      ),
-                      const SizedBox(height: 14),
-                      _InputField(
-                        controller: emailController,
-                        hint: AppTranslations.get('email'),
-                        keyboardType: TextInputType.emailAddress,
-                        enabled: !_emailLocked,
-                        helperText: _emailLocked ? AppTranslations.get('email_locked') : null,
-                      ),
-                      const SizedBox(height: 14),
-                      _InputField(
-                        controller: aboutController,
-                        hint: AppTranslations.get('about_me'),
-                        keyboardType: TextInputType.multiline,
-                        maxLines: 5,
-                      ),
+                      if (_profileLoading) ...[
+                        const _SkeletonBlock(height: 50),
+                        const SizedBox(height: 14),
+                        const _SkeletonBlock(height: 50),
+                        const SizedBox(height: 14),
+                        const _SkeletonBlock(height: 50),
+                        const SizedBox(height: 14),
+                        const _SkeletonBlock(height: 120),
+                      ] else ...[
+                        _InputField(
+                          controller: nameController,
+                          hint: 'User Name',
+                          required: addMode,
+                        ),
+                        const SizedBox(height: 14),
+                        _InputField(
+                          controller: phoneController,
+                          hint: '+91 9879879877',
+                          keyboardType: TextInputType.phone,
+                          enabled: !_phoneLocked,
+                          helperText: _phoneLocked ? AppTranslations.get('phone_locked') : null,
+                        ),
+                        const SizedBox(height: 14),
+                        _InputField(
+                          controller: emailController,
+                          hint: AppTranslations.get('email'),
+                          keyboardType: TextInputType.emailAddress,
+                          enabled: !_emailLocked,
+                          helperText: _emailLocked ? AppTranslations.get('email_locked') : null,
+                        ),
+                        const SizedBox(height: 14),
+                        _InputField(
+                          controller: aboutController,
+                          hint: AppTranslations.get('about_me'),
+                          keyboardType: TextInputType.multiline,
+                          maxLines: 5,
+                        ),
+                      ],
 
                       const SizedBox(height: 22),
                       // Gallery
@@ -708,11 +771,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ],
                       ),
                       const SizedBox(height: 10),
-                      _GalleryGrid(
-                        images: _gallery,
-                        onRemove: (i) => _deletePhotoAt(i),
-                        onAdd: _addPhotos,
-                      ),
+                      _imagesLoading
+                          ? const _SkeletonGrid(tileCount: 6)
+                          : _GalleryGrid(
+                              images: _gallery,
+                              onRemove: (i) => _deletePhotoAt(i),
+                              onAdd: _addPhotos,
+                            ),
 
                       const SizedBox(height: 22),
                       // Hobbies
@@ -771,7 +836,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: (addMode && nameController.text.trim().isEmpty) ? null : () async {
+                  onPressed: (_profileLoading || (addMode && nameController.text.trim().isEmpty)) ? null : () async {
                     if (_saving) return;
                     setState(() => _saving = true);
                     final current = ProfileStore.instance.notifier.value;
@@ -859,6 +924,87 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
       ),
     );
+  }
+}
+
+// Simple skeleton components for loading states
+class _SkeletonBlock extends StatelessWidget {
+  final double height;
+  final double? width;
+  const _SkeletonBlock({required this.height, this.width});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width ?? double.infinity,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDEDED),
+        borderRadius: BorderRadius.circular(12),
+      ),
+    );
+  }
+}
+
+class _SkeletonCircle extends StatelessWidget {
+  final double size;
+  const _SkeletonCircle({required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(
+        color: Color(0xFFEDEDED),
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+class _SkeletonGrid extends StatelessWidget {
+  final int tileCount;
+  const _SkeletonGrid({this.tileCount = 6});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, constraints) {
+      final width = constraints.maxWidth;
+      int count;
+      if (width < 360) {
+        count = 2;
+      } else if (width < 600) {
+        count = 3;
+      } else if (width < 900) {
+        count = 4;
+      } else if (width < 1200) {
+        count = 5;
+      } else {
+        count = 6;
+      }
+      const spacing = 10.0;
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: count,
+          crossAxisSpacing: spacing,
+          mainAxisSpacing: spacing,
+          childAspectRatio: 1.0,
+        ),
+        itemCount: tileCount,
+        itemBuilder: (context, index) {
+          return Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFEDEDED),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFDEDEDE), width: 1),
+            ),
+          );
+        },
+      );
+    });
   }
 }
 

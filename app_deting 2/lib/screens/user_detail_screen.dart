@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:app_deting/models/profile_store.dart';
 import 'package:http/http.dart' as http;
@@ -23,6 +24,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   int _coinBalance = 100;
   Settings _settings = const Settings();
   String _callAccess = 'full';
+  bool _loadingProfile = true;
 
   @override
   void initState() {
@@ -69,6 +71,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
 
   Future<void> _loadAndFetchUser() async {
     try {
+      setState(() { _loadingProfile = true; });
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString('user');
       String? userId;
@@ -108,6 +111,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
             gender: localGender,
           ),
         );
+        setState(() { _loadingProfile = false; });
         return;
       }
 
@@ -153,37 +157,48 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
         } catch (_) {}
       }
 
-      // Download images as bytes for the existing UI
-      Uint8List? avatarBytes;
-      if (profilePic != null && profilePic.isNotEmpty) {
-        avatarBytes = await _downloadBytes(profilePic);
-      }
-      final List<Uint8List> galleryBytes = [];
-      for (final url in _dedupeByCanonical(galleryUrls)) {
-        final b = await _downloadBytes(url);
-        if (b != null) galleryBytes.add(b);
-      }
-
       final name = (userData['name'] ?? localName ?? 'User Name').toString();
       final phone = (userData['phone'] ?? localPhone ?? '+91 9879879877').toString();
       final about = (userData['about'] ?? localAbout ?? '').toString();
       final gender = (userData['gender'] ?? localGender)?.toString();
       final hobbies = _extractHobbies(userData);
 
+      // Update textual details immediately to avoid showing stale data
       ProfileStore.instance.update(
         ProfileData(
           name: name,
           phone: phone,
           about: about.isNotEmpty ? about : null,
           gender: gender,
-          avatarBytes: avatarBytes,
-          gallery: galleryBytes,
+          avatarBytes: null,
+          gallery: const [],
           hobbies: hobbies,
         ),
       );
+      setState(() { _loadingProfile = false; });
+
+      // Fetch images in background and update when ready (non-blocking)
+      unawaited(_fetchImages(profilePic, _dedupeByCanonical(galleryUrls)));
     } catch (_) {
       // Keep defaults if network fails
+      setState(() { _loadingProfile = false; });
     }
+  }
+
+  Future<void> _fetchImages(String? profilePic, List<String> galleryUrls) async {
+    try {
+      Uint8List? avatarBytes;
+      if (profilePic != null && profilePic.isNotEmpty) {
+        avatarBytes = await _downloadBytes(profilePic);
+      }
+      final futures = galleryUrls.map((u) => _downloadBytes(u)).toList();
+      final results = await Future.wait(futures);
+      final galleryBytes = results.whereType<Uint8List>().toList();
+      final current = ProfileStore.instance.notifier.value;
+      ProfileStore.instance.update(
+        current.copyWith(avatarBytes: avatarBytes, gallery: galleryBytes),
+      );
+    } catch (_) {}
   }
 
   String? _normalizeUrl(String? url) {
@@ -425,6 +440,26 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
         child: ValueListenableBuilder<ProfileData>(
           valueListenable: ProfileStore.instance.notifier,
           builder: (context, profile, _) {
+            if (_loadingProfile) {
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: const [
+                  _SkeletonHeader(),
+                  SizedBox(height: 20),
+                  _SkeletonBlock(height: 16, width: 80),
+                  SizedBox(height: 8),
+                  _SkeletonParagraph(lines: 3),
+                  SizedBox(height: 16),
+                  _SkeletonBlock(height: 16, width: 90),
+                  SizedBox(height: 8),
+                  _SkeletonChips(count: 3),
+                  SizedBox(height: 16),
+                  _SkeletonBlock(height: 16, width: 110),
+                  SizedBox(height: 8),
+                  _SkeletonGrid(),
+                ],
+              );
+            }
             final ImageProvider avatarProvider = profile.avatarBytes != null
                 ? MemoryImage(profile.avatarBytes!)
                 : AssetImage(profile.gender == 'male' ? 'assets/images/Avtar.png' : 'assets/images/favatar.png');
@@ -619,3 +654,93 @@ class _GalleryGrid extends StatelessWidget {
 }
 
 // Legacy duplicate implementation removed to avoid conflicts.
+
+// Simple skeleton widgets (no external dependency)
+class _SkeletonBlock extends StatelessWidget {
+  final double height;
+  final double? width;
+  const _SkeletonBlock({required this.height, this.width});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      width: width,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDEDED),
+        borderRadius: BorderRadius.circular(8),
+      ),
+    );
+  }
+}
+
+class _SkeletonHeader extends StatelessWidget {
+  const _SkeletonHeader();
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: const [
+        CircleAvatar(radius: 34, backgroundColor: Color(0xFFEDEDED)),
+        SizedBox(width: 16),
+        Expanded(child: _SkeletonBlock(height: 20)),
+      ],
+    );
+  }
+}
+
+class _SkeletonParagraph extends StatelessWidget {
+  final int lines;
+  const _SkeletonParagraph({this.lines = 3});
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: List.generate(lines, (i) => const Padding(
+        padding: EdgeInsets.only(bottom: 8),
+        child: _SkeletonBlock(height: 14),
+      )),
+    );
+  }
+}
+
+class _SkeletonChips extends StatelessWidget {
+  final int count;
+  const _SkeletonChips({this.count = 3});
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: List.generate(count, (i) => Container(
+        height: 28,
+        width: 70,
+        decoration: BoxDecoration(
+          color: const Color(0xFFEDEDED),
+          borderRadius: BorderRadius.circular(14),
+        ),
+      )),
+    );
+  }
+}
+
+class _SkeletonGrid extends StatelessWidget {
+  const _SkeletonGrid();
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 1.0,
+      ),
+      itemCount: 6,
+      itemBuilder: (context, index) => Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFEDEDED),
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+}

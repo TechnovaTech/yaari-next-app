@@ -27,9 +27,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   List<UserListItem> _users = const [];
-  int _coinBalance = 100;
+  int? _coinBalance; // null until loaded
   Settings _settings = const Settings();
   bool _loading = true;
+  bool _balanceLoading = true;
   AdItem? _ad; // legacy single-ad usage
   List<AdItem> _ads = const [];
   int _adIndex = 0;
@@ -246,7 +247,10 @@ class _HomeScreenState extends State<HomeScreen> {
         if (newBalance != null) {
           final bal = (newBalance is int) ? newBalance : int.tryParse(newBalance.toString());
           if (bal != null && mounted) {
-            setState(() => _coinBalance = bal);
+            setState(() {
+              _coinBalance = bal;
+              _balanceLoading = false;
+            });
             debugPrint('💰 [HomeScreen] Balance updated: $bal');
           }
         }
@@ -258,7 +262,10 @@ class _HomeScreenState extends State<HomeScreen> {
         if (newBalance != null) {
           final bal = (newBalance is int) ? newBalance : int.tryParse(newBalance.toString());
           if (bal != null && mounted) {
-            setState(() => _coinBalance = bal);
+            setState(() {
+              _coinBalance = bal;
+              _balanceLoading = false;
+            });
             debugPrint('💰 [HomeScreen] Balance updated: $bal');
           }
         }
@@ -278,7 +285,16 @@ class _HomeScreenState extends State<HomeScreen> {
         try {
           final m = UsersApiSettingsHelper.tryDecode(raw);
           final bal = m['balance'] ?? m['coins'] ?? m['amount'];
-          if (bal is int) _coinBalance = bal; else if (bal is String) _coinBalance = int.tryParse(bal) ?? _coinBalance;
+          if (bal is int) {
+            _coinBalance = bal;
+            _balanceLoading = false; // we have cached value
+          } else if (bal is String) {
+            final parsed = int.tryParse(bal);
+            if (parsed != null) {
+              _coinBalance = parsed;
+              _balanceLoading = false;
+            }
+          }
           // Extract current user ID and profile pic
           _currentUserId = _extractUserId(m);
           final container = (m['user'] is Map<String, dynamic>)
@@ -312,6 +328,7 @@ class _HomeScreenState extends State<HomeScreen> {
             final liveBal = await UsersApi.fetchBalance(_currentUserId!);
             if (liveBal != null) {
               _coinBalance = liveBal;
+              _balanceLoading = false;
             }
             // Fetch profile pic from server
             try {
@@ -369,13 +386,18 @@ class _HomeScreenState extends State<HomeScreen> {
         _ads = ads;
         _ad = ads.isNotEmpty ? ads.first : null;
         _loading = false;
+        // If no balance ever resolved, keep loading placeholder instead of showing 100
+        _balanceLoading = _coinBalance == null;
       });
       debugPrint('✅ [HomeScreen] Loaded ${_users.length} users, ${_ads.length} ads, balance: $_coinBalance');
       _configureAdAutoProgress();
     } catch (e) {
       debugPrint('❌ [HomeScreen] Error loading data: $e');
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _balanceLoading = _coinBalance == null;
+      });
     }
   }
 
@@ -461,7 +483,11 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
-            child: _CoinChip(onTap: () => Navigator.pushNamed(context, '/coins'), balance: _coinBalance),
+            child: _CoinChip(
+              onTap: () => Navigator.pushNamed(context, '/coins'),
+              balance: _coinBalance,
+              loading: _balanceLoading,
+            ),
           ),
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
@@ -544,7 +570,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       gender: u.gender,
                       videoRate: _settings.videoCallRate,
                       audioRate: _settings.audioCallRate,
-                      balance: _coinBalance,
+                      balance: _coinBalance ?? 0,
                       callAccess: u.callAccess,
                     ),
                     const SizedBox(height: 12),
@@ -588,9 +614,10 @@ class UsersApiSettingsHelper {
 }
 
 class _CoinChip extends StatelessWidget {
-  final int balance;
+  final int? balance;
   final VoidCallback onTap;
-  const _CoinChip({required this.onTap, required this.balance});
+  final bool loading;
+  const _CoinChip({required this.onTap, required this.balance, this.loading = false});
 
   @override
   Widget build(BuildContext context) {
@@ -607,10 +634,20 @@ class _CoinChip extends StatelessWidget {
           children: [
             Image.asset('assets/images/coin.png', width: 18, height: 18),
             const SizedBox(width: 6),
-            Text(
-              '$balance',
-              style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
-            ),
+            if (loading || balance == null)
+              Container(
+                width: 28,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEDEDED),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              )
+            else
+              Text(
+                '${balance}',
+                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+              ),
           ],
         ),
       ),
