@@ -22,6 +22,7 @@ class CallService {
   CallType _currentType = CallType.audio;
   final ValueNotifier<bool> joined = ValueNotifier<bool>(false);
   final ValueNotifier<bool> speakerOn = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> muted = ValueNotifier<bool>(false);
   // Notifies when remote peer ends the call (detected via Agora callbacks)
   final ValueNotifier<bool> peerEnded = ValueNotifier<bool>(false);
   static const platform = MethodChannel('com.example.app_deting/audio');
@@ -152,6 +153,7 @@ class CallService {
       try { await _engine!.enableLocalAudio(true); } catch (_) {}
       try { await _engine!.muteLocalAudioStream(false); } catch (_) {}
       try { await _engine!.muteAllRemoteAudioStreams(false); } catch (_) {}
+      muted.value = false;
       // Actively route to speaker
       try { await _engine!.setEnableSpeakerphone(true); } catch (_) {}
       try { await _engine!.setDefaultAudioRouteToSpeakerphone(true); } catch (_) {}
@@ -219,6 +221,7 @@ class CallService {
     }
     channelName = null;
     speakerOn.value = false;
+    muted.value = false;
     remoteUid = null;
     remoteUidNotifier.value = null;
     peerEnded.value = false;
@@ -247,6 +250,13 @@ class CallService {
     } catch (e) {
       debugPrint('❌ [CallService] Audio routing failed: $e');
     }
+  }
+
+  Future<void> toggleMute() async {
+    final bool next = !muted.value;
+    try { await _engine?.muteLocalAudioStream(next); } catch (_) {}
+    muted.value = next;
+    debugPrint('🎙️ [CallService] Local mic ${next ? "muted" : "unmuted"}');
   }
 
   // Lifecycle helpers to be called from screens

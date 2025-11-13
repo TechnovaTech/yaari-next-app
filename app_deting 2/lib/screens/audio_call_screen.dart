@@ -341,144 +341,152 @@ class _AudioCallScreenState extends State<AudioCallScreen> with WidgetsBindingOb
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        // Prevent accidental back press - require explicit End Call button
         return false;
       },
       child: Scaffold(
-      backgroundColor: const Color(0xFFFEF8F4),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () async {
-            await _closeToHome();
-          },
-        ),
-        title: const Text(
-          'Audio Call',
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.black),
-        ),
-      ),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 16),
-            Builder(builder: (context) {
-              final String url = _avatarUrl ?? '';
-              final ImageProvider<Object> avatarImage = url.isNotEmpty
-                  ? NetworkImage(url)
-                  : AssetImage(_gender == 'male' ? 'assets/images/Avtar.png' : 'assets/images/favatar.png');
-              return CircleAvatar(
-                radius: 42,
-                backgroundColor: Colors.transparent,
-                backgroundImage: avatarImage,
-              );
-            }),
-            const SizedBox(height: 8),
-            Text(_displayName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.call, color: accent),
-                SizedBox(width: 6),
-                Text('Audio Call', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFFF8A4D), Color(0xFFFF713C)],
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                const SizedBox(height: 36),
+                Builder(builder: (context) {
+                  final String url = _avatarUrl ?? '';
+                  final ImageProvider<Object> avatarImage = url.isNotEmpty
+                      ? NetworkImage(url)
+                      : AssetImage(_gender == 'male' ? 'assets/images/Avtar.png' : 'assets/images/favatar.png');
+                  return CircleAvatar(
+                    radius: 54,
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    backgroundImage: avatarImage,
+                  );
+                }),
+                const SizedBox(height: 28),
+                Text(
+                  _displayName,
+                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _callDuration,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white70),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset('assets/images/coin.png', width: 18, height: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${(_ratePerMin > 0 ? _ratePerMin : 5)}',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white70),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 36, left: 24, right: 24),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _service.speakerOn,
+                        builder: (context, on, _) {
+                          return InkWell(
+                            onTap: _service.toggleSpeaker,
+                            child: Container(
+                              width: 64,
+                              height: 64,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: Icon(on ? Icons.volume_up : Icons.hearing, color: const Color(0xFFFD6F38), size: 28),
+                            ),
+                          );
+                        },
+                      ),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _service.joined,
+                        builder: (context, hasJoined, _) {
+                          return InkWell(
+                            onTap: hasJoined
+                                ? () async {
+                                    SocketService.instance.emit('end-call', {
+                                      'userId': _callerId,
+                                      'otherUserId': _receiverId,
+                                      'channelName': _channel,
+                                    });
+                                    try {
+                                      final start = _joinedAt;
+                                      final durationSec = start != null ? DateTime.now().difference(start).inSeconds : 0;
+                                      final callerId = _callerId ?? '';
+                                      final receiverId = _receiverId ?? '';
+                                      if (callerId.isNotEmpty && receiverId.isNotEmpty) {
+                                        await CallLogApi.logEnd(
+                                          callerId: callerId,
+                                          receiverId: receiverId,
+                                          callType: 'audio',
+                                          durationSeconds: durationSec,
+                                        );
+                                        AnalyticsService.instance.trackCallEvent(
+                                          action: 'ended',
+                                          callType: 'audio',
+                                          callerId: callerId,
+                                          receiverId: receiverId,
+                                          channelName: _channel,
+                                          durationSeconds: durationSec,
+                                        );
+                                      }
+                                    } catch (_) {}
+                                    await _closeToHome();
+                                  }
+                                : null,
+                            child: Container(
+                              width: 72,
+                              height: 72,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFE6492D),
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: const Icon(Icons.call_end, color: Colors.white, size: 30),
+                            ),
+                          );
+                        },
+                      ),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _service.muted,
+                        builder: (context, isMuted, _) {
+                          return InkWell(
+                            onTap: _service.toggleMute,
+                            child: Container(
+                              width: 64,
+                              height: 64,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFFF8A4D),
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: Icon(isMuted ? Icons.mic_off : Icons.mic, color: Colors.white, size: 28),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(_callDuration, style: const TextStyle(fontSize: 16, color: Colors.black54, fontWeight: FontWeight.w600)),
-
-            const SizedBox(height: 16),
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3EFEA),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Center(
-                  child: Icon(Icons.graphic_eq, size: 72, color: Colors.black26),
-                ),
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ValueListenableBuilder<bool>(
-                      valueListenable: _service.speakerOn,
-                      builder: (context, on, _) {
-                        return OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                            side: const BorderSide(color: Color(0xFFE0DFDD)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          onPressed: () => _service.toggleSpeaker(),
-                          icon: Icon(on ? Icons.volume_up : Icons.hearing, color: Colors.black87),
-                          label: Text(on ? 'Speaker' : 'Earpiece', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ValueListenableBuilder<bool>(
-                      valueListenable: _service.joined,
-                      builder: (context, hasJoined, _) {
-                        return ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: accent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          onPressed: hasJoined ? () async {
-                            SocketService.instance.emit('end-call', {
-                              'userId': _callerId,
-                              'otherUserId': _receiverId,
-                              'channelName': _channel,
-                            });
-                            try {
-                              final start = _joinedAt;
-                              final durationSec = start != null ? DateTime.now().difference(start).inSeconds : 0;
-                              final callerId = _callerId ?? '';
-                              final receiverId = _receiverId ?? '';
-                              if (callerId.isNotEmpty && receiverId.isNotEmpty) {
-                                await CallLogApi.logEnd(
-                                  callerId: callerId,
-                                  receiverId: receiverId,
-                                  callType: 'audio',
-                                  durationSeconds: durationSec,
-                                );
-                                AnalyticsService.instance.trackCallEvent(
-                                  action: 'ended',
-                                  callType: 'audio',
-                                  callerId: callerId,
-                                  receiverId: receiverId,
-                                  channelName: _channel,
-                                  durationSeconds: durationSec,
-                                );
-                              }
-                          } catch (_) {}
-                            await _closeToHome();
-                          } : null,
-                          icon: const Icon(Icons.call_end, color: Colors.white),
-                          label: const Text('End Call'),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
       ),
     );
   }
