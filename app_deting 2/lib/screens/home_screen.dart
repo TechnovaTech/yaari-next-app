@@ -484,7 +484,9 @@ class _HomeScreenState extends State<HomeScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: _CoinChip(
-              onTap: () => Navigator.pushNamed(context, '/coins'),
+              onTap: () {
+                Navigator.pushNamed(context, '/coins').then((_) => _refreshHome());
+              },
               balance: _coinBalance,
               loading: _balanceLoading,
             ),
@@ -572,6 +574,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       audioRate: _settings.audioCallRate,
                       balance: _coinBalance ?? 0,
                       callAccess: u.callAccess,
+                      onReturnedFromCoins: _refreshHome,
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -947,6 +950,7 @@ class _UserCard extends StatelessWidget {
   final int audioRate;
   final int balance;
   final String callAccess; // 'none' | 'audio' | 'video' | 'full'
+  final VoidCallback? onReturnedFromCoins;
   const _UserCard({
     this.id,
     required this.status,
@@ -958,6 +962,7 @@ class _UserCard extends StatelessWidget {
     this.audioRate = 10,
     this.balance = 250,
     this.callAccess = 'full',
+    this.onReturnedFromCoins,
   });
 
   Color get _statusColor {
@@ -1104,7 +1109,9 @@ class _UserCard extends StatelessWidget {
                                   title: 'Stay connected',
                                   message: 'Recharge now to continue your yaari moments!',
                                   onRecharge: () {
-                                    Navigator.pushNamed(context, '/coins');
+                                    Navigator.pushNamed(context, '/coins').then((_) {
+                                      onReturnedFromCoins?.call();
+                                    });
                                   },
                                 );
                                 return;
@@ -1180,7 +1187,9 @@ class _UserCard extends StatelessWidget {
                                   title: 'Stay connected',
                                   message: 'Recharge now to continue your yaari moments!',
                                   onRecharge: () {
-                                    Navigator.pushNamed(context, '/coins');
+                                    Navigator.pushNamed(context, '/coins').then((_) {
+                                      onReturnedFromCoins?.call();
+                                    });
                                   },
                                 );
                                 return;

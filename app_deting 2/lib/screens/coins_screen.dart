@@ -173,6 +173,25 @@ class _CoinsScreenState extends State<CoinsScreen> {
           _coinsInput.clear();
           _selectedPlan = null;
         });
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final rawUser = prefs.getString('user');
+          if (rawUser != null) {
+            final mm = jsonDecode(rawUser);
+            final map = mm is Map<String, dynamic> ? mm : <String, dynamic>{};
+            void set(Map<String, dynamic> obj) {
+              obj['balance'] = _balance;
+              obj['coins'] = _balance;
+              obj['amount'] = _balance;
+            }
+            set(map);
+            final u = map['user'];
+            if (u is Map<String, dynamic>) set(u);
+            final d = map['data'];
+            if (d is Map<String, dynamic>) set(d);
+            await prefs.setString('user', jsonEncode(map));
+          }
+        } catch (_) {}
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment successful')));
       } else {
         throw 'Payment verification failed';
