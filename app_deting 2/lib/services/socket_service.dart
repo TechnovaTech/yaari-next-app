@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../main.dart';
 
 class SocketService {
   SocketService._();
@@ -39,6 +41,12 @@ class SocketService {
       _socket!.emit('user-online', {'userId': userId, 'status': 'online'});
       _socket!.emit('get-online-users');
       debugPrint('📤 [SocketService] Emitted: register, user-online, get-online-users');
+    });
+
+    // Listen for force-logout event
+    _socket!.on('force-logout', (data) {
+      debugPrint('🚪 [SocketService] Force logout received: $data');
+      _handleForceLogout();
     });
 
     _socket!.onDisconnect((_) {
@@ -107,6 +115,20 @@ class SocketService {
         }
       });
       _attachedEvents.add(event);
+    }
+  }
+
+  Future<void> _handleForceLogout() async {
+    try {
+      disconnect();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      final context = MyApp.appNavigatorKey.currentContext;
+      if (context != null) {
+        MyApp.appNavigatorKey.currentState?.pushNamedAndRemoveUntil('/login', (route) => false);
+      }
+    } catch (e) {
+      debugPrint('❌ [SocketService] Error handling force logout: $e');
     }
   }
 }

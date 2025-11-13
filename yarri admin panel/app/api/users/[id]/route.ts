@@ -53,6 +53,12 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     
     await db.collection('users').deleteOne({ _id: new ObjectId(params.id) })
     
+    // Notify the user via socket to logout
+    const io = (global as any).io
+    if (io) {
+      io.to(params.id).emit('force-logout', { reason: 'account_deleted' })
+    }
+    
     return NextResponse.json({ success: true }, {
       headers: {
         'Access-Control-Allow-Origin': '*',

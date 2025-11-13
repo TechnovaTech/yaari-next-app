@@ -20,6 +20,9 @@ app.prepare().then(() => {
     }
   })
 
+  // Make io globally accessible for API routes
+  global.io = io
+
   const users = new Map()
   const activeCalls = new Map() // userId -> { otherUserId, callType, channelName }
   const pendingCalls = new Map() // callerId -> { receiverId, callType, channelName, timestamp }
@@ -29,6 +32,7 @@ app.prepare().then(() => {
 
     socket.on('register', (userId) => {
       users.set(userId, socket.id)
+      socket.join(userId) // Join room with userId for targeted messages
       console.log(`User ${userId} registered with socket ${socket.id}`)
       // Broadcast presence update
       io.emit('user-status-change', { userId, status: 'online' })

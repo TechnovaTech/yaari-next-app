@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     } else {
       await db.collection('users').updateOne(
         { _id: new (await import('mongodb')).ObjectId(userId) },
-        { $push: { gallery: photoUrl }, $set: { updatedAt: new Date() } }
+        { $push: { gallery: photoUrl } as any, $set: { updatedAt: new Date() } }
       )
     }
 
