@@ -44,6 +44,7 @@ Future<void> main() async {
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     return true;
   };
+  await MetaAnalyticsService.instance.init();
   
   runApp(const MyApp());
 }
@@ -63,6 +64,9 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     MyApp.languageNotifier.addListener(_onLanguageChange);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      MetaAnalyticsService.instance.markReady();
+    });
   }
 
   @override

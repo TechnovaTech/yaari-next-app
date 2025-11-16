@@ -49,6 +49,17 @@
 	<string>1422337229258362</string>
 	<key>FacebookDisplayName</key>
 	<string>Yaari</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This identifier is used to deliver personalized ads and measure app performance.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fb1422337229258362</string>
+			</array>
+		</dict>
+	</array>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>fbapi</string>

@@ -7,12 +7,19 @@ class MetaAnalyticsService {
 
   FacebookAppEvents? _facebookAppEvents;
   bool _isInitialized = false;
+  static const int _maxAttempts = 10;
+  bool _androidWarmupDone = false;
+  Future<void>? _warmupFuture;
+  final List<Map<String, dynamic>> _queue = [];
+  bool _flushing = false;
 
   Future<void> init() async {
     try {
-      _facebookAppEvents = FacebookAppEvents();
-      await _facebookAppEvents?.setAdvertiserTracking(enabled: true);
+      _facebookAppEvents ??= FacebookAppEvents();
       _isInitialized = true;
+      try {
+        await _facebookAppEvents?.setAdvertiserTracking(enabled: true);
+      } catch (_) {}
       debugPrint('📊 [Meta Analytics] Initialized');
     } catch (e) {
       _isInitialized = false;
@@ -20,25 +27,65 @@ class MetaAnalyticsService {
     }
   }
 
+  Future<void> _logEvent(String name, Map<String, dynamic> parameters, {int attempt = 1}) async {
+    _facebookAppEvents ??= FacebookAppEvents();
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android && !_androidWarmupDone) {
+      _warmupFuture ??= Future.delayed(const Duration(seconds: 2)).then((_) {
+        _androidWarmupDone = true;
+      });
+      await _warmupFuture;
+    }
+    try {
+      try {
+        await _facebookAppEvents?.setAdvertiserTracking(enabled: true);
+      } catch (_) {}
+      await _facebookAppEvents?.logEvent(name: name, parameters: parameters);
+    } catch (e) {
+      final msg = e.toString();
+      final needsRetry = msg.contains('appEventsLogger has not been initialized') || msg.contains('UninitializedPropertyAccessException');
+      if (needsRetry && attempt < _maxAttempts) {
+        await Future.delayed(Duration(milliseconds: 300 + (attempt * 200)));
+        await _logEvent(name, parameters, attempt: attempt + 1);
+        return;
+      }
+      rethrow;
+    }
+  }
+
+  void _enqueue(String name, Map<String, dynamic> parameters) {
+    _queue.add({'name': name, 'parameters': parameters});
+    _flush();
+  }
+
+  Future<void> _flush() async {
+    if (_flushing) return;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android && !_androidWarmupDone) return;
+    _flushing = true;
+    try {
+      while (_queue.isNotEmpty) {
+        final item = _queue.removeAt(0);
+        await _logEvent(item['name'] as String, (item['parameters'] as Map<String, dynamic>));
+      }
+    } finally {
+      _flushing = false;
+    }
+  }
+
+  void markReady() {
+    _androidWarmupDone = true;
+    _flush();
+  }
+
   void trackRegistrationDone({
     required String userId,
     required String method,
     String? referralCode,
   }) {
-    if (!_isInitialized) return;
-    try {
-      _facebookAppEvents?.logEvent(
-        name: 'registrationDone',
-        parameters: {
-          'userId': userId,
-          'method': method,
-          if (referralCode != null) 'referralCode': referralCode,
-        },
-      );
-      debugPrint('📊 [Meta Analytics] registrationDone: userId=$userId');
-    } catch (e) {
-      debugPrint('⚠️ [Meta Analytics] trackRegistrationDone error: $e');
-    }
+    _enqueue('registrationDone', {
+      'userId': userId,
+      'method': method,
+      if (referralCode != null) 'referralCode': referralCode,
+    });
   }
 
   void trackVideoCallCtaClicked({
@@ -46,20 +93,11 @@ class MetaAnalyticsService {
     required int ratePerMin,
     required int walletBalance,
   }) {
-    if (!_isInitialized) return;
-    try {
-      _facebookAppEvents?.logEvent(
-        name: 'videoCallCtaClicked',
-        parameters: {
-          'creatorId': creatorId,
-          'ratePerMin': ratePerMin,
-          'walletBalance': walletBalance,
-        },
-      );
-      debugPrint('📊 [Meta Analytics] videoCallCtaClicked: creatorId=$creatorId');
-    } catch (e) {
-      debugPrint('⚠️ [Meta Analytics] trackVideoCallCtaClicked error: $e');
-    }
+    _enqueue('videoCallCtaClicked', {
+      'creatorId': creatorId,
+      'ratePerMin': ratePerMin,
+      'walletBalance': walletBalance,
+    });
   }
 
   void trackAudioCallCtaClicked({
@@ -67,20 +105,11 @@ class MetaAnalyticsService {
     required int ratePerMin,
     required int walletBalance,
   }) {
-    if (!_isInitialized) return;
-    try {
-      _facebookAppEvents?.logEvent(
-        name: 'audioCallCtaClicked',
-        parameters: {
-          'creatorId': creatorId,
-          'ratePerMin': ratePerMin,
-          'walletBalance': walletBalance,
-        },
-      );
-      debugPrint('📊 [Meta Analytics] audioCallCtaClicked: creatorId=$creatorId');
-    } catch (e) {
-      debugPrint('⚠️ [Meta Analytics] trackAudioCallCtaClicked error: $e');
-    }
+    _enqueue('audioCallCtaClicked', {
+      'creatorId': creatorId,
+      'ratePerMin': ratePerMin,
+      'walletBalance': walletBalance,
+    });
   }
 
   void trackPaymentDone({
@@ -90,21 +119,12 @@ class MetaAnalyticsService {
     required String paymentGateway,
     required String status,
   }) {
-    if (!_isInitialized) return;
-    try {
-      _facebookAppEvents?.logEvent(
-        name: 'paymentDone',
-        parameters: {
-          'packId': packId,
-          'packValue': packValue,
-          'transactionId': transactionId,
-          'paymentGateway': paymentGateway,
-          'status': status,
-        },
-      );
-      debugPrint('📊 [Meta Analytics] paymentDone: transactionId=$transactionId');
-    } catch (e) {
-      debugPrint('⚠️ [Meta Analytics] trackPaymentDone error: $e');
-    }
+    _enqueue('paymentDone', {
+      'packId': packId,
+      'packValue': packValue,
+      'transactionId': transactionId,
+      'paymentGateway': paymentGateway,
+      'status': status,
+    });
   }
 }

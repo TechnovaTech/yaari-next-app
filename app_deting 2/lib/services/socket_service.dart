@@ -1,10 +1,11 @@
 import 'dart:async';
+import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
 
-class SocketService {
+class SocketService with WidgetsBindingObserver {
   SocketService._();
   static final SocketService instance = SocketService._();
 
@@ -12,12 +13,17 @@ class SocketService {
   final ValueNotifier<bool> isConnected = ValueNotifier<bool>(false);
   final _listeners = <String, List<Function>>{};
   final Set<String> _attachedEvents = <String>{};
+  Timer? _heartbeatTimer;
+  String? _currentUserId;
 
   void connect(String userId) {
     if (_socket != null && _socket!.connected) {
       debugPrint('⚠️ [SocketService] Socket already connected');
       return;
     }
+
+    _currentUserId = userId;
+    WidgetsBinding.instance.addObserver(this);
 
     debugPrint('🔌 [SocketService] Connecting to Socket.IO server...');
     _socket = IO.io('https://admin.yaari.me', <String, dynamic>{
@@ -41,6 +47,7 @@ class SocketService {
       _socket!.emit('user-online', {'userId': userId, 'status': 'online'});
       _socket!.emit('get-online-users');
       debugPrint('📤 [SocketService] Emitted: register, user-online, get-online-users');
+      _startHeartbeat();
     });
 
     // Listen for force-logout event
@@ -52,6 +59,7 @@ class SocketService {
     _socket!.onDisconnect((_) {
       debugPrint('🔌 [SocketService] Socket disconnected');
       isConnected.value = false;
+      _stopHeartbeat();
     });
 
     _socket!.onConnectError((data) {
@@ -65,6 +73,7 @@ class SocketService {
       _socket!.emit('register', userId);
       _socket!.emit('user-online', {'userId': userId, 'status': 'online'});
       _socket!.emit('get-online-users');
+      _startHeartbeat();
     });
 
     _socket!.onReconnectAttempt((attempt) {
@@ -102,6 +111,9 @@ class SocketService {
     _socket = null;
     isConnected.value = false;
     _attachedEvents.clear();
+    _stopHeartbeat();
+    WidgetsBinding.instance.removeObserver(this);
+    _currentUserId = null;
   }
 
   void _attachStoredListeners() {
@@ -116,6 +128,36 @@ class SocketService {
       });
       _attachedEvents.add(event);
     }
+  }
+
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    if (_currentUserId == null) return;
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      try {
+        _socket?.emit('heartbeat', {'userId': _currentUserId});
+      } catch (_) {}
+    });
+  }
+
+  void _stopHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    try {
+      if (_currentUserId == null) return;
+      if (state == AppLifecycleState.resumed) {
+        _socket?.emit('user-online', {'userId': _currentUserId, 'status': 'online'});
+        _socket?.emit('get-online-users');
+        _startHeartbeat();
+      } else if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+        _socket?.emit('user-offline', {'userId': _currentUserId, 'status': 'offline'});
+        _stopHeartbeat();
+      }
+    } catch (_) {}
   }
 
   Future<void> _handleForceLogout() async {
