@@ -40,10 +40,13 @@ class MetaAnalyticsService {
         await _facebookAppEvents?.setAdvertiserTracking(enabled: true);
       } catch (_) {}
       await _facebookAppEvents?.logEvent(name: name, parameters: parameters);
+      debugPrint('✅ [Meta Analytics] Event logged: $name with params: $parameters');
     } catch (e) {
+      debugPrint('❌ [Meta Analytics] Error logging $name: $e');
       final msg = e.toString();
       final needsRetry = msg.contains('appEventsLogger has not been initialized') || msg.contains('UninitializedPropertyAccessException');
       if (needsRetry && attempt < _maxAttempts) {
+        debugPrint('🔄 [Meta Analytics] Retrying $name (attempt $attempt/$_maxAttempts)');
         await Future.delayed(Duration(milliseconds: 300 + (attempt * 200)));
         await _logEvent(name, parameters, attempt: attempt + 1);
         return;
@@ -81,9 +84,8 @@ class MetaAnalyticsService {
     required String method,
     String? referralCode,
   }) {
-    _enqueue('registrationDone', {
-      'userId': userId,
-      'method': method,
+    _enqueue('fb_mobile_complete_registration', {
+      'fb_registration_method': method,
       if (referralCode != null) 'referralCode': referralCode,
     });
   }
@@ -93,10 +95,11 @@ class MetaAnalyticsService {
     required int ratePerMin,
     required int walletBalance,
   }) {
-    _enqueue('videoCallCtaClicked', {
-      'creatorId': creatorId,
-      'ratePerMin': ratePerMin,
-      'walletBalance': walletBalance,
+    _enqueue('fb_mobile_initiated_checkout', {
+      'fb_content_type': 'video_call',
+      'fb_content_id': creatorId,
+      'fb_currency': 'INR',
+      'fb_num_items': 1,
     });
   }
 
@@ -105,10 +108,11 @@ class MetaAnalyticsService {
     required int ratePerMin,
     required int walletBalance,
   }) {
-    _enqueue('audioCallCtaClicked', {
-      'creatorId': creatorId,
-      'ratePerMin': ratePerMin,
-      'walletBalance': walletBalance,
+    _enqueue('fb_mobile_initiated_checkout', {
+      'fb_content_type': 'audio_call',
+      'fb_content_id': creatorId,
+      'fb_currency': 'INR',
+      'fb_num_items': 1,
     });
   }
 
@@ -119,12 +123,12 @@ class MetaAnalyticsService {
     required String paymentGateway,
     required String status,
   }) {
-    _enqueue('paymentDone', {
-      'packId': packId,
-      'packValue': packValue,
-      'transactionId': transactionId,
-      'paymentGateway': paymentGateway,
-      'status': status,
+    _enqueue('fb_mobile_purchase', {
+      'fb_content_id': packId,
+      'fb_content_type': 'product',
+      'fb_currency': 'INR',
+      'fb_value': packValue,
+      'fb_transaction_id': transactionId,
     });
   }
 }

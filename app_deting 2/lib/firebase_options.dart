@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, Tar
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError('Web platform not supported');
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -31,5 +31,13 @@ class DefaultFirebaseOptions {
     projectId: 'yaari-ff378',
     storageBucket: 'yaari-ff378.firebasestorage.app',
     iosBundleId: 'com.example.appDeting',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyA0lP6O_vCWHd5HLjirFEQ9tdoRlB-Ut34',
+    appId: '1:427681836033:web:YOUR_WEB_APP_ID',
+    messagingSenderId: '427681836033',
+    projectId: 'yaari-ff378',
+    storageBucket: 'yaari-ff378.firebasestorage.app',
   );
 }
