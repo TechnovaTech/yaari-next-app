@@ -1,7 +1,37 @@
-/.gradle/
-/build/
-/app/build/
-/.idea/
+# Using Android gitignore template
+
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Gradle files
+.gradle/
+build/
+app/build/
+
+# Local configuration
 local.properties
+
+# Keystore files (DO NOT COMMIT SECRETS)
+*.jks
+*.keystore
+key.properties
+app/app-release-key.jks
+
+# External native build & intermediates
+.externalNativeBuild/
+.cxx/
+
+# Logs
+*.log
+
+# Android Studio
+.navigation/
 captures/
 *.iml
+.idea/
+
+# Google services (keep if needed; commented out)
+# google-services.json
