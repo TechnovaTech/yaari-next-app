@@ -1,4 +1,6 @@
 import org.gradle.api.tasks.Copy
+import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
@@ -6,6 +8,13 @@ plugins {
     id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Load keystore properties
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
@@ -21,6 +30,17 @@ android {
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_11.toString()
+    }
+
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
     }
 
     defaultConfig {
@@ -44,9 +64,26 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Enable code shrinking, obfuscation, and optimization
+            isMinifyEnabled = true
+            // Enable resource shrinking
+            isShrinkResources = true
+            // Use ProGuard rules
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            // Use release signing config
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+        }
+        debug {
+            // Keep debug builds fast
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 
