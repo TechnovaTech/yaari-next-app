@@ -20,17 +20,12 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.example.app_deting"
     compileSdk = flutter.compileSdkVersion
-    // Use default NDK version
-    // ndkVersion = "27.0.12077973"
+    ndkVersion = "27.0.12077973"
     
-    // Fix for debug symbol stripping
     packagingOptions {
         jniLibs {
             pickFirsts += setOf("**/libaosl.so")
         }
-        doNotStrip("*/arm64-v8a/libflutter.so")
-        doNotStrip("*/armeabi-v7a/libflutter.so")
-        doNotStrip("*/x86_64/libflutter.so")
     }
 
     compileOptions {
@@ -74,22 +69,20 @@ android {
 
     buildTypes {
         release {
-            // Enable code shrinking, obfuscation, and optimization
             isMinifyEnabled = true
-            // Enable resource shrinking
             isShrinkResources = true
-            // Symbol stripping disabled for compatibility
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             bundle {
                 storeArchive {
                     enable = false
                 }
             }
-            // Use ProGuard rules
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Use release signing config
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {
@@ -142,4 +135,10 @@ afterEvaluate {
     tasks.findByName("assembleDebug")?.finalizedBy(tasks.named("copyFlutterApkDebug"))
     tasks.findByName("assembleRelease")?.finalizedBy(tasks.named("copyFlutterApkRelease"))
     tasks.findByName("bundleRelease")?.finalizedBy(tasks.named("copyFlutterBundle"))
+}
+
+tasks.withType<org.gradle.api.tasks.compile.JavaCompile>().configureEach {
+    sourceCompatibility = JavaVersion.VERSION_11.toString()
+    targetCompatibility = JavaVersion.VERSION_11.toString()
+    options.compilerArgs.add("-Xlint:-options")
 }
