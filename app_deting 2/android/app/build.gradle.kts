@@ -22,6 +22,16 @@ android {
     compileSdk = flutter.compileSdkVersion
     // Align NDK with plugin expectation (agora_rtc_engine pins r27)
     ndkVersion = "27.0.12077973"
+    
+    // Fix for debug symbol stripping
+    packagingOptions {
+        jniLibs {
+            pickFirsts += setOf("**/libaosl.so")
+        }
+        doNotStrip("*/arm64-v8a/libflutter.so")
+        doNotStrip("*/armeabi-v7a/libflutter.so")
+        doNotStrip("*/x86_64/libflutter.so")
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -68,6 +78,10 @@ android {
             isMinifyEnabled = true
             // Enable resource shrinking
             isShrinkResources = true
+            // Disable symbol stripping for bundle builds
+            ndk {
+                debugSymbolLevel = "NONE"
+            }
             // Use ProGuard rules
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -87,12 +101,7 @@ android {
         }
     }
 
-    // Resolve duplicate native libs between agora_rtm and aosl transitive
-    packagingOptions {
-        jniLibs {
-            pickFirsts += setOf("**/libaosl.so")
-        }
-    }
+
 }
 
 dependencies {
