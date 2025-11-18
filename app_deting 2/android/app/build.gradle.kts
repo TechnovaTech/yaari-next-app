@@ -20,8 +20,8 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.example.app_deting"
     compileSdk = flutter.compileSdkVersion
-    // Align NDK with plugin expectation (agora_rtc_engine pins r27)
-    ndkVersion = "27.0.12077973"
+    // Use default NDK version
+    // ndkVersion = "27.0.12077973"
     
     // Fix for debug symbol stripping
     packagingOptions {
@@ -78,9 +78,11 @@ android {
             isMinifyEnabled = true
             // Enable resource shrinking
             isShrinkResources = true
-            // Disable symbol stripping for bundle builds
-            ndk {
-                debugSymbolLevel = "NONE"
+            // Symbol stripping disabled for compatibility
+            bundle {
+                storeArchive {
+                    enable = false
+                }
             }
             // Use ProGuard rules
             proguardFiles(
@@ -114,9 +116,9 @@ flutter {
     source = "../.."
 }
 
-// Ensure Flutter tool can locate the APK in project-root build folder
-// by copying Android's module output after assemble tasks.
+// Ensure Flutter tool can locate outputs in project-root build folder
 val flutterOutputDir = file("../../build/app/outputs/flutter-apk")
+val flutterBundleDir = file("../../build/app/outputs/bundle/release")
 
 tasks.register<Copy>("copyFlutterApkDebug") {
     val apkDebug = file("$buildDir/outputs/apk/debug/app-debug.apk")
@@ -130,8 +132,14 @@ tasks.register<Copy>("copyFlutterApkRelease") {
     into(flutterOutputDir)
 }
 
-// Attach copy tasks only after the Android plugin has registered assemble tasks
+tasks.register<Copy>("copyFlutterBundle") {
+    val bundleRelease = file("$buildDir/outputs/bundle/release/app-release.aab")
+    from(bundleRelease)
+    into(flutterBundleDir)
+}
+
 afterEvaluate {
     tasks.findByName("assembleDebug")?.finalizedBy(tasks.named("copyFlutterApkDebug"))
     tasks.findByName("assembleRelease")?.finalizedBy(tasks.named("copyFlutterApkRelease"))
+    tasks.findByName("bundleRelease")?.finalizedBy(tasks.named("copyFlutterBundle"))
 }
