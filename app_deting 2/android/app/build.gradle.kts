@@ -25,6 +25,7 @@ android {
     packagingOptions {
         jniLibs {
             pickFirsts += setOf("**/libaosl.so")
+            useLegacyPackaging = false
         }
     }
 
@@ -58,6 +59,12 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
+        // Reduce APK size by limiting locales and ABI
+        resConfigs("en")
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
+
         // CleverTap manifest placeholders mapped from gradle.properties
         val ctAccountId = (project.findProperty("CLEVERTAP_ACCOUNT_ID") ?: "") as String
         val ctToken = (project.findProperty("CLEVERTAP_TOKEN") ?: "") as String
@@ -67,18 +74,18 @@ android {
         manifestPlaceholders["CLEVERTAP_REGION"] = ctRegion
     }
 
-    buildTypes {
-        release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            ndk {
-                debugSymbolLevel = "FULL"
-            }
-            bundle {
-                storeArchive {
-                    enable = false
+        buildTypes {
+            release {
+                isMinifyEnabled = true
+                isShrinkResources = true
+                ndk {
+                    debugSymbolLevel = "FULL"
                 }
-            }
+                bundle {
+                    storeArchive {
+                        enable = false
+                    }
+                }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
