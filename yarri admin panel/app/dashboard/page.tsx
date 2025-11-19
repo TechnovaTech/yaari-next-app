@@ -45,7 +45,7 @@ export default function DashboardPage() {
   }, [])
 
   const cards = [
-    { icon: Users, label: 'Total Users', value: stats.totalUsers, color: 'bg-blue-500' },
+    { icon: Users, label: 'Total User', value: stats.totalUsers, color: 'bg-blue-500' },
     { icon: DollarSign, label: 'Total Revenue', value: `₹${stats.totalRevenue}`, color: 'bg-green-500' },
     { icon: Phone, label: 'Total Calls', value: stats.totalCalls, color: 'bg-purple-500' },
     { icon: TrendingUp, label: 'Active Users', value: stats.activeUsers, color: 'bg-orange-500' },
