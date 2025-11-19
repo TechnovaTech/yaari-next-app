@@ -59,11 +59,8 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        // Reduce APK size by limiting locales and ABI
+        // Reduce APK size by limiting locales
         resConfigs("en")
-        ndk {
-            abiFilters += listOf("arm64-v8a")
-        }
 
         // CleverTap manifest placeholders mapped from gradle.properties
         val ctAccountId = (project.findProperty("CLEVERTAP_ACCOUNT_ID") ?: "") as String
