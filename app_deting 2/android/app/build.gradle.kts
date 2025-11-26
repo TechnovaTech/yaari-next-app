@@ -69,6 +69,12 @@ android {
         manifestPlaceholders["CLEVERTAP_ACCOUNT_ID"] = ctAccountId
         manifestPlaceholders["CLEVERTAP_TOKEN"] = ctToken
         manifestPlaceholders["CLEVERTAP_REGION"] = ctRegion
+
+        // Truecaller client id placeholder (configure via gradle.properties or env)
+        val tcClientId = (project.findProperty("TRUECALLER_CLIENT_ID")
+            ?: System.getenv("TRUECALLER_CLIENT_ID")
+            ?: "") as String
+        manifestPlaceholders["TRUECALLER_CLIENT_ID"] = tcClientId
     }
 
         buildTypes {

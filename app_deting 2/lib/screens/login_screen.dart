@@ -15,6 +15,7 @@ class _LoginPageState extends State<LoginPage> {
   final FocusNode _phoneFocusNode = FocusNode();
   static const Color accent = Color(0xFFFF8547);
   bool _isSending = false;
+  bool _checkingTruecaller = false;
 
   @override
   void initState() {
@@ -138,6 +139,38 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
 
+                    const SizedBox(height: 12),
+
+                    // 🔹 Continue with Truecaller option
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: accent),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                        ),
+                        onPressed: _checkingTruecaller ? null : _continueWithTruecaller,
+                        child: _checkingTruecaller
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2.0, color: Color(0xFFFF8547)),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(Icons.verified_user, color: accent),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Continue with Truecaller',
+                                    style: TextStyle(fontSize: 15, color: accent, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+
                     const SizedBox(height: 15),
 
                     // 🔹 Terms & Conditions
@@ -226,6 +259,53 @@ class _LoginPageState extends State<LoginPage> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  Future<void> _continueWithTruecaller() async {
+    setState(() => _checkingTruecaller = true);
+    try {
+      // Try common Truecaller schemes first
+      final candidates = <Uri>[
+        Uri.parse('truecallersdk://'),
+        Uri.parse('truecaller://'),
+      ];
+
+      bool opened = false;
+      for (final uri in candidates) {
+        try {
+          if (await canLaunchUrl(uri)) {
+            opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+            if (opened) break;
+          }
+        } catch (_) {}
+      }
+
+      if (opened) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Opening Truecaller for quick verification...')),
+        );
+        // Note: Full verification requires SDK integration and app credentials.
+        // After integrating SDK, replace this flow to fetch verified phone and proceed.
+        return;
+      }
+
+      // Not installed: open Play Store listing (Android) or web fallback
+      const packageId = 'com.truecaller';
+      final market = Uri.parse('market://details?id=$packageId');
+      final web = Uri.parse('https://play.google.com/store/apps/details?id=$packageId');
+
+      if (await canLaunchUrl(market)) {
+        await launchUrl(market, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(web, mode: LaunchMode.externalApplication);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Install Truecaller to continue with one-tap verification')),
+      );
+    } finally {
+      if (mounted) setState(() => _checkingTruecaller = false);
     }
   }
 }
