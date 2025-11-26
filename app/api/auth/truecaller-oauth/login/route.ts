@@ -1,0 +1,94 @@
+import { NextResponse } from 'next/server'
+import clientPromise from '@/lib/mongodb'
+
+const TOKEN_URL = process.env.TRUECALLER_TOKEN_URL || 'https://oauth.truecaller.com/v1/token'
+const USERINFO_URL = process.env.TRUECALLER_USERINFO_URL || 'https://oauth.truecaller.com/v1/userinfo'
+const CLIENT_ID = process.env.TRUECALLER_CLIENT_ID || ''
+
+export const runtime = 'nodejs'
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
+}
+
+export async function POST(req: Request) {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  }
+  try {
+    const body = await req.json()
+    const authorizationCode: string | undefined = body?.authorizationCode
+    const codeVerifier: string | undefined = body?.codeVerifier
+
+    if (!authorizationCode || !codeVerifier) {
+      return NextResponse.json({ message: 'authorizationCode and codeVerifier are required' }, { status: 400, headers: corsHeaders })
+    }
+    if (!CLIENT_ID) {
+      return NextResponse.json({ message: 'Server missing TRUECALLER_CLIENT_ID' }, { status: 500, headers: corsHeaders })
+    }
+
+    // Exchange authorization code
+    const tokenRes = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: authorizationCode,
+        code_verifier: codeVerifier,
+        client_id: CLIENT_ID,
+      }),
+    })
+    const tokenJson = await tokenRes.json().catch(() => ({}))
+    if (!tokenRes.ok || !tokenJson?.access_token) {
+      return NextResponse.json({ message: 'Truecaller token exchange failed', details: tokenJson }, { status: 502, headers: corsHeaders })
+    }
+
+    // Fetch user info
+    const userRes = await fetch(USERINFO_URL, { headers: { Authorization: `Bearer ${tokenJson.access_token}` } })
+    const userJson = await userRes.json().catch(() => ({}))
+    if (!userRes.ok) {
+      return NextResponse.json({ message: 'Truecaller userinfo failed', details: userJson }, { status: 502, headers: corsHeaders })
+    }
+
+    const phoneRaw = (userJson?.phone_number || userJson?.phoneNumber || userJson?.phone || '').toString()
+    const phone = phoneRaw.replace(/^\+91\s*/i, '').replace(/\s+/g, '')
+    if (!/^[0-9]{10}$/.test(phone)) {
+      return NextResponse.json({ message: 'Invalid phone in Truecaller profile', details: { phone: phoneRaw } }, { status: 422, headers: corsHeaders })
+    }
+
+    const client = await clientPromise
+    const db = client.db('yarri')
+
+    // Find or create user
+    let user = await db.collection('users').findOne({ phone })
+    if (!user) {
+      // Signup bonus
+      const bonusDoc = await db.collection('settings').findOne({ key: 'signup_bonus' })
+      const signupBonus = Number((bonusDoc as any)?.amount || 0)
+      const initialBalance = Number.isFinite(signupBonus) ? Math.max(0, Math.floor(signupBonus)) : 0
+      const insert = await db.collection('users').insertOne({
+        phone,
+        createdAt: new Date(),
+        isActive: true,
+        balance: initialBalance,
+        name: (userJson?.name || userJson?.given_name || '').toString() || undefined,
+        gender: undefined,
+      })
+      user = { _id: insert.insertedId, phone, balance: initialBalance, isActive: true, createdAt: new Date() }
+    }
+
+    return NextResponse.json({ success: true, user }, { headers: corsHeaders })
+  } catch (e: any) {
+    return NextResponse.json({ message: 'Truecaller login error', error: e?.message || String(e) }, { status: 500, headers: corsHeaders })
+  }
+}
+
