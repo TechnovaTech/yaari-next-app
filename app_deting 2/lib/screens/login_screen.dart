@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
+import 'package:truecaller_sdk/truecaller_sdk.dart';
 import '../services/auth_api.dart';
 
 class LoginPage extends StatefulWidget {
@@ -16,6 +19,9 @@ class _LoginPageState extends State<LoginPage> {
   static const Color accent = Color(0xFFFF8547);
   bool _isSending = false;
   bool _checkingTruecaller = false;
+  StreamSubscription? _tcSub;
+  String? _codeVerifier;
+  bool _tcFilled = false;
 
   @override
   void initState() {
@@ -24,18 +30,58 @@ class _LoginPageState extends State<LoginPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _phoneFocusNode.requestFocus();
     });
+    _tcSub = TcSdk.streamCallbackData.listen((tc) async {
+      if (!mounted) return;
+      debugPrint('tc:callback result=${tc.result}');
+      switch (tc.result) {
+        case TcSdkCallbackResult.success:
+          setState(() => _checkingTruecaller = false);
+          debugPrint('tc:success, exchanging auth code');
+          try {
+            final authCode = tc.tcOAuthData?.authorizationCode;
+            if (authCode == null || _codeVerifier == null) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller data missing')));
+              break;
+            }
+            final res = await AuthApi.truecallerLogin(authorizationCode: authCode, codeVerifier: _codeVerifier!);
+            if (res['success'] == true) {
+              final data = res['data'] as Map<String, dynamic>;
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('user', jsonEncode(data));
+              if (!mounted) break;
+              Navigator.pushNamed(context, '/home');
+            } else {
+              final msg = (res['message'] ?? 'Truecaller login failed').toString();
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+            }
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Truecaller login error: $e')));
+          }
+          break;
+        case TcSdkCallbackResult.exception:
+        case TcSdkCallbackResult.failure:
+          setState(() => _checkingTruecaller = false);
+          debugPrint('tc:failure/exception');
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller login failed')));
+          break;
+        default:
+          break;
+      }
+    });
   }
 
   @override
   void dispose() {
     _phoneController.dispose();
     _phoneFocusNode.dispose();
+    try { _tcSub?.cancel(); } catch (_) {}
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
       body: GestureDetector(
@@ -57,21 +103,27 @@ class _LoginPageState extends State<LoginPage> {
             Align(
               alignment: Alignment.bottomCenter,
               child: SafeArea(
-                minimum: const EdgeInsets.only(bottom: 12),
-                child: Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.symmetric(horizontal: 12),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 26),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black12, blurRadius: 24, offset: Offset(0, -6)),
-                    ],
+                minimum: EdgeInsets.only(bottom: isLandscape ? 4 : 12),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: size.height * (isLandscape ? 0.75 : 0.62),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+                  child: Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: isLandscape ? 18 : 26),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 24, offset: Offset(0, -6)),
+                      ],
+                    ),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
                     const Text(
                       'Yaari',
                       style: TextStyle(
@@ -85,7 +137,7 @@ class _LoginPageState extends State<LoginPage> {
                       'Connect with real people',
                       style: TextStyle(fontSize: 14, color: Colors.grey),
                     ),
-                    const SizedBox(height: 25),
+                    SizedBox(height: isLandscape ? 14 : 25),
 
                     // 🔹 Phone input (prefilled +91 prefix)
                     TextField(
@@ -111,13 +163,14 @@ class _LoginPageState extends State<LoginPage> {
                           borderSide: const BorderSide(color: Color(0xFFBFBFBF)),
                         ),
                       ),
+                      readOnly: _tcFilled || _checkingTruecaller,
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: isLandscape ? 10 : 20),
 
                     // 🔹 Get OTP button
                     SizedBox(
                       width: double.infinity,
-                      height: 56,
+                      height: isLandscape ? 48 : 56,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: accent,
@@ -139,12 +192,12 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: isLandscape ? 8 : 12),
 
                     // 🔹 Continue with Truecaller option
                     SizedBox(
                       width: double.infinity,
-                      height: 52,
+                      height: isLandscape ? 46 : 52,
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: accent),
@@ -171,7 +224,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
 
-                    const SizedBox(height: 15),
+                    SizedBox(height: isLandscape ? 10 : 15),
 
                     // 🔹 Terms & Conditions
                     GestureDetector(
@@ -190,8 +243,10 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-                  ],
-                ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -232,6 +287,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
   Future<void> _sendOtpFixed() async {
+    debugPrint('otp:send start');
     final raw = _phoneController.text.trim();
     final isValid = RegExp(r'^\d{10}$').hasMatch(raw);
     if (!isValid) {
@@ -247,15 +303,18 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final result = await AuthApi.sendOtp(phone);
       if (result['success'] == true) {
+        debugPrint('otp:send success');
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('phone', phone);
         if (!mounted) return;
         Navigator.pushNamed(context, '/otp', arguments: phone);
       } else {
         final msg = (result['message'] ?? 'Failed to send OTP').toString();
+        debugPrint('otp:send fail: $msg');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
+      debugPrint('otp:send error: $e');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _isSending = false);
@@ -265,47 +324,53 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _continueWithTruecaller() async {
     setState(() => _checkingTruecaller = true);
     try {
-      // Try common Truecaller schemes first
-      final candidates = <Uri>[
-        Uri.parse('truecallersdk://'),
-        Uri.parse('truecaller://'),
-      ];
-
-      bool opened = false;
-      for (final uri in candidates) {
-        try {
-          if (await canLaunchUrl(uri)) {
-            opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-            if (opened) break;
-          }
-        } catch (_) {}
-      }
-
-      if (opened) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Opening Truecaller for quick verification...')),
-        );
-        // Note: Full verification requires SDK integration and app credentials.
-        // After integrating SDK, replace this flow to fetch verified phone and proceed.
+      debugPrint('tc:init sdk');
+      await TcSdk.initializeSDK(sdkOption: TcSdkOptions.OPTION_VERIFY_ONLY_TC_USERS)
+          .timeout(const Duration(seconds: 3), onTimeout: () {
+        throw TimeoutException('tc:init timeout');
+      });
+      final usable = await TcSdk.isOAuthFlowUsable
+          .timeout(const Duration(seconds: 3), onTimeout: () {
+        throw TimeoutException('tc:isUsable timeout');
+      });
+      debugPrint('tc:isUsable=$usable');
+      if (!usable) {
+        setState(() => _checkingTruecaller = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller not available, using OTP fallback')));
+        await _sendOtpFixed();
         return;
       }
-
-      // Not installed: open Play Store listing (Android) or web fallback
-      const packageId = 'com.truecaller';
-      final market = Uri.parse('market://details?id=$packageId');
-      final web = Uri.parse('https://play.google.com/store/apps/details?id=$packageId');
-
-      if (await canLaunchUrl(market)) {
-        await launchUrl(market, mode: LaunchMode.externalApplication);
+      final state = DateTime.now().microsecondsSinceEpoch.toString();
+      debugPrint('tc:set state');
+      await TcSdk.setOAuthState(state);
+      debugPrint('tc:set scopes');
+      await TcSdk.setOAuthScopes(['profile', 'phone', 'openid']);
+      debugPrint('tc:generate code verifier');
+      _codeVerifier = await TcSdk.generateRandomCodeVerifier;
+      debugPrint('tc:generate code challenge');
+      final codeChallenge = await TcSdk.generateCodeChallenge(_codeVerifier!);
+      if (codeChallenge != null) {
+        debugPrint('tc:set code challenge');
+        await TcSdk.setCodeChallenge(codeChallenge);
+        debugPrint('tc:getAuthorizationCode');
+        await TcSdk.getAuthorizationCode;
       } else {
-        await launchUrl(web, mode: LaunchMode.externalApplication);
+        setState(() => _checkingTruecaller = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Device not supported for Truecaller')));
       }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Install Truecaller to continue with one-tap verification')),
-      );
-    } finally {
-      if (mounted) setState(() => _checkingTruecaller = false);
+    } on PlatformException catch (e) {
+      setState(() => _checkingTruecaller = false);
+      debugPrint('tc:platform error: ${e.code} ${e.message}');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Truecaller error: ${e.message}')));
+    } on TimeoutException catch (e) {
+      setState(() => _checkingTruecaller = false);
+      debugPrint('tc:timeout: ${e.message}');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller not responding, using OTP fallback')));
+      await _sendOtpFixed();
+    } catch (e) {
+      setState(() => _checkingTruecaller = false);
+      debugPrint('tc:error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to start Truecaller flow: $e')));
     }
   }
 }

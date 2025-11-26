@@ -54,7 +54,7 @@ android {
         applicationId = "com.example.app_deting"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = maxOf(flutter.minSdkVersion, 24)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -75,6 +75,11 @@ android {
             ?: System.getenv("TRUECALLER_CLIENT_ID")
             ?: "") as String
         manifestPlaceholders["TRUECALLER_CLIENT_ID"] = tcClientId
+
+        val tcPartnerKey = (project.findProperty("TRUECALLER_PARTNER_KEY")
+            ?: System.getenv("TRUECALLER_PARTNER_KEY")
+            ?: "") as String
+        manifestPlaceholders["TRUECALLER_PARTNER_KEY"] = tcPartnerKey
     }
 
         buildTypes {

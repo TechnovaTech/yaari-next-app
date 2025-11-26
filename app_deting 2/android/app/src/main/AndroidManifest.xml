@@ -1,7 +1,11 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
@@ -11,6 +15,9 @@
     <!-- Backward compatibility for older Android versions -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+
+    <!-- Ensure OAuth SDK initializes correctly when compiling with minSdk < 24 -->
+    <uses-sdk tools:overrideLibrary="com.truecaller.android.sdk" />
 
     <!-- Optional features: allow install even if device lacks camera/mic -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -23,7 +30,6 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
@@ -54,6 +60,8 @@
 
         <!-- Truecaller SDK client identifier via manifest placeholder -->
         <meta-data android:name="com.truecaller.android.sdk.ClientId" android:value="${TRUECALLER_CLIENT_ID}" />
+        <!-- Classic SDK PartnerKey placeholder (for truecaller-sdk:2.6.0) -->
+        <meta-data android:name="com.truecaller.android.sdk.PartnerKey" android:value="${TRUECALLER_PARTNER_KEY}" />
         
         <!-- Meta (Facebook) App ID -->
         <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>

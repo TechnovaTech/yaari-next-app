@@ -47,4 +47,46 @@ class AuthApi {
       return {'raw': res.body};
     }
   }
+
+  static Future<Map<String, dynamic>> truecallerExchange({required String authorizationCode, required String codeVerifier}) async {
+    final uri = Uri.parse('$_base/truecaller-oauth/exchange');
+    final res = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'authorizationCode': authorizationCode,
+        'codeVerifier': codeVerifier,
+      }),
+    );
+    final body = _decodeBody(res);
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return {'success': true, 'data': body};
+    }
+    return {
+      'success': false,
+      'message': body['message'] ?? 'Truecaller exchange failed',
+      'status': res.statusCode,
+    };
+  }
+
+  static Future<Map<String, dynamic>> truecallerLogin({required String authorizationCode, required String codeVerifier}) async {
+    final uri = Uri.parse('$_base/truecaller-oauth/login');
+    final res = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'authorizationCode': authorizationCode,
+        'codeVerifier': codeVerifier,
+      }),
+    );
+    final body = _decodeBody(res);
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return {'success': true, 'data': body};
+    }
+    return {
+      'success': false,
+      'message': body['message'] ?? 'Truecaller login failed',
+      'status': res.statusCode,
+    };
+  }
 }
