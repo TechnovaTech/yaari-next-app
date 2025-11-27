@@ -27,7 +27,8 @@ export async function POST(req: Request) {
     const body = await req.json()
     const authorizationCode: string | undefined = body?.authorizationCode
     const codeVerifier: string | undefined = body?.codeVerifier
-    const clientId: string = (process.env.TRUECALLER_CLIENT_ID || body?.clientId || '').toString()
+    const headerClientId = req.headers.get('x-client-id') || req.headers.get('X-Client-Id') || ''
+    const clientId: string = (process.env.TRUECALLER_CLIENT_ID || body?.clientId || body?.client_id || headerClientId || '').toString()
 
     if (!authorizationCode || !codeVerifier) {
       return NextResponse.json({ message: 'authorizationCode and codeVerifier are required' }, { status: 400, headers: corsHeaders })

@@ -73,11 +73,15 @@ class AuthApi {
     final uri = Uri.parse('$_base/truecaller-oauth/login');
     final res = await http.post(
       uri,
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'x-client-id': 'fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs',
+      },
       body: jsonEncode({
         'authorizationCode': authorizationCode,
         'codeVerifier': codeVerifier,
         'clientId': 'fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs',
+        'client_id': 'fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs',
       }),
     );
     final body = _decodeBody(res);
