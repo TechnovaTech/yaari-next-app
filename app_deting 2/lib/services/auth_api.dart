@@ -77,6 +77,7 @@ class AuthApi {
       body: jsonEncode({
         'authorizationCode': authorizationCode,
         'codeVerifier': codeVerifier,
+        'clientId': 'fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs',
       }),
     );
     final body = _decodeBody(res);

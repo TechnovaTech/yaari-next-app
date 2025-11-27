@@ -351,7 +351,6 @@ class _LoginPageState extends State<LoginPage> {
       debugPrint('tc:challenge generated');
       if (codeChallenge != null) {
         TcSdk.setCodeChallenge(codeChallenge);
-        // Optional customization per README
         TcSdk.setLocale('en');
         TcSdk.setTheme(TcSdkOptions.THEME_LIGHT);
         debugPrint('tc:requesting auth code');

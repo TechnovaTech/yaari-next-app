@@ -27,12 +27,13 @@ export async function POST(req: Request) {
     const body = await req.json()
     const authorizationCode: string | undefined = body?.authorizationCode
     const codeVerifier: string | undefined = body?.codeVerifier
+    const clientId: string = (process.env.TRUECALLER_CLIENT_ID || body?.clientId || '').toString()
 
     if (!authorizationCode || !codeVerifier) {
       return NextResponse.json({ message: 'authorizationCode and codeVerifier are required' }, { status: 400, headers: corsHeaders })
     }
-    if (!CLIENT_ID) {
-      return NextResponse.json({ message: 'Server missing TRUECALLER_CLIENT_ID' }, { status: 500, headers: corsHeaders })
+    if (!clientId) {
+      return NextResponse.json({ message: 'server_missing_client_id' }, { status: 500, headers: corsHeaders })
     }
 
     // Exchange authorization code
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
         grant_type: 'authorization_code',
         code: authorizationCode,
         code_verifier: codeVerifier,
-        client_id: CLIENT_ID,
+        client_id: clientId,
       }),
     })
     const tokenJson = await tokenRes.json().catch(() => ({}))
