@@ -53,7 +53,30 @@ class _LoginPageState extends State<LoginPage> {
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.setString('user', jsonEncode(payload));
                 if (!mounted) break;
-                Navigator.pushNamed(context, '/home');
+                Map<String, dynamic> root = payload;
+                final String id = (root['id'] ?? root['_id'] ?? '').toString();
+                bool isNew = false;
+                if (id.isNotEmpty) {
+                  try {
+                    final resUser = await http.get(Uri.parse('https://admin.yaari.me/api/users/$id'));
+                    if (resUser.statusCode == 200) {
+                      final full = jsonDecode(resUser.body);
+                      final createdStr = (full['createdAt'] ?? '').toString();
+                      DateTime? createdAt;
+                      try { createdAt = DateTime.tryParse(createdStr); } catch (_) {}
+                      final minutesSinceCreate = createdAt != null ? DateTime.now().difference(createdAt).inMinutes : 9999;
+                      final hasName = (full['name'] ?? '').toString().trim().isNotEmpty;
+                      final hasGender = (full['gender'] ?? '').toString().trim().isNotEmpty;
+                      final hasLanguage = (full['language'] ?? full['lang'] ?? '').toString().trim().isNotEmpty;
+                      isNew = minutesSinceCreate <= 5 && !(hasName || hasGender || hasLanguage);
+                    }
+                  } catch (_) {}
+                }
+                if (isNew) {
+                  Navigator.pushNamed(context, '/language', arguments: {'onboarding': true});
+                } else {
+                  Navigator.pushNamed(context, '/home');
+                }
               } else {
                 final msg = 'Truecaller login succeeded but data invalid';
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));

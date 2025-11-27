@@ -18,9 +18,20 @@ export async function OPTIONS() {
 export async function POST(request: Request) {
   try {
     const { phone } = await request.json()
+    const normalizePhone = (p: string) => {
+      let s = String(p || '').replace(/[\s\-\(\)]/g, '')
+      if (!s) return ''
+      if (s.startsWith('+')) return s
+      if (s.startsWith('00')) s = s.slice(2)
+      s = s.replace(/^0+/, '')
+      if (/^91\d{10}$/.test(s)) return `+${s}`
+      if (/^\d{10}$/.test(s)) return `+91${s}`
+      if (/^\d+$/.test(s)) return `+${s}`
+      return s
+    }
+    const normPhone = normalizePhone(phone)
     
-    // Validate phone number
-    if (!phone || phone.length < 10) {
+    if (!normPhone || normPhone.length < 12) {
       return NextResponse.json({ error: 'Invalid phone number' }, { 
         status: 400,
         headers: {
@@ -35,11 +46,11 @@ export async function POST(request: Request) {
     const db = client.db('yarri')
     
     // Send OTP via SMS
-    const smsResult = await smsService.sendOTP(phone, otp)
+    const smsResult = await smsService.sendOTP(normPhone, otp)
 
     // Store OTP and tracking info in database
     await db.collection('otps').updateOne(
-      { phone },
+      { phone: normPhone },
       { 
         $set: { 
           otp, 
@@ -54,7 +65,7 @@ export async function POST(request: Request) {
     
     console.log('\n🔐 OTP REQUEST')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log(`📱 Phone: ${phone}`)
+    console.log(`📱 Phone: ${normPhone}`)
     console.log(`🔢 OTP: ${otp}`)
     console.log(`⏰ Valid for: 5 minutes`)
     console.log(`📤 SMS Status: ${smsResult.success ? 'SENT' : 'FAILED'}`)

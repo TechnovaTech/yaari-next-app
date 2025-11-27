@@ -17,11 +17,23 @@ export async function OPTIONS() {
 export async function POST(request: Request) {
   try {
     const { phone, otp } = await request.json()
+    const normalizePhone = (p: string) => {
+      let s = String(p || '').replace(/[\s\-\(\)]/g, '')
+      if (!s) return ''
+      if (s.startsWith('+')) return s
+      if (s.startsWith('00')) s = s.slice(2)
+      s = s.replace(/^0+/, '')
+      if (/^91\d{10}$/.test(s)) return `+${s}`
+      if (/^\d{10}$/.test(s)) return `+91${s}`
+      if (/^\d+$/.test(s)) return `+${s}`
+      return s
+    }
+    const normPhone = normalizePhone(phone)
     
     const client = await clientPromise
     const db = client.db('yarri')
     
-    const otpRecord = await db.collection('otps').findOne({ phone })
+    const otpRecord = await db.collection('otps').findOne({ phone: normPhone })
     
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
@@ -41,7 +53,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid OTP' }, { status: 400, headers: corsHeaders })
     }
     
-    let user = await db.collection('users').findOne({ phone })
+    let user = await db.collection('users').findOne({ phone: normPhone })
     
     if (!user) {
       // Fetch signup bonus setting
@@ -50,17 +62,17 @@ export async function POST(request: Request) {
       const initialBalance = Number.isFinite(signupBonus) ? Math.max(0, Math.floor(signupBonus)) : 0
 
       const result = await db.collection('users').insertOne({
-        phone,
+        phone: normPhone,
         createdAt: new Date(),
         isActive: true,
         balance: initialBalance,
       })
-      user = { _id: result.insertedId, phone, balance: initialBalance, isActive: true, createdAt: new Date() }
+      user = { _id: result.insertedId, phone: normPhone, balance: initialBalance, isActive: true, createdAt: new Date() }
     }
     
-    await db.collection('otps').deleteOne({ phone })
+    await db.collection('otps').deleteOne({ phone: normPhone })
     
-    console.log(`✅ User logged in: ${phone}\n`)
+    console.log(`✅ User logged in: ${normPhone}\n`)
     
     return NextResponse.json({ 
       success: true, 

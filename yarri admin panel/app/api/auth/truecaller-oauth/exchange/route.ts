@@ -44,7 +44,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Truecaller userinfo failed', details: userJson }, { status: 502 })
     }
 
-    const phone = (userJson?.phone_number || userJson?.phoneNumber || userJson?.phone || '').toString()
+    const rawPhone = (userJson?.phone_number || userJson?.phoneNumber || userJson?.phone || '').toString()
+    const normalizePhone = (p: string) => {
+      let s = String(p || '').replace(/[\s\-\(\)]/g, '')
+      if (!s) return ''
+      if (s.startsWith('+')) return s
+      if (s.startsWith('00')) s = s.slice(2)
+      s = s.replace(/^0+/, '')
+      if (/^91\d{10}$/.test(s)) return `+${s}`
+      if (/^\d{10}$/.test(s)) return `+91${s}`
+      if (/^\d+$/.test(s)) return `+${s}`
+      return s
+    }
+    const phone = normalizePhone(rawPhone)
 
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
