@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     let tokenRes;
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       
       tokenRes = await fetch(TOKEN_URL, {
         method: 'POST',
@@ -56,15 +56,27 @@ export async function POST(req: Request) {
       });
       clearTimeout(timeoutId);
     } catch (fetchError: any) {
+      const errorMsg = fetchError?.message || String(fetchError);
       console.error('Truecaller token fetch failed:', {
-        error: fetchError?.message || String(fetchError),
+        error: errorMsg,
         url: TOKEN_URL,
-        clientId: clientId
+        clientId: clientId,
+        cause: fetchError?.cause?.code
       });
+      
+      // DNS resolution failure - instruct client to use direct exchange
+      if (errorMsg.includes('getaddrinfo') || errorMsg.includes('ENOTFOUND') || errorMsg.includes('resolve')) {
+        return NextResponse.json({ 
+          message: 'Server DNS issue - use client-side exchange', 
+          error: 'DNS_RESOLUTION_FAILED',
+          useClientSide: true
+        }, { status: 503, headers: corsHeaders })
+      }
+      
       return NextResponse.json({ 
         message: 'Cannot connect to Truecaller service', 
-        error: 'Network connectivity issue',
-        details: 'Please check server network configuration'
+        error: 'NETWORK_ERROR',
+        useClientSide: true
       }, { status: 503, headers: corsHeaders })
     }
     const tokenJson = await tokenRes.json().catch(() => ({}))
