@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 import 'package:truecaller_sdk/truecaller_sdk.dart';
 import '../services/auth_api.dart';
+import '../services/socket_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -54,25 +56,37 @@ class _LoginPageState extends State<LoginPage> {
                 await prefs.setString('user', jsonEncode(payload));
                 if (!mounted) break;
                 Map<String, dynamic> root = payload;
-                final String id = (root['id'] ?? root['_id'] ?? '').toString();
-                bool isNew = false;
+                Map<String, dynamic> inner = root;
+                final u = root['user'];
+                if (u is Map<String, dynamic>) {
+                  inner = u;
+                } else {
+                  final d = root['data'];
+                  if (d is Map<String, dynamic>) {
+                    inner = d;
+                  }
+                }
+                final String id = (inner['id'] ?? inner['_id'] ?? '').toString();
                 if (id.isNotEmpty) {
-                  try {
+                  try { SocketService.instance.connect(id); } catch (_) {}
+                }
+                Map<String, dynamic> user = inner;
+                try {
+                  if (id.isNotEmpty) {
                     final resUser = await http.get(Uri.parse('https://admin.yaari.me/api/users/$id'));
                     if (resUser.statusCode == 200) {
                       final full = jsonDecode(resUser.body);
-                      final createdStr = (full['createdAt'] ?? '').toString();
-                      DateTime? createdAt;
-                      try { createdAt = DateTime.tryParse(createdStr); } catch (_) {}
-                      final minutesSinceCreate = createdAt != null ? DateTime.now().difference(createdAt).inMinutes : 9999;
-                      final hasName = (full['name'] ?? '').toString().trim().isNotEmpty;
-                      final hasGender = (full['gender'] ?? '').toString().trim().isNotEmpty;
-                      final hasLanguage = (full['language'] ?? full['lang'] ?? '').toString().trim().isNotEmpty;
-                      isNew = minutesSinceCreate <= 5 && !(hasName || hasGender || hasLanguage);
+                      if (full is Map<String, dynamic>) {
+                        user = full;
+                      }
                     }
-                  } catch (_) {}
-                }
-                if (isNew) {
+                  }
+                } catch (_) {}
+                final hasName = (user['name'] ?? user['userName'] ?? '').toString().trim().isNotEmpty;
+                final hasGender = (user['gender'] ?? '').toString().trim().isNotEmpty;
+                final hasLanguage = (user['language'] ?? user['lang'] ?? '').toString().trim().isNotEmpty;
+                final needsOnboarding = !(hasName && hasGender && hasLanguage);
+                if (needsOnboarding) {
                   Navigator.pushNamed(context, '/language', arguments: {'onboarding': true});
                 } else {
                   Navigator.pushNamed(context, '/home');
@@ -88,7 +102,7 @@ class _LoginPageState extends State<LoginPage> {
                 _exchangeRetried = true;
                 debugPrint('tc:403 invalid code; retrying auth code request');
                 try {
-                  TcSdk.getAuthorizationCode;
+                  await TcSdk.getAuthorizationCode;
                   return;
                 } catch (_) {}
               }
@@ -111,7 +125,7 @@ class _LoginPageState extends State<LoginPage> {
               _scopeDowngraded = true;
               TcSdk.setOAuthScopes(['profile', 'phone', 'openid']);
               // Re-request authorization code with reduced scopes
-              TcSdk.getAuthorizationCode;
+              await TcSdk.getAuthorizationCode;
               return;
             } catch (_) {}
           }
@@ -403,7 +417,7 @@ class _LoginPageState extends State<LoginPage> {
         TcSdk.setLocale('en');
         TcSdk.setTheme(TcSdkOptions.THEME_LIGHT);
         debugPrint('tc:requesting auth code');
-        TcSdk.getAuthorizationCode;
+        await TcSdk.getAuthorizationCode;
         debugPrint('tc:auth code requested, waiting for callback');
         // Set timeout for callback
         Future.delayed(const Duration(seconds: 10), () {

@@ -5,6 +5,7 @@ import 'package:pinput/pinput.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import '../services/auth_api.dart';
+import '../services/socket_service.dart';
 // removed: import 'verified_screen.dart';
 
 class OtpScreen extends StatefulWidget {
@@ -231,32 +232,29 @@ class _OtpScreenState extends State<OtpScreen> {
         final data = result['data'] ?? {};
         await prefs.setString('user', jsonEncode(data));
         if (!mounted) return;
-        // Decide onboarding only for truly new users by checking server `createdAt`
         Map<String, dynamic> root = {};
         if (data is Map<String, dynamic>) root = data;
-        final Map<String, dynamic> user = (root['user'] is Map<String, dynamic>)
+        Map<String, dynamic> user = (root['user'] is Map<String, dynamic>)
             ? (root['user'] as Map<String, dynamic>)
             : root;
         final String id = (user['id'] ?? user['_id'] ?? '').toString();
-        bool isNew = false;
         if (id.isNotEmpty) {
+          try { SocketService.instance.connect(id); } catch (_) {}
           try {
             final res = await http.get(Uri.parse('https://admin.yaari.me/api/users/$id'));
             if (res.statusCode == 200) {
               final full = jsonDecode(res.body);
-              // Consider new if created very recently and profile fields are empty
-              final createdStr = (full['createdAt'] ?? '').toString();
-              DateTime? createdAt;
-              try { createdAt = DateTime.tryParse(createdStr); } catch (_) {}
-              final minutesSinceCreate = createdAt != null ? DateTime.now().difference(createdAt).inMinutes : 9999;
-              final hasName = (full['name'] ?? '').toString().trim().isNotEmpty;
-              final hasGender = (full['gender'] ?? '').toString().trim().isNotEmpty;
-              final hasLanguage = (full['language'] ?? full['lang'] ?? '').toString().trim().isNotEmpty;
-              isNew = minutesSinceCreate <= 5 && !(hasName || hasGender || hasLanguage);
+              if (full is Map<String, dynamic>) {
+                user = full;
+              }
             }
           } catch (_) {}
         }
-        if (isNew) {
+        final hasName = (user['name'] ?? user['userName'] ?? '').toString().trim().isNotEmpty;
+        final hasGender = (user['gender'] ?? '').toString().trim().isNotEmpty;
+        final hasLanguage = (user['language'] ?? user['lang'] ?? '').toString().trim().isNotEmpty;
+        final needsOnboarding = !(hasName && hasGender && hasLanguage);
+        if (needsOnboarding) {
           Navigator.pushNamed(context, '/language', arguments: {'onboarding': true});
         } else {
           Navigator.pushNamed(context, '/home');
