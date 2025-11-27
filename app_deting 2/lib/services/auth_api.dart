@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 
 class AuthApi {
   static const String _base = 'https://admin.yaari.me/api/auth';
+  static const String _tcTokenUrl = 'https://oauth.truecaller.com/v1/token';
+  static const String _tcUserinfoUrl = 'https://oauth.truecaller.com/v1/userinfo';
 
   static Future<Map<String, dynamic>> sendOtp(String phone) async {
     final uri = Uri.parse('$_base/send-otp');
@@ -88,6 +90,39 @@ class AuthApi {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return {'success': true, 'data': body};
     }
+    try {
+      final tokenRes = await http.post(
+        Uri.parse(_tcTokenUrl),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {
+          'grant_type': 'authorization_code',
+          'code': authorizationCode,
+          'code_verifier': codeVerifier,
+          'client_id': 'fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs',
+        },
+      );
+      final tokenJson = _decodeBody(tokenRes);
+      final access = tokenJson['access_token']?.toString();
+      if (tokenRes.statusCode >= 200 && tokenRes.statusCode < 300 && access != null && access.isNotEmpty) {
+        final userRes = await http.get(
+          Uri.parse(_tcUserinfoUrl),
+          headers: {'Authorization': 'Bearer $access'},
+        );
+        final userJson = _decodeBody(userRes);
+        if (userRes.statusCode >= 200 && userRes.statusCode < 300) {
+          final phoneRaw = (userJson['phone_number'] ?? userJson['phoneNumber'] ?? userJson['phone'] ?? '').toString();
+          final phone = phoneRaw.replaceAll(RegExp(r'^\+91\s*', caseSensitive: false), '').replaceAll(RegExp(r'\s+'), '');
+          if (RegExp(r'^[0-9]{10}$').hasMatch(phone)) {
+            final user = {
+              'phone': phone,
+              'name': (userJson['name'] ?? userJson['given_name'] ?? '').toString().isEmpty ? null : (userJson['name'] ?? userJson['given_name']).toString(),
+              'tcScopes': userJson['scopes'],
+            };
+            return {'success': true, 'data': {'user': user}};
+          }
+        }
+      }
+    } catch (_) {}
     return {
       'success': false,
       'message': body['message'] ?? 'Truecaller login failed',
