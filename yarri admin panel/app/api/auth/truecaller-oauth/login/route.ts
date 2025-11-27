@@ -37,17 +37,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'server_missing_client_id' }, { status: 500, headers: corsHeaders })
     }
 
-    // Exchange authorization code
-    const tokenRes = await fetch(TOKEN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: authorizationCode,
-        code_verifier: codeVerifier,
-        client_id: clientId,
-      }),
-    })
+    // Exchange authorization code with timeout and retry
+    let tokenRes;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      tokenRes = await fetch(TOKEN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: authorizationCode,
+          code_verifier: codeVerifier,
+          client_id: clientId,
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchError: any) {
+      console.error('Truecaller token fetch failed:', {
+        error: fetchError?.message || String(fetchError),
+        url: TOKEN_URL,
+        clientId: clientId
+      });
+      return NextResponse.json({ 
+        message: 'Cannot connect to Truecaller service', 
+        error: 'Network connectivity issue',
+        details: 'Please check server network configuration'
+      }, { status: 503, headers: corsHeaders })
+    }
     const tokenJson = await tokenRes.json().catch(() => ({}))
     if (!tokenRes.ok || !tokenJson?.access_token) {
       console.error('Truecaller token exchange failed:', {
