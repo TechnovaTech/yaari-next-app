@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class AuthApi {
@@ -72,24 +73,7 @@ class AuthApi {
   }
 
   static Future<Map<String, dynamic>> truecallerLogin({required String authorizationCode, required String codeVerifier}) async {
-    final uri = Uri.parse('$_base/truecaller-oauth/login');
-    final res = await http.post(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-client-id': 'fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs',
-      },
-      body: jsonEncode({
-        'authorizationCode': authorizationCode,
-        'codeVerifier': codeVerifier,
-        'clientId': 'fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs',
-        'client_id': 'fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs',
-      }),
-    );
-    final body = _decodeBody(res);
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      return {'success': true, 'data': body};
-    }
+    // First, try direct token exchange (client-side)
     try {
       final tokenRes = await http.post(
         Uri.parse(_tcTokenUrl),
@@ -121,12 +105,47 @@ class AuthApi {
             return {'success': true, 'data': user};
           }
         }
+        return {
+          'success': false,
+          'message': tokenJson['error_description'] ?? tokenJson['error'] ?? 'Truecaller userinfo failed',
+          'status': userRes.statusCode,
+          'details': userJson,
+        };
       }
-    } catch (_) {}
+      return {
+        'success': false,
+        'message': tokenJson['error_description'] ?? tokenJson['error'] ?? 'Truecaller token exchange failed',
+        'status': tokenRes.statusCode,
+        'details': tokenJson,
+      };
+    } catch (e) {
+      debugPrint('Client-side token exchange failed: $e');
+    }
+
+    // Fallback to server-side route
+    final uri = Uri.parse('$_base/truecaller-oauth/login');
+    final res = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-client-id': 'fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs',
+      },
+      body: jsonEncode({
+        'authorizationCode': authorizationCode,
+        'codeVerifier': codeVerifier,
+        'clientId': 'fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs',
+        'client_id': 'fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs',
+      }),
+    );
+    final body = _decodeBody(res);
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return {'success': true, 'data': body};
+    }
     return {
       'success': false,
       'message': body['message'] ?? 'Truecaller login failed',
       'status': res.statusCode,
+      'details': body['details'] ?? body,
     };
   }
 }

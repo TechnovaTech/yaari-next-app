@@ -46,14 +46,20 @@ class _LoginPageState extends State<LoginPage> {
             }
             final res = await AuthApi.truecallerLogin(authorizationCode: authCode, codeVerifier: _codeVerifier!);
             if (res['success'] == true) {
-              final data = (res['data'] ?? res['user']) as Map<String, dynamic>;
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setString('user', jsonEncode(data));
-              if (!mounted) break;
-              Navigator.pushNamed(context, '/home');
+              final payload = res['data'] ?? res['user'];
+              if (payload is Map<String, dynamic>) {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('user', jsonEncode(payload));
+                if (!mounted) break;
+                Navigator.pushNamed(context, '/home');
+              } else {
+                final msg = 'Truecaller login succeeded but data invalid';
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+              }
             } else {
+              final status = (res['status'] ?? '').toString();
               final msg = (res['message'] ?? 'Truecaller login failed').toString();
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$msg ($status)')));
             }
           } catch (e) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Truecaller login error: $e')));
