@@ -71,7 +71,7 @@ export async function POST(req: Request) {
       name: (userJson?.name || userJson?.given_name || '').toString() || undefined,
       tcScopes: userJson?.scopes || undefined,
     }
-    return NextResponse.json({ success: true, user }, { headers: corsHeaders })
+    return NextResponse.json({ success: true, data: user }, { headers: corsHeaders })
   } catch (e: any) {
     return NextResponse.json({ message: 'Truecaller login error', error: e?.message || String(e) }, { status: 500, headers: corsHeaders })
   }

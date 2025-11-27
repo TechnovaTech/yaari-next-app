@@ -46,7 +46,7 @@ class _LoginPageState extends State<LoginPage> {
             }
             final res = await AuthApi.truecallerLogin(authorizationCode: authCode, codeVerifier: _codeVerifier!);
             if (res['success'] == true) {
-              final data = res['data'] as Map<String, dynamic>;
+              final data = (res['data'] ?? res['user']) as Map<String, dynamic>;
               final prefs = await SharedPreferences.getInstance();
               await prefs.setString('user', jsonEncode(data));
               if (!mounted) break;

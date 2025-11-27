@@ -118,7 +118,7 @@ class AuthApi {
               'name': (userJson['name'] ?? userJson['given_name'] ?? '').toString().isEmpty ? null : (userJson['name'] ?? userJson['given_name']).toString(),
               'tcScopes': userJson['scopes'],
             };
-            return {'success': true, 'data': {'user': user}};
+            return {'success': true, 'data': user};
           }
         }
       }
