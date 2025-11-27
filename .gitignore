@@ -1,36 +1,27 @@
-# Ignore zip archives globally
-*.zip
+# Flutter
+.dart_tool/
+.flutter-plugins*
+.packages
+build/
+**/build/
+ios/Pods/
+android/.gradle/
+android/app/release/
+android/app/debug/
+*.lock
 
-# Explicitly ignore the problematic zip in admin panel
-yarri admin panel/zip.zip
+# Node/Next admin panel
+yarri admin panel/node_modules/
+yarri admin panel/.next/
+yarri admin panel/.vercel/
+yarri admin panel/.env*
 
-# Ignore local JDK bundle under mobile app (heavy, not source)
+# Local JDK cache (large files)
 yarri app/temp_jdk/
-# Flutter project build artifacts (added by Trae to prevent large binaries)
-app_deting 2/.dart_tool/
-app_deting 2/build/
-app_deting 2/.packages
-app_deting 2/.flutter-plugins
-app_deting 2/.flutter-plugins-dependencies
-app_deting 2/pubspec.lock
 
-# Android build outputs and Gradle caches
-app_deting 2/android/.gradle/
-app_deting 2/android/build/
-app_deting 2/android/app/build/
-
-# iOS build outputs
-app_deting 2/ios/Flutter/
-app_deting 2/ios/.generated/
-app_deting 2/ios/Pods/
-app_deting 2/macos/Flutter/ephemeral/
-app_deting 2/linux/flutter/ephemeral/
-
-# Common OS junk
+# macOS
 .DS_Store
-Thumbs.db
 
-# Large binaries
-*.apk
-*.aab
-*.ipa
+# IDE
+.vscode/
+.idea/
