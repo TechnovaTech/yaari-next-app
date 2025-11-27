@@ -8,7 +8,8 @@ module.exports = {
     max_memory_restart: '1G',
     env: {
       NODE_ENV: 'production',
-      PORT: 3000
+      PORT: 3000,
+      TRUECALLER_CLIENT_ID: 'fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs'
     }
   }]
 }
