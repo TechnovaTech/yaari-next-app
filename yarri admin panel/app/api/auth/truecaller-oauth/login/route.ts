@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import clientPromise from '@/lib/mongodb'
 
 const TOKEN_URL = process.env.TRUECALLER_TOKEN_URL || 'https://oauth.truecaller.com/v1/token'
 const USERINFO_URL = process.env.TRUECALLER_USERINFO_URL || 'https://oauth.truecaller.com/v1/userinfo'
@@ -65,30 +64,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Invalid phone in Truecaller profile', details: { phone: phoneRaw } }, { status: 422, headers: corsHeaders })
     }
 
-    const client = await clientPromise
-    const db = client.db('yarri')
-
-    // Find or create user
-    let user = await db.collection('users').findOne({ phone })
-    if (!user) {
-      // Signup bonus
-      const bonusDoc = await db.collection('settings').findOne({ key: 'signup_bonus' })
-      const signupBonus = Number((bonusDoc as any)?.amount || 0)
-      const initialBalance = Number.isFinite(signupBonus) ? Math.max(0, Math.floor(signupBonus)) : 0
-      const insert = await db.collection('users').insertOne({
-        phone,
-        createdAt: new Date(),
-        isActive: true,
-        balance: initialBalance,
-        name: (userJson?.name || userJson?.given_name || '').toString() || undefined,
-        gender: undefined,
-      })
-      user = { _id: insert.insertedId, phone, balance: initialBalance, isActive: true, createdAt: new Date() }
+    const user = {
+      phone,
+      name: (userJson?.name || userJson?.given_name || '').toString() || undefined,
+      tcScopes: userJson?.scopes || undefined,
     }
-
     return NextResponse.json({ success: true, user }, { headers: corsHeaders })
   } catch (e: any) {
     return NextResponse.json({ message: 'Truecaller login error', error: e?.message || String(e) }, { status: 500, headers: corsHeaders })
   }
 }
-

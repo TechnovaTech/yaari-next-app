@@ -3,9 +3,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-    <uses-permission android:name="android.permission.READ_CALL_LOG" />
-    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
@@ -58,10 +55,8 @@
         <meta-data android:name="CLEVERTAP_TOKEN" android:value="${CLEVERTAP_TOKEN}" />
         <meta-data android:name="CLEVERTAP_REGION" android:value="${CLEVERTAP_REGION}" />
 
-        <!-- Truecaller SDK client identifier via manifest placeholder -->
+        <!-- Truecaller SDK client identifier -->
         <meta-data android:name="com.truecaller.android.sdk.ClientId" android:value="${TRUECALLER_CLIENT_ID}" />
-        <!-- Classic SDK PartnerKey placeholder (for truecaller-sdk:2.6.0) -->
-        <meta-data android:name="com.truecaller.android.sdk.PartnerKey" android:value="${TRUECALLER_PARTNER_KEY}" />
         
         <!-- Meta (Facebook) App ID -->
         <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>

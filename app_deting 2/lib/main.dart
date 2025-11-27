@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:truecaller_sdk/truecaller_sdk.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'screens/otp_screen.dart';
@@ -44,7 +45,17 @@ Future<void> main() async {
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     return true;
   };
+  
   await MetaAnalyticsService.instance.init();
+  
+  // Initialize TrueCaller SDK in background (non-blocking)
+  if (!kIsWeb) {
+    TcSdk.initializeSDK(sdkOption: TcSdkOptions.OPTION_VERIFY_ONLY_TC_USERS).then((_) {
+      debugPrint('✅ TrueCaller SDK initialized');
+    }).catchError((e) {
+      debugPrint('⚠️ TrueCaller init failed: $e');
+    });
+  }
   
   runApp(const MyApp());
 }
