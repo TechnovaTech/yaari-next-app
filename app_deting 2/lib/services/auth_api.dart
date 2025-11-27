@@ -86,69 +86,43 @@ class AuthApi {
   }
 
   static Future<Map<String, dynamic>> truecallerLogin({required String authorizationCode, required String codeVerifier}) async {
-    // Direct token exchange (client-side) - bypasses server network issues
+    // Use server-side exchange endpoint instead of direct Truecaller API calls
+    // Truecaller OAuth endpoints are not directly accessible and should go through your server
     try {
-      debugPrint('tc:exchange starting client-side');
-      final tokenRes = await http.post(
-        Uri.parse(_tcTokenUrl),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: {
-          'grant_type': 'authorization_code',
-          'code': authorizationCode,
-          'code_verifier': codeVerifier,
-          'client_id': 'fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs',
+      debugPrint('tc:using server-side exchange endpoint');
+      
+      final exchangeRes = await http.post(
+        Uri.parse('$_base/truecaller-oauth/login'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': 'fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs',
         },
-      ).timeout(const Duration(seconds: 10));
+        body: jsonEncode({
+          'authorizationCode': authorizationCode,
+          'codeVerifier': codeVerifier,
+        }),
+      ).timeout(const Duration(seconds: 15));
       
-      debugPrint('tc:token response status=${tokenRes.statusCode}');
-      final tokenJson = _decodeBody(tokenRes);
-      final access = tokenJson['access_token']?.toString();
+      debugPrint('tc:server exchange response status=${exchangeRes.statusCode}');
+      final exchangeJson = _decodeBody(exchangeRes);
       
-      if (tokenRes.statusCode >= 200 && tokenRes.statusCode < 300 && access != null && access.isNotEmpty) {
-        debugPrint('tc:token success, fetching userinfo');
-        final userRes = await http.get(
-          Uri.parse(_tcUserinfoUrl),
-          headers: {'Authorization': 'Bearer $access'},
-        ).timeout(const Duration(seconds: 10));
-        
-        debugPrint('tc:userinfo response status=${userRes.statusCode}');
-        final userJson = _decodeBody(userRes);
-        
-        if (userRes.statusCode >= 200 && userRes.statusCode < 300) {
-          final phoneRaw = (userJson['phone_number'] ?? userJson['phoneNumber'] ?? userJson['phone'] ?? '').toString();
-          final phone = phoneRaw.replaceAll(RegExp(r'^\+91\s*', caseSensitive: false), '').replaceAll(RegExp(r'\s+'), '');
-          debugPrint('tc:extracted phone=$phone');
-          
-          if (RegExp(r'^[0-9]{10}$').hasMatch(phone)) {
-            final user = {
-              'phone': phone,
-              'name': (userJson['name'] ?? userJson['given_name'] ?? '').toString().isEmpty ? null : (userJson['name'] ?? userJson['given_name']).toString(),
-              'tcScopes': userJson['scopes'],
-            };
-            debugPrint('tc:login success');
-            return {'success': true, 'data': user};
-          } else {
-            debugPrint('tc:invalid phone format');
-          }
-        }
-        return {
-          'success': false,
-          'message': 'Failed to get user info from Truecaller',
-          'status': userRes.statusCode,
-        };
+      if (exchangeRes.statusCode >= 200 && exchangeRes.statusCode < 300) {
+        debugPrint('tc:server exchange success');
+        return {'success': true, 'data': exchangeJson};
       }
       
-      debugPrint('tc:token exchange failed');
+      debugPrint('tc:server exchange failed');
       return {
         'success': false,
-        'message': tokenJson['error_description'] ?? tokenJson['error'] ?? 'Truecaller token exchange failed',
-        'status': tokenRes.statusCode,
+        'message': exchangeJson['message'] ?? 'Truecaller login failed',
+        'status': exchangeRes.statusCode,
       };
+      
     } catch (e) {
-      debugPrint('tc:client-side exchange error: $e');
+      debugPrint('tc:exchange error: $e');
       return {
         'success': false,
-        'message': 'Cannot connect to Truecaller service',
+        'message': 'Cannot connect to authentication service',
         'status': 503,
       };
     }
