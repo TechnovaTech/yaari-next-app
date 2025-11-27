@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
-const TOKEN_URL = process.env.TRUECALLER_TOKEN_URL || 'https://oauth.truecaller.com/v1/token'
-const USERINFO_URL = process.env.TRUECALLER_USERINFO_URL || 'https://oauth.truecaller.com/v1/userinfo'
+const TOKEN_URL = process.env.TRUECALLER_TOKEN_URL || 'https://auth-idp-noneu.truecaller.com/v1/token'
+const USERINFO_URL = process.env.TRUECALLER_USERINFO_URL || 'https://auth-noneu.truecaller.com/v1/userinfo'
 const CLIENT_ID = process.env.TRUECALLER_CLIENT_ID || ''
 
 export async function POST(req: Request) {
@@ -47,4 +47,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'Exchange error', error: e?.message || String(e) }, { status: 500 })
   }
 }
-

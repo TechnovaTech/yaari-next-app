@@ -41,8 +41,7 @@ class _LoginPageState extends State<LoginPage> {
           try {
             final authCode = tc.tcOAuthData?.authorizationCode;
             if (authCode == null || _codeVerifier == null) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller data missing, using OTP')));
-              await _sendOtpFixed();
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller data missing')));
               break;
             }
             final res = await AuthApi.truecallerLogin(authorizationCode: authCode, codeVerifier: _codeVerifier!);
@@ -60,18 +59,11 @@ class _LoginPageState extends State<LoginPage> {
             } else {
               final status = res['status'] ?? 0;
               final msg = (res['message'] ?? 'Truecaller login failed').toString();
-              // If 503 or network error, fallback to OTP silently
-              if (status == 503 || msg.contains('unavailable') || msg.contains('connection')) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller unavailable, using OTP instead')));
-                await _sendOtpFixed();
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$msg ($status)')));
-              }
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$msg ($status)')));
             }
           } catch (e) {
             debugPrint('tc:login error: $e');
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller unavailable, using OTP instead')));
-            await _sendOtpFixed();
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller unavailable')));
           }
           break;
         case TcSdkCallbackResult.exception:
@@ -80,9 +72,7 @@ class _LoginPageState extends State<LoginPage> {
           final code = tc.error?.code ?? tc.exception?.code;
           final msg = tc.error?.message ?? tc.exception?.message ?? 'Unknown error';
           debugPrint('tc:failure/exception code=$code msg=$msg');
-          // Automatically fallback to OTP on any Truecaller error
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller unavailable, using OTP instead')));
-          await _sendOtpFixed();
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller unavailable')));
           break;
         default:
           break;
@@ -344,23 +334,22 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _continueWithTruecaller() async {
     setState(() => _checkingTruecaller = true);
     try {
-      // Initialize SDK if not already done
-      await TcSdk.initializeSDK(sdkOption: TcSdkOptions.OPTION_VERIFY_ONLY_TC_USERS)
-          .timeout(const Duration(seconds: 2), onTimeout: () {});
       final usable = await TcSdk.isOAuthFlowUsable
-          .timeout(const Duration(seconds: 2), onTimeout: () => false);
+          .timeout(const Duration(seconds: 5), onTimeout: () {
+        debugPrint('tc:isOAuthFlowUsable timeout');
+        return false;
+      });
       debugPrint('tc:isUsable=$usable');
       if (!usable) {
         setState(() => _checkingTruecaller = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller not available, using OTP fallback')));
-        await _sendOtpFixed();
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller not available')));
         return;
       }
       final state = DateTime.now().microsecondsSinceEpoch.toString();
       debugPrint('tc:setting state=$state');
       TcSdk.setOAuthState(state);
       debugPrint('tc:setting scopes');
-      TcSdk.setOAuthScopes(['profile', 'phone', 'openid']);
+      TcSdk.setOAuthScopes(['openid', 'phone', 'profile', 'email', 'offline_access']);
       debugPrint('tc:generating verifier');
       _codeVerifier = await TcSdk.generateRandomCodeVerifier;
       debugPrint('tc:verifier generated');
@@ -378,8 +367,7 @@ class _LoginPageState extends State<LoginPage> {
           if (_checkingTruecaller && mounted) {
             debugPrint('tc:callback timeout');
             setState(() => _checkingTruecaller = false);
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller not responding, using OTP fallback')));
-            _sendOtpFixed();
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller not responding')));
           }
         });
       } else {
@@ -389,18 +377,15 @@ class _LoginPageState extends State<LoginPage> {
     } on PlatformException catch (e) {
       setState(() => _checkingTruecaller = false);
       debugPrint('tc:platform error: ${e.code} ${e.message}');
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller not responding, using OTP fallback')));
-      await _sendOtpFixed();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller not responding')));
     } on TimeoutException catch (e) {
       setState(() => _checkingTruecaller = false);
       debugPrint('tc:timeout: ${e.message}');
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller not responding, using OTP fallback')));
-      await _sendOtpFixed();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller not responding')));
     } catch (e) {
       setState(() => _checkingTruecaller = false);
       debugPrint('tc:error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller not responding, using OTP fallback')));
-      await _sendOtpFixed();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller not responding')));
     }
   }
 }
