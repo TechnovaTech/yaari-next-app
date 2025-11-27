@@ -50,14 +50,36 @@ export async function POST(req: Request) {
     })
     const tokenJson = await tokenRes.json().catch(() => ({}))
     if (!tokenRes.ok || !tokenJson?.access_token) {
-      return NextResponse.json({ message: 'Truecaller token exchange failed', details: tokenJson }, { status: 502, headers: corsHeaders })
+      console.error('Truecaller token exchange failed:', {
+        status: tokenRes.status,
+        statusText: tokenRes.statusText,
+        response: tokenJson,
+        clientId: clientId,
+        url: TOKEN_URL
+      })
+      return NextResponse.json({ 
+        message: 'Truecaller token exchange failed', 
+        details: tokenJson,
+        status: tokenRes.status,
+        clientId: clientId
+      }, { status: 502, headers: corsHeaders })
     }
 
     // Fetch user info
     const userRes = await fetch(USERINFO_URL, { headers: { Authorization: `Bearer ${tokenJson.access_token}` } })
     const userJson = await userRes.json().catch(() => ({}))
     if (!userRes.ok) {
-      return NextResponse.json({ message: 'Truecaller userinfo failed', details: userJson }, { status: 502, headers: corsHeaders })
+      console.error('Truecaller userinfo failed:', {
+        status: userRes.status,
+        statusText: userRes.statusText,
+        response: userJson,
+        accessToken: tokenJson.access_token
+      })
+      return NextResponse.json({ 
+        message: 'Truecaller userinfo failed', 
+        details: userJson,
+        status: userRes.status
+      }, { status: 502, headers: corsHeaders })
     }
 
     const phoneRaw = (userJson?.phone_number || userJson?.phoneNumber || userJson?.phone || '').toString()
@@ -73,6 +95,15 @@ export async function POST(req: Request) {
     }
     return NextResponse.json({ success: true, data: user }, { headers: corsHeaders })
   } catch (e: any) {
-    return NextResponse.json({ message: 'Truecaller login error', error: e?.message || String(e) }, { status: 500, headers: corsHeaders })
+    console.error('Truecaller login unhandled error:', {
+      error: e?.message || String(e),
+      stack: e?.stack,
+      body: await req.text().catch(() => 'Unable to read body')
+    })
+    return NextResponse.json({ 
+      message: 'Truecaller login error', 
+      error: e?.message || String(e),
+      stack: e?.stack
+    }, { status: 500, headers: corsHeaders })
   }
 }
