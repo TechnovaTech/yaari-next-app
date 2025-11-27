@@ -4,9 +4,9 @@ import 'package:http/http.dart' as http;
 
 class AuthApi {
   static const String _base = 'https://admin.yaari.me/api/auth';
-  static const String _tcTokenUrl = 'https://auth-idp-noneu.truecaller.com/v1/token';
-  static const String _tcUserinfoUrl = 'https://auth-noneu.truecaller.com/v1/userinfo';
-  static const String _tcRevokeUrl = 'https://auth-idp-noneu.truecaller.com/v1/revoke';
+  static const String _tcTokenUrl = 'https://oauth-account-noneu.truecaller.com/v1/token';
+  static const String _tcUserinfoUrl = 'https://oauth-account-noneu.truecaller.com/v1/userinfo';
+  static const String _tcRevokeUrl = 'https://oauth-account-noneu.truecaller.com/v1/revoke';
 
   static Future<Map<String, dynamic>> sendOtp(String phone) async {
     final uri = Uri.parse('$_base/send-otp');
@@ -100,8 +100,7 @@ class AuthApi {
         body: 'grant_type=authorization_code&' +
               'code=$authorizationCode&' +
               'code_verifier=$codeVerifier&' +
-              'client_id=fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs&' +
-              'redirect_uri=tc://login',
+              'client_id=fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs',
       ).timeout(const Duration(seconds: 15));
       
       debugPrint('tc:direct exchange response status=${tokenRes.statusCode}');
