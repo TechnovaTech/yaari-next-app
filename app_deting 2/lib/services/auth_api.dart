@@ -87,74 +87,26 @@ class AuthApi {
   }
 
   static Future<Map<String, dynamic>> truecallerLogin({required String authorizationCode, required String codeVerifier}) async {
-    // Use direct Truecaller API exchange (client-side)
-    // Truecaller OAuth endpoints are now accessible for direct client-side exchange
     try {
-      debugPrint('tc:using direct Truecaller API exchange');
-      
-      final tokenRes = await http.post(
-        Uri.parse(_tcTokenUrl),
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: 'grant_type=authorization_code&' +
-              'code=$authorizationCode&' +
-              'code_verifier=$codeVerifier&' +
-              'client_id=fn_yohgvr75otxdy6eqursnetjuhk8b8xqdqzvahurs',
-      ).timeout(const Duration(seconds: 15));
-      
-      debugPrint('tc:direct exchange response status=${tokenRes.statusCode}');
-      final tokenJson = _decodeBody(tokenRes);
-      
-      if (tokenRes.statusCode >= 200 && tokenRes.statusCode < 300) {
-        debugPrint('tc:direct exchange success');
-        final accessToken = tokenJson['access_token'];
-        
-        if (accessToken != null) {
-          // Get user info using the access token
-          final userInfoRes = await http.get(
-            Uri.parse(_tcUserinfoUrl),
-            headers: {
-              'Authorization': 'Bearer $accessToken',
-            },
-          ).timeout(const Duration(seconds: 10));
-          
-          debugPrint('tc:userinfo response status=${userInfoRes.statusCode}');
-          final userInfoJson = _decodeBody(userInfoRes);
-          
-          if (userInfoRes.statusCode >= 200 && userInfoRes.statusCode < 300) {
-            debugPrint('tc:userinfo success');
-            return {
-              'success': true, 
-              'data': {
-                'access_token': accessToken,
-                'user_info': userInfoJson,
-              }
-            };
-          } else {
-            debugPrint('tc:userinfo failed');
-            return {
-              'success': true, // Still success since we got the token
-              'data': {
-                'access_token': accessToken,
-                'user_info': {},
-              }
-            };
-          }
-        }
-        
-        return {'success': true, 'data': tokenJson};
+      final uri = Uri.parse('$_base/truecaller-oauth/exchange');
+      final res = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'authorizationCode': authorizationCode,
+          'codeVerifier': codeVerifier,
+        }),
+      ).timeout(const Duration(seconds: 20));
+      final body = _decodeBody(res);
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        return {'success': true, 'data': body['user'] ?? body};
       }
-      
-      debugPrint('tc:direct exchange failed');
       return {
         'success': false,
-        'message': tokenJson['error_description'] ?? 'Truecaller login failed',
-        'status': tokenRes.statusCode,
+        'message': _getErrorMessage(res.statusCode, body),
+        'status': res.statusCode,
       };
-      
     } catch (e) {
-      debugPrint('tc:direct exchange error: $e');
       return {
         'success': false,
         'message': 'Cannot connect to Truecaller authentication service',

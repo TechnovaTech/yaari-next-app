@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import clientPromise from '@/lib/mongodb'
+import { ObjectId } from 'mongodb'
 
 const TOKEN_URL = process.env.TRUECALLER_TOKEN_URL || 'https://oauth-account-noneu.truecaller.com/v1/token'
 const USERINFO_URL = process.env.TRUECALLER_USERINFO_URL || 'https://oauth-account-noneu.truecaller.com/v1/userinfo'
@@ -25,6 +27,7 @@ export async function POST(req: Request) {
         code: authorizationCode,
         code_verifier: codeVerifier,
         client_id: CLIENT_ID,
+        redirect_uri: 'tc://login',
       }),
     })
 
@@ -42,7 +45,67 @@ export async function POST(req: Request) {
     }
 
     const phone = (userJson?.phone_number || userJson?.phoneNumber || userJson?.phone || '').toString()
-    return NextResponse.json({ phone, raw: userJson })
+
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    }
+
+    if (!phone) {
+      return NextResponse.json({ message: 'Missing phone in Truecaller profile', details: userJson }, { status: 422, headers: corsHeaders })
+    }
+
+    const client = await clientPromise
+    const db = client.db('yarri')
+
+    let user = await db.collection('users').findOne({ phone })
+
+    if (!user) {
+      const bonusDoc = await db.collection('settings').findOne({ key: 'signup_bonus' })
+      const signupBonus = Number((bonusDoc as any)?.amount || 0)
+      const initialBalance = Number.isFinite(signupBonus) ? Math.max(0, Math.floor(signupBonus)) : 0
+
+      const name = (userJson?.given_name || userJson?.name || '').toString() || undefined
+      const email = (userJson?.email || '').toString() || undefined
+      const profilePic = (userJson?.picture || userJson?.avatarUrl || '').toString() || undefined
+
+      const result = await db.collection('users').insertOne({
+        phone,
+        name,
+        email,
+        profilePic,
+        createdAt: new Date(),
+        isActive: true,
+        balance: initialBalance,
+        loginMethod: 'truecaller',
+      })
+      user = { _id: result.insertedId, phone, name, email, profilePic, balance: initialBalance, isActive: true, createdAt: new Date() }
+    } else {
+      const name = (userJson?.given_name || userJson?.name || user?.name || '').toString() || undefined
+      const email = (userJson?.email || user?.email || '').toString() || undefined
+      const profilePic = (userJson?.picture || userJson?.avatarUrl || user?.profilePic || '').toString() || undefined
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(user._id) },
+        { $set: { name, email, profilePic, lastLogin: new Date(), loginMethod: 'truecaller' } }
+      )
+      user = { ...user, name, email, profilePic }
+    }
+
+    const responseUser = {
+      id: user._id,
+      phone: user.phone,
+      email: user.email,
+      name: user.name,
+      gender: user.gender,
+      about: user.about,
+      hobbies: user.hobbies,
+      profilePic: user.profilePic,
+      gallery: user.gallery,
+      balance: user.balance || 0,
+    }
+
+    return NextResponse.json({ success: true, user: responseUser }, { headers: corsHeaders })
   } catch (e: any) {
     return NextResponse.json({ message: 'Exchange error', error: e?.message || String(e) }, { status: 500 })
   }

@@ -23,6 +23,8 @@ class _LoginPageState extends State<LoginPage> {
   StreamSubscription? _tcSub;
   String? _codeVerifier;
   bool _tcFilled = false;
+  bool _scopeDowngraded = false;
+  bool _exchangeRetried = false;
 
   @override
   void initState() {
@@ -59,6 +61,14 @@ class _LoginPageState extends State<LoginPage> {
             } else {
               final status = res['status'] ?? 0;
               final msg = (res['message'] ?? 'Truecaller login failed').toString();
+              if (!_exchangeRetried && status == 403) {
+                _exchangeRetried = true;
+                debugPrint('tc:403 invalid code; retrying auth code request');
+                try {
+                  TcSdk.getAuthorizationCode;
+                  return;
+                } catch (_) {}
+              }
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$msg ($status)')));
             }
           } catch (e) {
@@ -72,6 +82,16 @@ class _LoginPageState extends State<LoginPage> {
           final code = tc.error?.code ?? tc.exception?.code;
           final msg = tc.error?.message ?? tc.exception?.message ?? 'Unknown error';
           debugPrint('tc:failure/exception code=$code msg=$msg');
+          if (!_scopeDowngraded && (msg.contains('Scopes not enabled') || (code == 42203))) {
+            try {
+              debugPrint('tc:downgrading scopes and retrying without email/offline_access');
+              _scopeDowngraded = true;
+              TcSdk.setOAuthScopes(['profile', 'phone', 'openid']);
+              // Re-request authorization code with reduced scopes
+              TcSdk.getAuthorizationCode;
+              return;
+            } catch (_) {}
+          }
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truecaller unavailable')));
           break;
         default:
@@ -349,7 +369,7 @@ class _LoginPageState extends State<LoginPage> {
       debugPrint('tc:setting state=$state');
       TcSdk.setOAuthState(state);
       debugPrint('tc:setting scopes');
-      TcSdk.setOAuthScopes(['openid', 'phone', 'profile', 'email', 'offline_access']);
+      TcSdk.setOAuthScopes(['openid', 'phone', 'profile']);
       debugPrint('tc:generating verifier');
       _codeVerifier = await TcSdk.generateRandomCodeVerifier;
       debugPrint('tc:verifier generated');
