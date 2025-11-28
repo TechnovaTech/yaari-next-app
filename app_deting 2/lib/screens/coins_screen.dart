@@ -100,10 +100,10 @@ class _CoinsScreenState extends State<CoinsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter coins or select a plan')));
       return;
     }
+    final num amountRupees = isPlan ? _selectedPlan!.price : _priceForCoins(coinsRequested);
 
     setState(() => _loading = true);
     try {
-      final num amountRupees = isPlan ? _selectedPlan!.price : _priceForCoins(coinsRequested);
       final order = await PaymentsApi.createOrder(
         userId: _userId!,
         amountRupees: amountRupees,
@@ -200,8 +200,37 @@ class _CoinsScreenState extends State<CoinsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Payment not supported on this platform: ${e.message}')),
       );
+      AnalyticsService.instance.track('paymentDone', {
+        'packId': isPlan ? _selectedPlan!.id : '',
+        'packValue': amountRupees,
+        'paymentGateway': 'razorpay',
+        'status': 'unsupported',
+      });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payment error: $e')));
+      final m = e.toString();
+      final isCancel = m.toLowerCase().contains('cancel');
+      final ui = isCancel ? 'Payment cancelled' : 'Payment failed';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ui)));
+      AnalyticsService.instance.track('paymentDone', {
+        'packId': isPlan ? _selectedPlan!.id : '',
+        'packValue': amountRupees,
+        'paymentGateway': 'razorpay',
+        'status': isCancel ? 'cancel' : 'failed',
+      });
+      FirebaseAnalyticsService.instance.trackPaymentDone(
+        packId: isPlan ? _selectedPlan!.id : 'custom_topup',
+        packValue: amountRupees,
+        transactionId: '',
+        paymentGateway: 'razorpay',
+        status: isCancel ? 'cancel' : 'failed',
+      );
+      MetaAnalyticsService.instance.trackPaymentDone(
+        packId: isPlan ? _selectedPlan!.id : 'custom_topup',
+        packValue: amountRupees,
+        transactionId: '',
+        paymentGateway: 'razorpay',
+        status: isCancel ? 'cancel' : 'failed',
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }

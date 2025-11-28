@@ -32,7 +32,15 @@ Future<Map<String, String>> openCheckoutImpl({
 
   razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, (PaymentFailureResponse res) {
     if (!completer.isCompleted) {
-      completer.completeError('Payment failed (${res.code}): ${res.message}');
+      final int code = res.code ?? -1;
+      final String raw = res.message ?? '';
+      String msg;
+      if (code == 2) {
+        msg = 'Payment cancelled by user';
+      } else {
+        msg = raw.isNotEmpty ? raw : 'Payment failed';
+      }
+      completer.completeError(msg);
     }
     clear();
   });
