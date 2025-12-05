@@ -40,13 +40,19 @@ export async function POST(request: Request) {
       })
     }
     
-    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    // Static test account for Play Store review team
+    const TEST_PHONE = '+911111111111'
+    const TEST_OTP = '123456'
+    
+    const otp = normPhone === TEST_PHONE ? TEST_OTP : Math.floor(100000 + Math.random() * 900000).toString()
     
     const client = await clientPromise
     const db = client.db('yarri')
     
-    // Send OTP via SMS
-    const smsResult = await smsService.sendOTP(normPhone, otp)
+    // Send OTP via SMS (skip for test account)
+    const smsResult = normPhone === TEST_PHONE 
+      ? { success: true, message: 'Test account - OTP not sent' }
+      : await smsService.sendOTP(normPhone, otp)
 
     // Store OTP and tracking info in database
     await db.collection('otps').updateOne(
