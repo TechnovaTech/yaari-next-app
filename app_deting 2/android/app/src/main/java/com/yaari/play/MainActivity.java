@@ -1,4 +1,4 @@
-package com.example.app_deting;
+package com.yaari.play;
 
 import android.content.Context;
 import android.media.AudioManager;
